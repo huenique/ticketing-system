@@ -1,59 +1,50 @@
+import { Routes, Route } from "react-router-dom"
 import { DashboardLayout } from "./components/dashboard-layout"
+import Dashboard from "./pages/Dashboard"
+import Tickets from "./pages/Tickets"
+import Users from "./pages/Users"
+import Settings from "./pages/Settings"
+import Logout from "./pages/Logout"
+import NotFound from "./pages/NotFound"
 
 function App() {
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-neutral-500">Welcome to your ticketing system dashboard</p>
-        </div>
-        
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <DashboardCard 
-            title="Total Tickets" 
-            value="128" 
-            description="12% increase from last month" 
-          />
-          <DashboardCard 
-            title="Open Tickets" 
-            value="43" 
-            description="5 new today" 
-          />
-          <DashboardCard 
-            title="Closed Tickets" 
-            value="85" 
-            description="16 closed today" 
-          />
-          <DashboardCard 
-            title="Average Response Time" 
-            value="4h 32m" 
-            description="12% faster than last month" 
-          />
-        </div>
-        
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold">Recent Activity</h2>
-          <div className="space-y-4">
-            <ActivityItem 
-              title="Ticket #1234 created" 
-              description="Support request from John Doe" 
-              timestamp="2 hours ago" 
-            />
-            <ActivityItem 
-              title="Ticket #1232 closed" 
-              description="Issue resolved by Sarah Smith" 
-              timestamp="4 hours ago" 
-            />
-            <ActivityItem 
-              title="New user joined" 
-              description="Michael Johnson joined the team" 
-              timestamp="Yesterday" 
-            />
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
+    <Routes>
+      <Route 
+        path="/" 
+        element={
+          <DashboardLayout>
+            <Dashboard />
+          </DashboardLayout>
+        } 
+      />
+      <Route 
+        path="/tickets" 
+        element={
+          <DashboardLayout>
+            <Tickets />
+          </DashboardLayout>
+        } 
+      />
+      <Route 
+        path="/users" 
+        element={
+          <DashboardLayout>
+            <Users />
+          </DashboardLayout>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <DashboardLayout>
+            <Settings />
+          </DashboardLayout>
+        } 
+      />
+      <Route path="/logout" element={<Logout />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   )
 }
 

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils"
 import { LucideIcon, Home, Ticket, Users, Settings, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Link, useLocation } from "react-router-dom"
 
 interface SidebarItemProps {
   icon: LucideIcon
@@ -12,12 +13,14 @@ interface SidebarItemProps {
 function SidebarItem({ 
   icon: Icon, 
   title, 
-  isActive = false, 
   href 
 }: SidebarItemProps) {
+  const location = useLocation()
+  const isActive = location.pathname === href
+  
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className="flex"
     >
       <Button
@@ -30,7 +33,7 @@ function SidebarItem({
         <Icon size={18} />
         <span>{title}</span>
       </Button>
-    </a>
+    </Link>
   )
 }
 
@@ -40,7 +43,7 @@ interface SidebarProps {
 
 function Sidebar({ className }: SidebarProps) {
   const navItems = [
-    { title: "Dashboard", icon: Home, href: "/", isActive: true },
+    { title: "Dashboard", icon: Home, href: "/" },
     { title: "Tickets", icon: Ticket, href: "/tickets" },
     { title: "Users", icon: Users, href: "/users" },
     { title: "Settings", icon: Settings, href: "/settings" }
