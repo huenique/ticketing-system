@@ -3,3 +3,6 @@ ignoredBuiltDependencies:
   - "@swc/core"
   - esbuild
   - prisma
+packages:
+  - 'packages/*'
+  - 'apps/*'
