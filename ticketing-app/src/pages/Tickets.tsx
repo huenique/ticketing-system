@@ -152,21 +152,6 @@ function Tickets() {
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [isDraggingColumn, setIsDraggingColumn] = useState(false)
 
-  // Save tabs to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("ticket-tabs", JSON.stringify(tabs))
-  }, [tabs])
-
-  // Save active tab to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("ticket-active-tab", activeTab)
-  }, [activeTab])
-
-  // Save tables to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("ticket-tables", JSON.stringify(tables))
-  }, [tables])
-
   // Load tables from localStorage on initial render
   useEffect(() => {
     const savedTables = localStorage.getItem("ticket-tables")
