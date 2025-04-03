@@ -1,54 +1,40 @@
-# React + TypeScript + Vite
+# Ticketing System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a ticketing system application that allows users to manage support tickets through a flexible interface.
 
-Currently, two official plugins are available:
+## Recent Refactoring
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The codebase was recently refactored to improve maintainability and organization while preserving all functionality and appearance. The changes include:
 
-## Expanding the ESLint configuration
+### New File Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Types**: Created `types/tickets.ts` to centralize all interfaces and type definitions.
+- **Constants**: Created `constants/tickets.ts` to store preset data and constants.
+- **Utils**: Created `utils/ticketUtils.ts` to contain helper functions that were previously inline.
+- **Components**: Extracted reusable components like `TabNavigation` and `TicketWidget` into separate files.
+- **Hooks**: Created custom hooks to manage related state and logic:
+  - `useTickets`: Main ticket management logic
+  - `useTabs`: Tab operations (adding, renaming, dragging)
+  - `useColumns`: Column operations (adding, renaming, dragging)
+  - `useWidgets`: Widget operations for ticket dialogs
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-});
-```
+### Benefits of the Refactoring
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+1. **Improved Maintainability**: Smaller, focused files are easier to understand and modify.
+2. **Better Separation of Concerns**: Logic is now grouped by functionality rather than mixed together.
+3. **Enhanced Reusability**: Components and hooks can be reused in other parts of the application.
+4. **Type Safety**: Centralized type definitions ensure consistency across the application.
+5. **Easier Testing**: Isolated functionality is more testable.
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+### No Functional Changes
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    "react-x": reactX,
-    "react-dom": reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs["recommended-typescript"].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-});
-```
+The refactoring preserved all existing functionality:
+- Tab management (adding, renaming, closing, and dragging)
+- Table management (column manipulation, row handling)
+- Ticket viewing and editing
+- Widget-based ticket detail customization
+- All styling and user experience elements
+
+## Running the Application
+
+[Add instructions for running the application]
