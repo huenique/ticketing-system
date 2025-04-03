@@ -71,73 +71,71 @@ export function getSavedTabsData() {
 /**
  * Get grid styles for React Grid Layout
  */
-export function getGridStyles(): string {
+export function getGridStyles() {
   return `
-    .react-grid-layout {
+    .widget-container {
+      padding: 0 !important;
       position: relative;
-      transition: height 200ms ease;
-      width: 100%;
     }
-    .react-grid-item {
-      transition: all 200ms ease;
-      transition-property: left, top;
-      background: #fff;
-      box-sizing: border-box;
-      border-radius: 0.5rem;
-      display: flex;
-      overflow: hidden;
-    }
-    .react-grid-item > * {
-      width: 100%;
+    
+    .widget-content {
       height: 100%;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
+      width: 100%;
     }
-    .react-grid-item.cssTransforms {
-      transition-property: transform;
-    }
-    .react-grid-item.resizing {
-      z-index: 1;
-      will-change: width, height;
-    }
-    .react-grid-item.react-draggable-dragging {
-      transition: none;
-      z-index: 3;
-      will-change: transform;
-    }
+    
     .react-grid-item.react-grid-placeholder {
-      background: rgba(0, 120, 240, 0.1);
-      border: 2px dashed #0078f0;
-      opacity: 0.7;
-      transition-duration: 100ms;
-      z-index: 2;
-      border-radius: 0.5rem;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      -o-user-select: none;
-      user-select: none;
+      background: #d4e6f7;
+      border: 1px dashed #94b8d7;
+      border-radius: 0.375rem;
+      opacity: 0.4;
     }
-    .react-grid-item > .react-resizable-handle {
+    
+    .react-resizable-handle {
       position: absolute;
-      width: 20px;
-      height: 20px;
-      bottom: 0;
-      right: 0;
+      width: 14px;
+      height: 14px;
+      bottom: 2px;
+      right: 2px;
       cursor: se-resize;
+      opacity: 0.6;
     }
-    .react-grid-item > .react-resizable-handle::after {
+    
+    .react-resizable-handle:hover {
+      opacity: 1;
+    }
+    
+    .react-resizable-handle::after {
       content: "";
       position: absolute;
-      right: 4px;
-      bottom: 4px;
-      width: 12px;
-      height: 12px;
+      width: 8px;
+      height: 8px;
       border-right: 2px solid rgba(0, 0, 0, 0.3);
       border-bottom: 2px solid rgba(0, 0, 0, 0.3);
+      right: 1px;
+      bottom: 1px;
     }
-  `
+    
+    .react-grid-dragHandle {
+      position: relative;
+    }
+    
+    .react-grid-dragHandle::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 10px;
+      background-image: radial-gradient(circle, #ccc 1px, transparent 1px);
+      background-size: 3px 3px;
+      opacity: 0.7;
+    }
+    
+    .react-grid-dragHandle:hover::before {
+      opacity: 1;
+    }
+  `;
 }
 
 /**

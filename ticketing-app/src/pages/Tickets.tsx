@@ -107,10 +107,6 @@ function Tickets() {
     setWidgets,
     widgetLayouts,
     setWidgetLayouts,
-    handleWidgetDragStart,
-    handleWidgetDragEnd,
-    handleWidgetDragOver,
-    handleWidgetDrop,
     toggleWidgetCollapse,
     addWidget,
     removeWidget,
@@ -166,7 +162,7 @@ function Tickets() {
   }
 
   // Handle updating an assignee
-  const handleUpdateAssignee = (id: string, field: keyof Assignee, value: string) => {
+  const handleUpdateAssignee = (id: string, field: string, value: string) => {
     setAssignees(prev => 
       prev.map(a => 
         a.id === id 
@@ -200,7 +196,7 @@ function Tickets() {
   }
 
   // Handle updating a time entry
-  const handleUpdateTimeEntry = (id: string, field: keyof TimeEntry, value: string) => {
+  const handleUpdateTimeEntry = (id: string, field: string, value: string) => {
     setTimeEntries(prev => 
       prev.map(entry => {
         if (entry.id === id) {
@@ -263,6 +259,73 @@ function Tickets() {
   // Save ticket changes
   const handleSaveTicketChanges = () => {
     saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen)
+  }
+
+  // Handle layout change from react-grid-layout
+  const handleLayoutChange = (currentLayout: any[], allLayouts: any) => {
+    // Save the user-modified layouts
+    setWidgetLayouts(allLayouts)
+    
+    // This passes the layout change to the hook's onLayoutChange
+    onLayoutChange(currentLayout, allLayouts)
+  }
+
+  // Generate responsive layouts for widgets similar to bootstrap style
+  const generateResponsiveLayouts = () => {
+    if (!widgets.length) return { lg: [], md: [], sm: [], xs: [], xxs: [] }
+    
+    // Define width ratios for different breakpoints
+    const widths = { lg: 3, md: 4, sm: 6, xs: 6, xxs: 4 }
+    
+    // Create layouts for each breakpoint
+    return Object.keys(widths).reduce((memo, breakpoint) => {
+      const width = widths[breakpoint as keyof typeof widths]
+      const cols = breakpoint === 'xxs' ? 4 : breakpoint === 'xs' ? 6 : 12
+      
+      memo[breakpoint] = widgets.map((widget, i) => {
+        // Determine width and height based on widget type
+        let w = width
+        let h = 3 // Default height
+        
+        // Adjust size based on widget type
+        if (widget.type === WIDGET_TYPES.DETAILS) {
+          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
+          h = 6
+        } else if (widget.type === WIDGET_TYPES.ASSIGNEES || 
+                  widget.type === WIDGET_TYPES.TIME_ENTRIES) {
+          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
+          h = 5
+        } else if (widget.type === WIDGET_TYPES.NOTES ||
+                  widget.type === WIDGET_TYPES.ATTACHMENTS) {
+          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
+          h = 4
+        } else if (widget.fieldType === 'textarea') {
+          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
+          h = 4
+        } else if (widget.fieldType === 'select' || 
+                  widget.fieldType === 'text-readonly' || 
+                  widget.fieldType === 'number') {
+          w = breakpoint === 'xxs' ? cols : breakpoint === 'xs' ? Math.min(3, cols) : 3
+          h = 2
+        }
+        
+        // Calculate position (x, y)
+        const x = (i * w) % cols
+        const y = Math.floor((i * w) / cols) * h
+        
+        return {
+          i: widget.id,
+          x,
+          y,
+          w,
+          h,
+          minW: 2,
+          minH: 2
+        }
+      })
+      
+      return memo
+    }, {} as { [key: string]: any[] })
   }
 
   // Modified renderTabContent function to use the refactored structure
@@ -509,7 +572,7 @@ function Tickets() {
           onClick={() => setViewDialogOpen(false)}
         >
           <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+            className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing
           >
             <div className="border-b p-4 flex items-center justify-between">
@@ -530,26 +593,26 @@ function Tickets() {
               {(() => {
                 const currentTab = tabs.find(tab => tab.id === activeTab);
                 if (currentTab?.appliedPreset === "Engineering" || widgets.length > 0) {
-                  // Show widget grid layout
+                  // Show widget grid layout using bootstrap-style responsive layout
                   return (
                     <>
-                      {/* ResponsiveGridLayout for widgets */}
+                      {/* ResponsiveGridLayout for widgets with dynamic layout generation */}
                       <div className="w-full relative">
                         <ResponsiveGridLayout
                           className="layout"
-                          layouts={widgetLayouts}
-                          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
-                          cols={{ lg: 12, md: 6, sm: 6, xs: 4 }}
-                          rowHeight={60}
-                          onLayoutChange={onLayoutChange}
+                          layouts={generateResponsiveLayouts()}
+                          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 320 }}
+                          cols={{ lg: 12, md: 12, sm: 12, xs: 6, xxs: 4 }}
+                          rowHeight={40}
+                          onLayoutChange={handleLayoutChange}
                           isDraggable
                           isResizable
-                          margin={[15, 15]}
+                          margin={[8, 8]}
                           containerPadding={[0, 0]}
                           preventCollision={false}
                           compactType="vertical"
                           useCSSTransforms={true}
-                          draggableHandle=".widget-drag-handle"
+                          draggableHandle=".react-grid-dragHandle"
                         >
                           {widgets.map(widget => (
                             <div key={widget.id} className="widget-container">
@@ -560,10 +623,6 @@ function Tickets() {
                                 handleFieldChange={handleFieldChange}
                                 toggleWidgetCollapse={toggleWidgetCollapse}
                                 removeWidget={removeWidget}
-                                handleWidgetDragStart={handleWidgetDragStart}
-                                handleWidgetDragEnd={handleWidgetDragEnd}
-                                handleWidgetDragOver={handleWidgetDragOver}
-                                handleWidgetDrop={handleWidgetDrop}
                                 assignees={assignees}
                                 timeEntries={timeEntries}
                                 uploadedImages={uploadedImages}

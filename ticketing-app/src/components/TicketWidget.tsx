@@ -1,5 +1,6 @@
 import React from 'react'
-import { Widget, TicketForm } from '../types/tickets'
+import { Widget, TicketForm, Assignee, TimeEntry } from '../types/tickets'
+import { cn } from '../lib/utils'
 
 interface TicketWidgetProps {
   widget: Widget
@@ -8,14 +9,10 @@ interface TicketWidgetProps {
   handleFieldChange: (fieldName: string, value: any) => void
   toggleWidgetCollapse: (widgetId: string) => void
   removeWidget: (widgetId: string) => void
-  handleWidgetDragStart: (e: React.DragEvent, widgetId: string) => void
-  handleWidgetDragEnd: () => void
-  handleWidgetDragOver: (e: React.DragEvent) => void
-  handleWidgetDrop: (e: React.DragEvent, targetWidgetId: string) => void
   
   // Additional props for specific widget types
-  assignees?: any[]
-  timeEntries?: any[]
+  assignees?: Assignee[]
+  timeEntries?: TimeEntry[]
   uploadedImages?: string[]
   handleAddAssignee?: () => void
   handleRemoveAssignee?: (id: string) => void
@@ -42,10 +39,6 @@ function TicketWidget({
   handleFieldChange,
   toggleWidgetCollapse,
   removeWidget,
-  handleWidgetDragStart,
-  handleWidgetDragEnd,
-  handleWidgetDragOver,
-  handleWidgetDrop,
   assignees = [],
   timeEntries = [],
   uploadedImages = [],
@@ -64,6 +57,19 @@ function TicketWidget({
   setNewAssignee
 }: TicketWidgetProps) {
   
+  // Function to handle remove click with extra measures to prevent drag
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    // These two lines are crucial to prevent the drag behavior
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Remove the widget
+    removeWidget(widget.id);
+    
+    // Return false to further prevent default behaviors
+    return false;
+  };
+
   const renderWidgetContent = () => {
     if (widget.isCollapsed) return null
     
@@ -72,13 +78,12 @@ function TicketWidget({
       switch (widget.fieldType) {
         case 'select':
           return (
-            <div>
-              <label htmlFor={widget.fieldName} className="block text-sm font-medium text-neutral-700">{widget.title}</label>
+            <div className="h-[38px]">
               <select
                 id={widget.fieldName}
                 value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
                 onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
-                className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
               >
                 <option value="New">New</option>
                 <option value="Awaiting Customer Response">Awaiting Customer Response</option>
@@ -93,24 +98,20 @@ function TicketWidget({
           
         case 'text-readonly':
           return (
-            <div>
-              <label className="block text-sm font-medium text-neutral-700">{widget.title}</label>
-              <div className="mt-1 py-2 px-3 bg-neutral-50 rounded-md border border-neutral-200">
-                {widget.fieldValue}
-              </div>
+            <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
+              {widget.fieldValue}
             </div>
           )
           
         case 'number':
           return (
-            <div>
-              <label htmlFor={widget.fieldName} className="block text-sm font-medium text-neutral-700">{widget.title}</label>
+            <div className="h-[38px]">
               <input
                 type="number"
                 id={widget.fieldName}
                 value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
                 onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
-                className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 step="0.1"
                 min="0"
               />
@@ -119,16 +120,13 @@ function TicketWidget({
           
         case 'textarea':
           return (
-            <div>
-              <label htmlFor={widget.fieldName} className="block text-sm font-medium text-neutral-700">{widget.title}</label>
-              <textarea
-                id={widget.fieldName}
-                value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
-                onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
-                rows={5}
-                className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
+            <textarea
+              id={widget.fieldName}
+              value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
+              onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
+              rows={5}
+              className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+            />
           )
       }
     }
@@ -140,13 +138,12 @@ function TicketWidget({
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div>
-                <label htmlFor="status" className="block text-sm font-medium text-neutral-700">Status</label>
+              <div className="h-[38px]">
                 <select
                   id="status"
                   value={ticketForm.status}
                   onChange={(e) => setTicketForm({...ticketForm, status: e.target.value})}
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 >
                   <option value="New">New</option>
                   <option value="Awaiting Customer Response">Awaiting Customer Response</option>
@@ -159,48 +156,43 @@ function TicketWidget({
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-neutral-700">Customer Name</label>
-                <div className="mt-1 py-2 px-3 bg-neutral-50 rounded-md border border-neutral-200">
+                <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
                   {currentTicket?.cells['col-3']}
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700">Date Created</label>
-                  <div className="mt-1 py-2 px-3 bg-neutral-50 rounded-md border border-neutral-200">
+                  <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
                     {currentTicket?.cells['col-2']}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700">Last Modified</label>
-                  <div className="mt-1 py-2 px-3 bg-neutral-50 rounded-md border border-neutral-200">
+                  <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
                     {currentTicket?.cells['col-10']}
                   </div>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="billableHours" className="block text-sm font-medium text-neutral-700">Billable Hours</label>
+                <div className="h-[38px]">
                   <input
                     type="number"
                     id="billableHours"
                     value={ticketForm.billableHours}
                     onChange={(e) => setTicketForm({...ticketForm, billableHours: e.target.value})}
-                    className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                    className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"
                   />
                 </div>
-                <div>
-                  <label htmlFor="totalHours" className="block text-sm font-medium text-neutral-700">Total Hours</label>
+                <div className="h-[38px]">
                   <input
                     type="number"
                     id="totalHours"
                     value={ticketForm.totalHours}
                     onChange={(e) => setTicketForm({...ticketForm, totalHours: e.target.value})}
-                    className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                    className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"
                   />
@@ -210,21 +202,17 @@ function TicketWidget({
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-neutral-700">General Ticket Description</label>
                 <textarea
                   id="description"
                   value={ticketForm.description}
                   onChange={(e) => setTicketForm({...ticketForm, description: e.target.value})}
                   rows={5}
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 />
               </div>
             </div>
           </div>
         )
-      
-      // Other widget types would follow...
-      // For brevity, we'll add just one more example
       
       case 'assignees':
         if (!setShowAssigneeForm || !handleAddAssignee || !setNewAssignee || !newAssignee || 
@@ -396,6 +384,159 @@ function TicketWidget({
           </div>
         )
         
+      case 'time_entries':
+        if (!handleUpdateTimeEntry || !handleRemoveTimeEntry) {
+          return null
+        }
+        
+        return (
+          <div>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-neutral-200">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Assignee</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Start Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Stop Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Duration</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Remarks</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-neutral-200">
+                  {timeEntries.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-4 text-center text-sm text-neutral-500">
+                        No time entries recorded yet
+                      </td>
+                    </tr>
+                  )}
+                  {timeEntries.map(entry => (
+                    <tr key={entry.id} className="hover:bg-neutral-50">
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        {entry.assigneeName}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        {entry.id.substring(0, 8)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        <input
+                          type="time"
+                          value={entry.startTime}
+                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'startTime', e.target.value)}
+                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        <input
+                          type="time"
+                          value={entry.stopTime}
+                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'stopTime', e.target.value)}
+                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        {entry.duration} hrs
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        {entry.dateCreated}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        <input
+                          type="text"
+                          value={entry.remarks}
+                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'remarks', e.target.value)}
+                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                          placeholder="Add remarks..."
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleRemoveTimeEntry(entry.id)}
+                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                          title="Remove time entry"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+        
+      case 'attachments':
+        if (!handleImageUpload || !setUploadedImages) {
+          return null
+        }
+        
+        return (
+          <div>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-neutral-700">
+                  Upload Images or Files
+                </label>
+                <label className="cursor-pointer rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600">
+                  <span className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Upload
+                  </span>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={handleImageUpload} 
+                  />
+                </label>
+              </div>
+              
+              {uploadedImages.length === 0 ? (
+                <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="mt-2 text-sm text-neutral-500">
+                    Drag and drop files here or click the upload button
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  {uploadedImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden border border-neutral-200">
+                        <img 
+                          src={image} 
+                          alt={`Uploaded image ${index + 1}`} 
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
+                      <button
+                        onClick={() => setUploadedImages(uploadedImages.filter((_, i) => i !== index))}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-7 w-7 rounded-full flex items-center justify-center text-white bg-red-500 hover:bg-red-600 transition-opacity"
+                        title="Remove image"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+        
       default:
         return (
           <div className="py-4 text-center text-neutral-500">
@@ -406,55 +547,56 @@ function TicketWidget({
   }
   
   return (
-    <div 
-      className={`mb-5 border rounded-lg bg-white shadow-sm overflow-hidden ${widget.isDragging ? 'opacity-50 border-dashed border-blue-400' : ''}`}
-      draggable={true}
-      onDragStart={(e) => handleWidgetDragStart(e, widget.id)}
-      onDragEnd={handleWidgetDragEnd}
-      onDragOver={handleWidgetDragOver}
-      onDrop={(e) => handleWidgetDrop(e, widget.id)}
-    >
-      <div className="bg-neutral-50 border-b px-4 py-2 flex items-center justify-between widget-drag-handle cursor-grab">
-        <div className="font-medium flex items-center">
-          <span className="mr-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-            </svg>
-          </span>
-          {widget.title}
-        </div>
-        <div className="flex items-center space-x-1">
-          <button 
-            onClick={() => toggleWidgetCollapse(widget.id)}
-            className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors"
-            title={widget.isCollapsed ? "Expand" : "Collapse"}
-          >
-            {widget.isCollapsed ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            )}
-          </button>
-          <button 
-            onClick={() => removeWidget(widget.id)}
-            className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
-            title="Remove widget"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div className="relative" style={{ padding: "0.5rem" }}>
+      {/* Create a separate non-draggable overlay specifically for the remove button */}
+      <div 
+        className="absolute top-0 right-0 w-10 h-10 z-20 pointer-events-auto"
+        style={{ pointerEvents: 'all' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={handleRemoveClick}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className="absolute top-2 right-2 z-30 h-7 w-7 rounded-full flex items-center justify-center text-neutral-400 bg-white hover:text-red-500 hover:bg-neutral-50 border border-neutral-200 shadow-sm transition-colors"
+          title="Remove widget"
+          style={{ opacity: 0.8 }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-      {!widget.isCollapsed && (
-        <div className="p-4">
+      
+      {/* The main draggable widget container */}
+      <div 
+        className={`bg-white overflow-hidden rounded-lg border border-neutral-200 ${widget.isDragging ? 'opacity-50 border-dashed border-blue-400' : ''}`}
+      >
+        {/* Widget title bar - minimalist version */}
+        <div 
+          className="h-10 bg-neutral-50 border-b border-neutral-200 flex items-center px-3 react-grid-dragHandle cursor-move"
+        >
+          <div className="text-sm font-medium text-neutral-700 truncate pr-7">
+            {widget.title || (widget.fieldName ? widget.fieldName.charAt(0).toUpperCase() + widget.fieldName.slice(1) : 'Widget')}
+          </div>
+        </div>
+        
+        {/* Widget Content Area - prevent dragging */}
+        <div 
+          className={cn(
+            'widget-content relative px-3 pt-3 pb-4',
+            {
+              'bg-neutral-50': widget.fieldType === 'text-readonly',
+            }
+          )}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           {renderWidgetContent()}
         </div>
-      )}
+      </div>
     </div>
   )
 }

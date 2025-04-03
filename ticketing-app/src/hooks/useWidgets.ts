@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Layout, Layouts } from "react-grid-layout"
 import { Widget, TicketForm } from '../types/tickets'
 import { WIDGET_TYPES } from '../constants/tickets'
@@ -15,60 +15,60 @@ export function useWidgets(ticketForm: TicketForm) {
   const [widgetLayouts, setWidgetLayouts] = useState<Layouts>({ lg: [], md: [], sm: [] })
 
   // Widget drag handlers
-  const handleWidgetDragStart = (e: React.DragEvent, widgetId: string) => {
-    setIsDraggingWidget(true)
-    setDraggedWidget(widgetId)
-    e.dataTransfer.setData("widget", widgetId)
+  // const handleWidgetDragStart = (e: React.DragEvent, widgetId: string) => {
+  //   setIsDraggingWidget(true)
+  //   setDraggedWidget(widgetId)
+  //   e.dataTransfer.setData("widget", widgetId)
     
-    // Apply visual effect to the dragged widget
-    setTimeout(() => {
-      setWidgets(prev => 
-        prev.map(widget => widget.id === widgetId 
-          ? { ...widget, isDragging: true } 
-          : widget
-        )
-      )
-    }, 0)
-  }
+  //   // Apply visual effect to the dragged widget
+  //   setTimeout(() => {
+  //     setWidgets(prev => 
+  //       prev.map(widget => widget.id === widgetId 
+  //         ? { ...widget, isDragging: true } 
+  //         : widget
+  //       )
+  //     )
+  //   }, 0)
+  // }
 
-  const handleWidgetDragEnd = () => {
-    setIsDraggingWidget(false)
-    setDraggedWidget(null)
-    setWidgets(prev => prev.map(widget => ({ ...widget, isDragging: false })))
-  }
+  // const handleWidgetDragEnd = () => {
+  //   setIsDraggingWidget(false)
+  //   setDraggedWidget(null)
+  //   setWidgets(prev => prev.map(widget => ({ ...widget, isDragging: false })))
+  // }
 
-  const handleWidgetDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
+  // const handleWidgetDragOver = (e: React.DragEvent) => {
+  //   e.preventDefault()
+  // }
 
-  const handleWidgetDrop = (e: React.DragEvent, targetWidgetId: string) => {
-    e.preventDefault()
-    if (!draggedWidget || draggedWidget === targetWidgetId) return
+  // const handleWidgetDrop = (e: React.DragEvent, targetWidgetId: string) => {
+  //   e.preventDefault()
+  //   if (!draggedWidget || draggedWidget === targetWidgetId) return
 
-    const draggedWidgetIndex = widgets.findIndex(widget => widget.id === draggedWidget)
-    const targetWidgetIndex = widgets.findIndex(widget => widget.id === targetWidgetId)
+  //   const draggedWidgetIndex = widgets.findIndex(widget => widget.id === draggedWidget)
+  //   const targetWidgetIndex = widgets.findIndex(widget => widget.id === targetWidgetId)
     
-    if (draggedWidgetIndex === -1 || targetWidgetIndex === -1) return
+  //   if (draggedWidgetIndex === -1 || targetWidgetIndex === -1) return
     
-    // Reorder widgets
-    const newWidgets = [...widgets]
-    const [draggedWidgetItem] = newWidgets.splice(draggedWidgetIndex, 1)
-    newWidgets.splice(targetWidgetIndex, 0, draggedWidgetItem)
+  //   // Reorder widgets
+  //   const newWidgets = [...widgets]
+  //   const [draggedWidgetItem] = newWidgets.splice(draggedWidgetIndex, 1)
+  //   newWidgets.splice(targetWidgetIndex, 0, draggedWidgetItem)
     
-    setWidgets(newWidgets)
-    setIsDraggingWidget(false)
-    setDraggedWidget(null)
-  }
+  //   setWidgets(newWidgets)
+  //   setIsDraggingWidget(false)
+  //   setDraggedWidget(null)
+  // }
 
   // Toggle widget collapse state
-  const toggleWidgetCollapse = (widgetId: string) => {
+  const toggleWidgetCollapse = useCallback((widgetId: string) => {
     setWidgets(prev => 
       prev.map(widget => widget.id === widgetId 
         ? { ...widget, isCollapsed: !widget.isCollapsed } 
         : widget
       )
     )
-  }
+  }, [])
 
   // Add a new widget to the dialog
   const addWidget = (type: string, currentTicket?: Record<string, any>) => {
@@ -116,8 +116,15 @@ export function useWidgets(ticketForm: TicketForm) {
         fieldName = "status"
         fieldValue = ticketForm.status
         width = 6
-        height = 2
+        height = 4
         break
+        // title = "Description"
+        // fieldType = "textarea"
+        // fieldName = "description"
+        // fieldValue = ticketForm.description
+        // width = 12
+        // height = 3
+        // break
       case WIDGET_TYPES.FIELD_CUSTOMER_NAME:
         title = "Customer Name"
         fieldType = "text-readonly"
@@ -218,9 +225,16 @@ export function useWidgets(ticketForm: TicketForm) {
   }
   
   // Handle layout changes
-  const onLayoutChange = (layout: Layout[], layouts: Layouts) => {
+  const onLayoutChange = useCallback((layout: Layout[], layouts: Layouts) => {
+    // Save the user-modified layouts when they change
     setWidgetLayouts(layouts)
-  }
+  }, [])
+
+  // Update layouts when widgets change
+  useEffect(() => {
+    // Only update if we have layouts saved (from user modifications)
+    // Otherwise the generateResponsiveLayouts function in the Tickets component will handle it
+  }, [widgets])
 
   // Field change handler
   const handleFieldChange = (fieldName: string, value: any) => {
@@ -322,12 +336,6 @@ export function useWidgets(ticketForm: TicketForm) {
     setWidgets,
     widgetLayouts,
     setWidgetLayouts,
-    isDraggingWidget,
-    draggedWidget,
-    handleWidgetDragStart,
-    handleWidgetDragEnd,
-    handleWidgetDragOver,
-    handleWidgetDrop,
     toggleWidgetCollapse,
     addWidget,
     removeWidget,
