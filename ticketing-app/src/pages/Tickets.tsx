@@ -5,11 +5,11 @@ import "react-resizable/css/styles.css"
 // Import components
 import TabNavigation from "../components/TabNavigation"
 import TicketWidget from "../components/TicketWidget"
-// Import hooks
-import { useTickets } from "../hooks/useTickets"
-import { useTabs } from "../hooks/useTabs"
-import { useColumns } from "../hooks/useColumns"
-import { useWidgets } from "../hooks/useWidgets"
+// Import Zustand stores
+import useTabsStore from "../stores/tabsStore"
+import useTablesStore from "../stores/tablesStore"
+import useColumnsStore from "../stores/columnsStore"
+import useWidgetsStore from "../stores/widgetsStore"
 // Import types, constants and utilities
 import { Row, Table, Widget, Assignee, TimeEntry, TicketForm } from "../types/tickets"
 import { WIDGET_TYPES } from "../constants/tickets"
@@ -18,18 +18,70 @@ import { getSavedTabsData, getGridStyles, getScrollbarStyles } from "../utils/ti
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
 function Tickets() {
-  // Initialize data from localStorage
-  const initialData = (() => {
-    const { tabs, activeTab } = getSavedTabsData()
-    return {
-      tabs: tabs || [{ id: "tab-1", title: "All Tickets", content: "all" }],
-      activeTab: activeTab || "tab-1"
-    }
-  })()
+  // Use Zustand stores
+  const {
+    tabs,
+    activeTab,
+    isDragging,
+    draggedTab,
+    editingTab,
+    editingTitle,
+    setEditingTitle,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDrop,
+    addTab,
+    closeTab,
+    handleDoubleClick,
+    saveTabName,
+    handleRenameKeyDown
+  } = useTabsStore()
+  
+  const {
+    tables,
+    tabsSaved,
+    showPresetsMenu,
+    setShowPresetsMenu,
+    saveTabs,
+    resetTabs,
+    createNewTable,
+    addColumn,
+    addRow,
+    applyPreset,
+    removeColumn,
+    saveTicketChanges
+  } = useTablesStore()
+  
+  const {
+    editingColumn,
+    editingColumnTitle,
+    setEditingColumnTitle,
+    handleColumnDoubleClick,
+    saveColumnName,
+    handleColumnRenameKeyDown,
+    handleColumnDragStart,
+    handleColumnDragEnd,
+    handleColumnDragOver,
+    handleColumnDrop
+  } = useColumnsStore()
+  
+  const {
+    widgets,
+    widgetLayouts,
+    setWidgets,
+    setWidgetLayouts,
+    toggleWidgetCollapse,
+    addWidget,
+    removeWidget,
+    onLayoutChange,
+    handleFieldChange
+  } = useWidgetsStore()
   
   // State for ticket view dialog
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [currentTicket, setCurrentTicket] = useState<Row | null>(null)
+  const [currentTicketPreset, setCurrentTicketPreset] = useState<string | undefined>(undefined)
   const [ticketForm, setTicketForm] = useState<TicketForm>({
     status: '',
     description: '',
@@ -51,75 +103,20 @@ function Tickets() {
   const [showAssigneeForm, setShowAssigneeForm] = useState(false)
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false)
 
-  // Use hooks
-  const {
-    tables,
-    setTables,
-    tabsSaved,
-    showPresetsMenu,
-    setShowPresetsMenu,
-    saveTabs,
-    resetTabs,
-    createNewTable,
-    addColumn,
-    addRow,
-    applyPreset,
-    removeColumn,
-    initializeTicketDialog,
-    saveTicketChanges
-  } = useTickets()
-
-  const {
-    tabs,
-    setTabs,
-    activeTab,
-    setActiveTab,
-    isDragging,
-    draggedTab,
-    editingTab,
-    editingTitle,
-    setEditingTitle,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-    addTab,
-    closeTab,
-    handleDoubleClick,
-    saveTabName,
-    handleRenameKeyDown
-  } = useTabs(initialData.tabs, initialData.activeTab)
-
-  const {
-    editingColumn,
-    editingColumnTitle,
-    setEditingColumnTitle,
-    handleColumnDoubleClick,
-    saveColumnName,
-    handleColumnRenameKeyDown,
-    handleColumnDragStart,
-    handleColumnDragEnd,
-    handleColumnDragOver,
-    handleColumnDrop
-  } = useColumns()
-
-  const {
-    widgets,
-    setWidgets,
-    widgetLayouts,
-    setWidgetLayouts,
-    toggleWidgetCollapse,
-    addWidget,
-    removeWidget,
-    onLayoutChange,
-    handleFieldChange
-  } = useWidgets(ticketForm)
+  // Initialize data from localStorage
+  const initialData = (() => {
+    const { tabs, activeTab } = getSavedTabsData()
+    return {
+      tabs: tabs || [{ id: "tab-1", title: "All Tickets", content: "all" }],
+      activeTab: activeTab || "tab-1"
+    }
+  })()
 
   // Load tables from localStorage on initial render
   useEffect(() => {
     const savedTables = localStorage.getItem("ticket-tables")
     if (savedTables) {
-      setTables(JSON.parse(savedTables))
+      useTablesStore.getState().setTables(JSON.parse(savedTables))
     }
   }, [])
 
@@ -241,23 +238,71 @@ function Tickets() {
     setTimeEntries(prev => prev.filter(entry => entry.id !== id))
   }
 
+  // Add a new function to apply a custom widget layout
+  const applyCustomWidgetLayout = (ticket: Row) => {
+    // Clear any existing widgets first
+    setWidgets([]);
+    setWidgetLayouts({});
+    
+    // Add individual widgets in a specific order to create a logical layout
+    
+    // Status field
+    addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+    
+    // Customer name field
+    addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+    
+    // Date fields
+    addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+    addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+    
+    // Description field
+    addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+    
+    // Hours fields
+    addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+    addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+    
+    // Individual versions of the larger widgets
+    addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+    addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+    addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+  };
+
   // Initialize the ticket dialog
   const handleInitializeTicketDialog = (ticket: Row) => {
-    initializeTicketDialog(
-      ticket,
-      setCurrentTicket,
-      setTicketForm,
-      setUploadedImages,
-      setAssignees,
-      setTimeEntries,
-      setAssigneeTableTitle,
-      setWidgets,
-      setWidgetLayouts,
-      setViewDialogOpen
-    )
-
+    // Find the current tab and store its preset
+    const currentTabData = tabs.find(tab => tab.id === activeTab);
+    
+    // Set the current ticket preset for use in rendering
+    setCurrentTicketPreset(currentTabData?.appliedPreset);
+    
+    // Set the current ticket
+    setCurrentTicket(ticket);
+    
+    // Reset form data based on ticket
+    setTicketForm({
+      status: ticket.cells['col-7'] || 'New',
+      description: ticket.cells['col-4'] || '',
+      billableHours: ticket.cells['col-9'] || '0.0',
+      totalHours: ticket.cells['col-8'] || '0.0',
+    });
+    
+    // Reset uploaded images
+    setUploadedImages([]);
+    
+    // Reset assignee table title
+    setAssigneeTableTitle("Assigned Team Members");
+    
+    // Reset widgets - this now uses the Zustand store directly
+    setWidgets([]);
+    setWidgetLayouts({});
+    
     // Set edit layout mode to false when initially opening a ticket
-    setIsEditLayoutMode(false)
+    setIsEditLayoutMode(false);
+    
+    // Open dialog
+    setViewDialogOpen(true);
 
     // --- Added code to populate assignees from the ticket row --- 
     // Assuming assignee data is in specific columns of the ticket row
@@ -276,21 +321,47 @@ function Tickets() {
     } else {
       setAssignees([]); // Clear assignees if no name is found in col-5
     }
-    // --- End of added code ---
-  }
-
-  // Save ticket changes
-  const handleSaveTicketChanges = () => {
-    saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen)
+    
+    // Clear time entries
+    setTimeEntries([]);
+    
+    // Add initial widgets based on ticket preset
+    setTimeout(() => {
+      // For all tickets, use only individual field widgets
+      // Apply a default layout with individual fields
+      
+      // Status field
+      addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+      
+      // Customer name field
+      addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+      
+      // Date fields
+      addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+      addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+      
+      // Hours fields
+      addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+      addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+      
+      // Description field
+      addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+      
+      // Add tables as individual widgets
+      addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+      addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+      addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+      
+    }, 100); // Small delay to ensure state is updated properly
   }
 
   // Handle layout change from react-grid-layout
   const handleLayoutChange = (currentLayout: any[], allLayouts: any) => {
-    // Save the user-modified layouts
-    setWidgetLayouts(allLayouts)
+    // Save the user-modified layouts using the Zustand store
+    setWidgetLayouts(allLayouts);
     
-    // This passes the layout change to the hook's onLayoutChange
-    onLayoutChange(currentLayout, allLayouts)
+    // Pass the layout change to the store
+    onLayoutChange(currentLayout, allLayouts);
   }
 
   // Generate responsive layouts for widgets similar to bootstrap style
@@ -305,54 +376,228 @@ function Tickets() {
       const width = widths[breakpoint as keyof typeof widths]
       const cols = breakpoint === 'xxs' ? 4 : breakpoint === 'xs' ? 6 : 12
       
-      memo[breakpoint] = widgets.map((widget, i) => {
-        // Determine width and height based on widget type
-        let w = width
-        let h = 3 // Default height
+      // Group widgets by type for layout placement
+      const statusWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_STATUS);
+      const customerWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_CUSTOMER_NAME);
+      const dateCreatedWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_DATE_CREATED);
+      const lastModifiedWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_LAST_MODIFIED);
+      const billableHoursWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_BILLABLE_HOURS);
+      const totalHoursWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_TOTAL_HOURS);
+      const descriptionWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_DESCRIPTION);
+      const assigneeTableWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_ASSIGNEE_TABLE);
+      const timeEntriesTableWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE);
+      const attachmentsGalleryWidget = widgets.find(w => w.type === WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY);
+      
+      // Filter out the widgets we've already positioned to get "other" widgets
+      const otherWidgets = widgets.filter(w => 
+        w.type !== WIDGET_TYPES.FIELD_STATUS &&
+        w.type !== WIDGET_TYPES.FIELD_CUSTOMER_NAME &&
+        w.type !== WIDGET_TYPES.FIELD_DATE_CREATED &&
+        w.type !== WIDGET_TYPES.FIELD_LAST_MODIFIED &&
+        w.type !== WIDGET_TYPES.FIELD_BILLABLE_HOURS &&
+        w.type !== WIDGET_TYPES.FIELD_TOTAL_HOURS &&
+        w.type !== WIDGET_TYPES.FIELD_DESCRIPTION &&
+        w.type !== WIDGET_TYPES.FIELD_ASSIGNEE_TABLE &&
+        w.type !== WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE &&
+        w.type !== WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY
+      );
+      
+      // Initialize layouts
+      const layouts: { i: string; x: number; y: number; w: number; h: number; minW: number; minH: number; resizeHandles: string[] }[] = [];
+      
+      // Define column spans for different screen sizes
+      const halfCol = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6;
+      const fullCol = cols;
+      
+      // Position the widgets
+      let yPos = 0;
+      
+      // Row 1: Status (left) and Customer (right)
+      if (statusWidget) {
+        layouts.push({
+          i: statusWidget.id,
+          x: 0,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      if (customerWidget) {
+        layouts.push({
+          i: customerWidget.id,
+          x: halfCol,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 2;
+      
+      // Row 2: Date Created (left) and Last Modified (right)
+      if (dateCreatedWidget) {
+        layouts.push({
+          i: dateCreatedWidget.id,
+          x: 0,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      if (lastModifiedWidget) {
+        layouts.push({
+          i: lastModifiedWidget.id,
+          x: halfCol,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 2;
+      
+      // Row 3: Billable Hours (left) and Total Hours (right)
+      if (billableHoursWidget) {
+        layouts.push({
+          i: billableHoursWidget.id,
+          x: 0,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      if (totalHoursWidget) {
+        layouts.push({
+          i: totalHoursWidget.id,
+          x: halfCol,
+          y: yPos,
+          w: halfCol,
+          h: 2,
+          minW: 2,
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 2;
+      
+      // Row 4: Description (full width)
+      if (descriptionWidget) {
+        layouts.push({
+          i: descriptionWidget.id,
+          x: 0,
+          y: yPos,
+          w: fullCol,
+          h: 4,
+          minW: 2,
+          minH: 3,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 4;
+      
+      // Row 5: Assignee Table (full width)
+      if (assigneeTableWidget) {
+        layouts.push({
+          i: assigneeTableWidget.id,
+          x: 0,
+          y: yPos,
+          w: fullCol,
+          h: 5,
+          minW: 4,
+          minH: 4,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 5;
+      
+      // Row 6: Time Entries Table (full width)
+      if (timeEntriesTableWidget) {
+        layouts.push({
+          i: timeEntriesTableWidget.id,
+          x: 0,
+          y: yPos,
+          w: fullCol,
+          h: 5,
+          minW: 4,
+          minH: 4,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 5;
+      
+      // Row 7: Attachments Gallery (full width)
+      if (attachmentsGalleryWidget) {
+        layouts.push({
+          i: attachmentsGalleryWidget.id,
+          x: 0,
+          y: yPos,
+          w: fullCol,
+          h: 5,
+          minW: 4,
+          minH: 4,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+      }
+      
+      yPos += 5;
+      
+      // Position any other widgets below
+      let otherX = 0;
+      let otherY = yPos;
+      
+      otherWidgets.forEach(widget => {
+        let w = breakpoint === 'xxs' ? cols : breakpoint === 'xs' ? 3 : 3;
+        let h = 2;
         
-        // Adjust size based on widget type
-        if (widget.type === WIDGET_TYPES.DETAILS) {
-          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
-          h = 6
-        } else if (widget.type === WIDGET_TYPES.ASSIGNEES || 
-                  widget.type === WIDGET_TYPES.TIME_ENTRIES) {
-          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
-          h = 5
-        } else if (widget.type === WIDGET_TYPES.NOTES ||
-                  widget.type === WIDGET_TYPES.ATTACHMENTS) {
-          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
-          h = 4
-        } else if (widget.fieldType === 'textarea') {
-          w = breakpoint === 'xxs' || breakpoint === 'xs' ? cols : 6
-          h = 4
-        } else if (widget.fieldType === 'select' || 
-                  widget.fieldType === 'text-readonly' || 
-                  widget.fieldType === 'number') {
-          w = breakpoint === 'xxs' ? cols : breakpoint === 'xs' ? Math.min(3, cols) : 3
-          h = 2
+        // If otherX + w exceeds cols, move to next row
+        if (otherX + w > cols) {
+          otherX = 0;
+          otherY += h;
         }
         
-        // Calculate position (x, y)
-        const x = (i * w) % cols
-        const y = Math.floor((i * w) / cols) * h
-        
-        return {
+        layouts.push({
           i: widget.id,
-          x,
-          y,
+          x: otherX,
+          y: otherY,
           w,
           h,
           minW: 2,
           minH: 2,
-          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"] // Add all resize handles
-        }
-      })
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+        });
+        
+        otherX += w;
+      });
       
-      return memo
+      memo[breakpoint] = layouts;
+      
+      return memo;
     }, {} as { [key: string]: any[] })
   }
 
-  // Modified renderTabContent function to use the refactored structure
+  // Modified renderTabContent function to use the Zustand stores
   const renderTabContent = () => {
     const activeTabData = tabs.find(tab => tab.id === activeTab)
     if (!activeTabData) return null
@@ -380,20 +625,20 @@ function Tickets() {
                       <th 
                         className={`group border-b px-4 py-2 text-left font-medium cursor-grab ${column.isDragging ? 'opacity-50 bg-neutral-100' : ''}`}
                         style={{ width: column.width }}
-                        onDoubleClick={() => handleColumnDoubleClick(activeTab, column.id, tables)}
+                        onDoubleClick={() => handleColumnDoubleClick(activeTab, column.id)}
                         draggable={!editingColumn || editingColumn.columnId !== column.id}
-                        onDragStart={(e) => handleColumnDragStart(e, activeTab, column.id, tables, setTables)}
-                        onDragEnd={() => handleColumnDragEnd(activeTab, tables, setTables)}
+                        onDragStart={(e) => handleColumnDragStart(e, activeTab, column.id)}
+                        onDragEnd={() => handleColumnDragEnd()}
                         onDragOver={(e) => handleColumnDragOver(e, activeTab, column.id)}
-                        onDrop={(e) => handleColumnDrop(e, activeTab, column.id, tables, setTables)}
+                        onDrop={(e) => handleColumnDrop(e, activeTab, column.id)}
                       >
                         {editingColumn && editingColumn.tabId === activeTab && editingColumn.columnId === column.id ? (
                           <input
                             type="text"
                             value={editingColumnTitle}
                             onChange={(e) => setEditingColumnTitle(e.target.value)}
-                            onBlur={() => saveColumnName(tables, setTables)}
-                            onKeyDown={(e) => handleColumnRenameKeyDown(e, tables, setTables)}
+                            onBlur={() => saveColumnName()}
+                            onKeyDown={(e) => handleColumnRenameKeyDown(e)}
                             className="w-full min-w-[80px] bg-transparent px-0 py-0 outline-none focus:ring-0 border-none"
                             autoFocus
                             onClick={(e) => e.stopPropagation()}
@@ -495,7 +740,13 @@ function Tickets() {
     if (activeTab && !tables[activeTab]) {
       createNewTable(activeTab);
     }
-  }, [activeTab, tables]);
+  }, [activeTab, tables, createNewTable]);
+
+  // Save ticket changes
+  const handleSaveTicketChanges = () => {
+    saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen, activeTab);
+    setCurrentTicketPreset(undefined);
+  }
 
   // Main component render
   return (
@@ -525,7 +776,10 @@ function Tickets() {
           {/* Presets dropdown */}
           <div className="relative">
             <button 
-              onClick={() => setShowPresetsMenu(prev => !prev)}
+              onClick={() => {
+                const tablesStore = useTablesStore.getState()
+                tablesStore.setShowPresetsMenu(!tablesStore.showPresetsMenu)
+              }}
               className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Presets
@@ -538,7 +792,7 @@ function Tickets() {
                     Table Presets
                   </div>
                   <button
-                    onClick={() => applyPreset("Engineering")}
+                    onClick={() => applyPreset("Engineering", activeTab)}
                     className="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-neutral-100"
                   >
                     Engineering
@@ -571,9 +825,9 @@ function Tickets() {
           activeTab={activeTab}
           editingTab={editingTab}
           editingTitle={editingTitle}
-          onTabClick={setActiveTab}
+          onTabClick={useTabsStore.getState().setActiveTab}
           onAddTabClick={addTab}
-          onCloseTabClick={(id, e) => closeTab(id, e, tables, setTables)}
+          onCloseTabClick={(id, e) => closeTab(id, e, tables)}
           onDoubleClick={handleDoubleClick}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
@@ -619,7 +873,10 @@ function Tickets() {
                   </button>
                 </div>
                 <button 
-                  onClick={() => setViewDialogOpen(false)}
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setCurrentTicketPreset(undefined);
+                  }}
                   className="rounded-full h-8 w-8 flex items-center justify-center text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
                 >
                   ×
@@ -629,9 +886,11 @@ function Tickets() {
             
             <div className="flex-1 overflow-auto p-6">
               {(() => {
-                const currentTab = tabs.find(tab => tab.id === activeTab);
-                if (currentTab?.appliedPreset === "Engineering" || widgets.length > 0) {
-                  // Show widget grid layout using bootstrap-style responsive layout
+                // Use the stored ticket preset directly instead of checking tab data
+                const hasEngineeringPreset = currentTicketPreset === "Engineering";
+                
+                if (hasEngineeringPreset) {
+                  // Show widget grid layout if preset is "Engineering"
                   return (
                     <>
                       {/* ResponsiveGridLayout for widgets with dynamic layout generation */}
@@ -758,7 +1017,7 @@ function Tickets() {
                     </>
                   );
                 } else {
-                  // For blank slate, show the option to add widgets
+                  // For non-Engineering preset tabs (or if no preset), show the "Customize" view
                   return (
                     <div className="h-full flex flex-col">
                       <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
@@ -784,38 +1043,14 @@ function Tickets() {
                             </button>
                             <button 
                               className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
-                              onClick={() => {
-                                // Create a layout with individual field widgets
-                                
-                                // Add status field
-                                addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
-                                
-                                // Add customer name field
-                                addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
-                                
-                                // Add date fields in a row
-                                addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
-                                addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
-                                
-                                // Add hour fields
-                                addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
-                                addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
-                                
-                                // Add description
-                                addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
-                                
-                                // Add larger widgets
-                                addWidget(WIDGET_TYPES.ASSIGNEES, currentTicket);
-                                addWidget(WIDGET_TYPES.TIME_ENTRIES, currentTicket);
-                                addWidget(WIDGET_TYPES.ATTACHMENTS, currentTicket);
-                              }}
+                              onClick={() => applyCustomWidgetLayout(currentTicket!)}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                               </svg>
-                              Use Default Layout
+                              Use Custom Layout
                             </button>
                             <button 
                               className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
@@ -837,7 +1072,10 @@ function Tickets() {
             
             <div className="border-t p-4 flex justify-end space-x-3">
               <button
-                onClick={() => setViewDialogOpen(false)}
+                onClick={() => {
+                  setViewDialogOpen(false);
+                  setCurrentTicketPreset(undefined);
+                }}
                 className="px-4 py-2 border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50"
               >
                 Cancel

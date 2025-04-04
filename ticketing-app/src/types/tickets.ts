@@ -48,16 +48,18 @@ export interface TimeEntry {
 // Define widget type for draggable dialog sections
 export interface Widget {
   id: string
-  type: string       // More specific types for individual form fields
+  type: string       // Type of widget
   title: string
   content?: string
+  field?: string     // Field name this widget is associated with
   fieldType?: string // Added to identify specific input type (text, select, etc)
-  fieldName?: string // Added to identify which field this widget represents
-  fieldValue?: any   // Added to store the current value
-  width: number     // Width hint for the layout - make this required
-  height: number    // Height hint for the layout - make this required
+  value?: string     // Current value of the field
+  options?: string[] // Options for select fields
+  width?: number     // Width hint for the layout
+  height?: number    // Height hint for the layout
   isDragging?: boolean
-  isCollapsed?: boolean
+  isCollapsed?: boolean // Should be renamed to be consistent with usage in code
+  collapsed?: boolean   // Alternative name used in some places
   layouts?: Record<string, any>
 }
 

@@ -145,8 +145,8 @@ export function useTickets() {
   }
 
   // Apply preset table to current tab
-  const applyPreset = (presetKey: string) => {
-    if (!activeTab) return
+  const applyPreset = (presetKey: string, tabId: string) => {
+    if (!tabId) return
     
     const presetTable = PRESET_TABLES[presetKey]
     if (!presetTable) return
@@ -160,25 +160,32 @@ export function useTickets() {
       })
     }
     
-    // Create a new table with the preset columns and mock rows
-    setTables(prev => ({
-      ...prev,
-      [activeTab]: {
+    // Update tables with the new preset table
+    const updatedTables = {
+      ...tables,
+      [tabId]: {
         columns: [...presetTable.columns],
         rows: mockRows
       }
-    }))
+    };
     
-    // Update the tab to track which preset was applied
-    setTabs(prev => 
-      prev.map(tab => 
-        tab.id === activeTab
-          ? { ...tab, appliedPreset: presetKey }
-          : tab
-      )
-    )
+    // Update tabs with the applied preset
+    const updatedTabs = tabs.map(tab => 
+      tab.id === tabId
+        ? { ...tab, appliedPreset: presetKey }
+        : tab
+    );
     
-    setShowPresetsMenu(false)
+    // Set state
+    setTables(updatedTables);
+    setTabs(updatedTabs);
+    
+    // Important: Save changes to localStorage immediately when applying a preset
+    // This ensures that when we open dialogs, they will use the correct preset
+    localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+    localStorage.setItem("ticket-tabs", JSON.stringify(updatedTabs));
+    
+    setShowPresetsMenu(false);
   }
 
   // Remove a column from the table
@@ -219,12 +226,17 @@ export function useTickets() {
     setAssigneeTableTitle: React.Dispatch<React.SetStateAction<string>>,
     setWidgets: React.Dispatch<React.SetStateAction<Widget[]>>,
     setWidgetLayouts: React.Dispatch<React.SetStateAction<Layouts>>,
-    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
+    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    currentTabs: Tab[],
+    currentActiveTab: string
   ) => {
     setCurrentTicket(ticket)
     
-    // Find current tab and its preset
-    const currentTab = tabs.find(tab => tab.id === activeTab);
+    // Find current tab and its preset using the passed tabs and activeTab
+    const currentTab = currentTabs.find(tab => tab.id === currentActiveTab);
+    
+    // Only check if the tab has the Engineering preset applied
+    // We trust that if the preset was applied, the table structure is correct
     const isEngineeringPreset = currentTab?.appliedPreset === "Engineering";
     
     // Reset ticket form data
@@ -274,8 +286,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_STATUS, 
           title: "Status", 
           fieldType: "select",
-          fieldName: "status",
-          fieldValue: ticket.cells['col-7'] || 'New',
+          field: "status",
+          value: ticket.cells['col-7'] || 'New',
           width: 6,
           height: 2,
           isCollapsed: false
@@ -285,8 +297,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, 
           title: "Customer Name", 
           fieldType: "text-readonly",
-          fieldName: "customerName",
-          fieldValue: ticket.cells['col-3'] || "",
+          field: "customerName",
+          value: ticket.cells['col-3'] || "",
           width: 6,
           height: 2,
           isCollapsed: false
@@ -296,8 +308,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_DATE_CREATED, 
           title: "Date Created", 
           fieldType: "text-readonly",
-          fieldName: "dateCreated",
-          fieldValue: ticket.cells['col-2'] || "",
+          field: "dateCreated",
+          value: ticket.cells['col-2'] || "",
           width: 4,
           height: 2,
           isCollapsed: false
@@ -307,8 +319,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_LAST_MODIFIED, 
           title: "Last Modified", 
           fieldType: "text-readonly",
-          fieldName: "lastModified",
-          fieldValue: ticket.cells['col-10'] || "",
+          field: "lastModified",
+          value: ticket.cells['col-10'] || "",
           width: 4,
           height: 2,
           isCollapsed: false
@@ -318,8 +330,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, 
           title: "Billable Hours", 
           fieldType: "number",
-          fieldName: "billableHours",
-          fieldValue: ticket.cells['col-9'] || "0.0",
+          field: "billableHours",
+          value: ticket.cells['col-9'] || "0.0",
           width: 4,
           height: 2,
           isCollapsed: false
@@ -329,8 +341,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_TOTAL_HOURS, 
           title: "Total Hours", 
           fieldType: "number",
-          fieldName: "totalHours",
-          fieldValue: ticket.cells['col-8'] || "0.0",
+          field: "totalHours",
+          value: ticket.cells['col-8'] || "0.0",
           width: 4,
           height: 2,
           isCollapsed: false
@@ -340,8 +352,8 @@ export function useTickets() {
           type: WIDGET_TYPES.FIELD_DESCRIPTION, 
           title: "Description", 
           fieldType: "textarea",
-          fieldName: "description",
-          fieldValue: ticket.cells['col-4'] || "",
+          field: "description",
+          value: ticket.cells['col-4'] || "",
           width: 12,
           height: 3,
           isCollapsed: false
@@ -381,8 +393,8 @@ export function useTickets() {
       let y = 0
       defaultWidgets.forEach(widget => {
         // Get dimensions from widget directly
-        const wSize = widget.width;
-        const hSize = widget.height;
+        const wSize = widget.width as number;
+        const hSize = widget.height as number;
         
         // Add to layouts for each breakpoint
         newLayouts.lg.push({ i: widget.id, x: 0, y, w: wSize, h: hSize, minW: 2, minH: 1 })
@@ -412,9 +424,10 @@ export function useTickets() {
   const saveTicketChanges = (
     currentTicket: Row | null, 
     ticketForm: TicketForm,
-    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
+    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    tabId: string
   ) => {
-    if (!currentTicket || !activeTab) return
+    if (!currentTicket || !tabId) return
     
     // Update the ticket in the table
     const updatedTicket = {
@@ -429,12 +442,12 @@ export function useTickets() {
     }
     
     setTables(prev => {
-      const table = prev[activeTab]
+      const table = prev[tabId]
       if (!table) return prev
       
       return {
         ...prev,
-        [activeTab]: {
+        [tabId]: {
           ...table,
           rows: table.rows.map(row => 
             row.id === currentTicket.id ? updatedTicket : row

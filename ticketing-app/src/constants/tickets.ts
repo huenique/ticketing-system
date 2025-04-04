@@ -16,7 +16,12 @@ export const WIDGET_TYPES = {
   FIELD_LAST_MODIFIED: "field_last_modified",
   FIELD_BILLABLE_HOURS: "field_billable_hours",
   FIELD_TOTAL_HOURS: "field_total_hours",
-  FIELD_DESCRIPTION: "field_description"
+  FIELD_DESCRIPTION: "field_description",
+  
+  // Additional individual widgets
+  FIELD_ASSIGNEE_TABLE: "field_assignee_table",
+  FIELD_TIME_ENTRIES_TABLE: "field_time_entries_table",
+  FIELD_ATTACHMENTS_GALLERY: "field_attachments_gallery"
 }
 
 // Presets for tables

@@ -73,7 +73,7 @@ function TicketWidget({
   };
 
   const renderWidgetContent = () => {
-    if (widget.isCollapsed) return null
+    if (widget.collapsed) return null
     
     // First check if it's an individual field widget
     if (widget.fieldType) {
@@ -82,9 +82,9 @@ function TicketWidget({
           return (
             <div className="h-full flex items-center">
               <select
-                id={widget.fieldName}
-                value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
-                onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
+                id={widget.field}
+                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
+                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
               >
                 <option value="New">New</option>
@@ -101,7 +101,7 @@ function TicketWidget({
         case 'text-readonly':
           return (
             <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-              {widget.fieldValue}
+              {widget.value}
             </div>
           )
           
@@ -110,9 +110,9 @@ function TicketWidget({
             <div className="h-full flex items-center">
               <input
                 type="number"
-                id={widget.fieldName}
-                value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
-                onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
+                id={widget.field}
+                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
+                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 step="0.1"
                 min="0"
@@ -124,13 +124,323 @@ function TicketWidget({
           return (
             <div className="h-full flex flex-col">
               <textarea
-                id={widget.fieldName}
-                value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
-                onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
+                id={widget.field}
+                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
+                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
                 className="block w-full h-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm resize-none"
               />
             </div>
           )
+        
+        case 'table':
+          // Handle the assignee table and time entries table
+          if (widget.type === 'field_assignee_table') {
+            // Return an individual assignee table widget
+            return (
+              <div className="overflow-auto">
+                <div className="mb-3 flex justify-between items-center">
+                  <h3 className="text-sm font-medium">Team Members</h3>
+                  {setShowAssigneeForm && (
+                    <button
+                      onClick={() => setShowAssigneeForm(!showAssigneeForm)}
+                      className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
+                    >
+                      {showAssigneeForm ? 'Cancel' : 'Add Member'}
+                    </button>
+                  )}
+                </div>
+                
+                {showAssigneeForm && setNewAssignee && newAssignee && handleAddAssignee && (
+                  <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700">Name</label>
+                        <input
+                          type="text"
+                          value={newAssignee.name}
+                          onChange={(e) => setNewAssignee({...newAssignee, name: e.target.value})}
+                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700">Work Description</label>
+                        <input
+                          type="text"
+                          value={newAssignee.workDescription}
+                          onChange={(e) => setNewAssignee({...newAssignee, workDescription: e.target.value})}
+                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700">Total Hours</label>
+                        <input
+                          type="number"
+                          value={newAssignee.totalHours}
+                          onChange={(e) => setNewAssignee({...newAssignee, totalHours: e.target.value})}
+                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                          step="0.1"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700">Est. Time</label>
+                        <input
+                          type="number"
+                          value={newAssignee.estTime}
+                          onChange={(e) => setNewAssignee({...newAssignee, estTime: e.target.value})}
+                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                          step="0.1"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        onClick={handleAddAssignee}
+                        className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
+                      >
+                        Add Member
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {assignees?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-neutral-200">
+                      <thead className="bg-neutral-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Work Description</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Total Hours</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Est. Time</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-neutral-200">
+                        {assignees.map((assignee) => (
+                          <tr key={assignee.id}>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={assignee.name}
+                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'name', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={assignee.workDescription}
+                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'workDescription', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="number"
+                                value={assignee.totalHours}
+                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'totalHours', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                step="0.1"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="number"
+                                value={assignee.estTime}
+                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'estTime', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                step="0.1"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex justify-end space-x-2">
+                                {handleAddTimeEntry && (
+                                  <button
+                                    onClick={() => handleAddTimeEntry(assignee.id)}
+                                    className="text-blue-600 hover:text-blue-800"
+                                    title="Add Time Entry"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                {handleRemoveAssignee && (
+                                  <button
+                                    onClick={() => handleRemoveAssignee(assignee.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                    title="Remove Assignee"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
+                    No team members assigned yet.
+                  </div>
+                )}
+              </div>
+            )
+          }
+          else if (widget.type === 'field_time_entries_table') {
+            // Return an individual time entries table widget
+            return (
+              <div className="overflow-auto">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Time Entries</h3>
+                </div>
+                
+                {timeEntries?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-neutral-200">
+                      <thead className="bg-neutral-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Assignee</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Start Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Stop Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Duration (hrs)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Remarks</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-neutral-200">
+                        {timeEntries.map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {entry.assigneeName}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={entry.startTime}
+                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'startTime', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={entry.stopTime}
+                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'stopTime', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={entry.duration}
+                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'duration', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                readOnly
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {entry.dateCreated}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={entry.remarks}
+                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'remarks', e.target.value)}
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                              {handleRemoveTimeEntry && (
+                                <button
+                                  onClick={() => handleRemoveTimeEntry(entry.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                  title="Remove Time Entry"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
+                    No time entries recorded yet.
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return null;
+        
+        case 'gallery':
+          if (widget.type === 'field_attachments_gallery') {
+            // Return an attachment/images gallery widget
+            return (
+              <div className="overflow-auto">
+                <div className="mb-3 flex justify-between items-center">
+                  <h3 className="text-sm font-medium">Attachments</h3>
+                  <div>
+                    <label className="cursor-pointer bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs hover:bg-blue-100">
+                      Upload Files
+                      <input
+                        type="file"
+                        className="hidden"
+                        multiple
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                      />
+                    </label>
+                  </div>
+                </div>
+                
+                {uploadedImages && uploadedImages.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                    {uploadedImages.map((image, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={image}
+                          alt={`Uploaded ${index + 1}`}
+                          className="h-40 w-full object-cover rounded-md"
+                        />
+                        <button
+                          onClick={() => setUploadedImages && setUploadedImages(uploadedImages.filter((_, i) => i !== index))}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                          title="Remove Image"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-neutral-500 text-sm bg-neutral-50 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-2 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    No images uploaded yet.
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return null;
       }
     }
     
@@ -564,9 +874,9 @@ function TicketWidget({
             <button
               onClick={() => toggleWidgetCollapse(widget.id)}
               className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
-              title={widget.isCollapsed ? "Expand" : "Collapse"}
+              title={widget.collapsed ? "Expand" : "Collapse"}
             >
-              {widget.isCollapsed ? (
+              {widget.collapsed ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -592,7 +902,7 @@ function TicketWidget({
       {/* Widget content - adjust to fill remaining height */}
       <div className={cn(
         "p-3 flex-1 overflow-y-auto",
-        widget.isCollapsed ? "hidden" : "flex flex-col h-full"
+        widget.collapsed ? "hidden" : "flex flex-col h-full"
       )}>
         {renderWidgetContent()}
       </div>
