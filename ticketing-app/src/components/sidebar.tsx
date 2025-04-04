@@ -43,7 +43,6 @@ interface SidebarProps {
 
 function Sidebar({ className }: SidebarProps) {
   const navItems = [
-    { title: "Dashboard", icon: Home, href: "/" },
     { title: "Tickets", icon: Ticket, href: "/tickets" },
     { title: "Users", icon: Users, href: "/users" },
     { title: "Settings", icon: Settings, href: "/settings" }
