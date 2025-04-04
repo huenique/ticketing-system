@@ -101,6 +101,16 @@ export function getGridStyles() {
       width: 100%;
     }
     
+    /* Static mode styles - apply when not in edit mode */
+    .react-grid-item.static {
+      background: none;
+      cursor: default;
+    }
+    
+    .react-grid-item.static .react-resizable-handle {
+      display: none;
+    }
+    
     /* Styling for all resize handles */
     .react-resizable-handle {
       position: absolute;

@@ -49,6 +49,7 @@ function Tickets() {
     estTime: "0"
   })
   const [showAssigneeForm, setShowAssigneeForm] = useState(false)
+  const [isEditLayoutMode, setIsEditLayoutMode] = useState(false)
 
   // Use hooks
   const {
@@ -254,6 +255,9 @@ function Tickets() {
       setWidgetLayouts,
       setViewDialogOpen
     )
+
+    // Set edit layout mode to false when initially opening a ticket
+    setIsEditLayoutMode(false)
 
     // --- Added code to populate assignees from the ticket row --- 
     // Assuming assignee data is in specific columns of the ticket row
@@ -599,12 +603,28 @@ function Tickets() {
                   Ticket Details (ID: {currentTicket.cells['col-1']})
                 </h2>
               </div>
-              <button 
-                onClick={() => setViewDialogOpen(false)}
-                className="rounded-full h-8 w-8 flex items-center justify-center text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-              >
-                ×
-              </button>
+              <div className="flex items-center space-x-3">
+                {/* Add Edit Layout toggle button */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-neutral-600">Edit Layout</span>
+                  <button 
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? 'bg-blue-600' : 'bg-neutral-200'}`}
+                    onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isEditLayoutMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setViewDialogOpen(false)}
+                  className="rounded-full h-8 w-8 flex items-center justify-center text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                >
+                  ×
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-auto p-6">
@@ -617,23 +637,23 @@ function Tickets() {
                       {/* ResponsiveGridLayout for widgets with dynamic layout generation */}
                       <div className="w-full relative">
                         <ResponsiveGridLayout
-                          className="layout"
+                          className={`layout ${!isEditLayoutMode ? 'non-editable' : ''}`}
                           layouts={generateResponsiveLayouts()}
                           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 320 }}
                           cols={{ lg: 12, md: 12, sm: 12, xs: 6, xxs: 4 }}
                           rowHeight={40}
                           onLayoutChange={handleLayoutChange}
-                          isDraggable
-                          isResizable
+                          isDraggable={isEditLayoutMode}
+                          isResizable={isEditLayoutMode}
                           margin={[8, 8]}
                           containerPadding={[0, 0]}
                           preventCollision={false}
                           compactType="vertical"
                           useCSSTransforms={true}
-                          draggableHandle=".react-grid-dragHandle"
+                          draggableHandle={isEditLayoutMode ? ".react-grid-dragHandle" : ""}
                         >
                           {widgets.map(widget => (
-                            <div key={widget.id} className="widget-container">
+                            <div key={widget.id} className={`widget-container ${!isEditLayoutMode ? 'static pointer-events-auto' : ''}`}>
                               <TicketWidget 
                                 widget={widget}
                                 ticketForm={ticketForm}
@@ -657,81 +677,84 @@ function Tickets() {
                                 setShowAssigneeForm={setShowAssigneeForm}
                                 newAssignee={newAssignee}
                                 setNewAssignee={setNewAssignee}
+                                isEditMode={isEditLayoutMode}
                               />
                             </div>
                           ))}
                         </ResponsiveGridLayout>
                       </div>
                       
-                      {/* Add widget button */}
-                      <div className="mt-6 flex justify-center">
-                        <div className="relative">
-                          <button 
-                            className="flex items-center space-x-1 rounded-md bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-100"
-                            onClick={() => {
-                              const dropdown = document.getElementById('widget-dropdown');
-                              if (dropdown) {
-                                dropdown.classList.toggle('hidden');
-                              }
-                            }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            <span>Add Widget</span>
-                          </button>
-                          
-                          <div id="widget-dropdown" className="absolute left-0 right-0 mt-2 hidden rounded-md border border-neutral-200 bg-white shadow-lg z-10">
-                            <div className="py-1">
-                              <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
-                              {/* Widget type buttons for group widgets */}
-                              {[
-                                { type: WIDGET_TYPES.DETAILS, label: "Ticket Details" },
-                                { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
-                                { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
-                                { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
-                                { type: WIDGET_TYPES.NOTES, label: "Notes" }
-                              ].map(item => (
-                                <button 
-                                  key={item.type}
-                                  className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
-                                  onClick={() => {
-                                    addWidget(item.type, currentTicket);
-                                    document.getElementById('widget-dropdown')?.classList.add('hidden');
-                                  }}
-                                >
-                                  {item.label}
-                                </button>
-                              ))}
-                              
-                              <div className="my-1 border-t border-neutral-200"></div>
-                              <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Individual Fields</div>
-                              
-                              {/* Widget type buttons for field widgets */}
-                              {[
-                                { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
-                                { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
-                                { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
-                                { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
-                                { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
-                                { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
-                                { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" }
-                              ].map(item => (
-                                <button 
-                                  key={item.type}
-                                  className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
-                                  onClick={() => {
-                                    addWidget(item.type, currentTicket);
-                                    document.getElementById('widget-dropdown')?.classList.add('hidden');
-                                  }}
-                                >
-                                  {item.label}
-                                </button>
-                              ))}
+                      {/* Add widget button - only show when in edit mode */}
+                      {isEditLayoutMode && (
+                        <div className="mt-6 flex justify-center">
+                          <div className="relative">
+                            <button 
+                              className="flex items-center space-x-1 rounded-md bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-100"
+                              onClick={() => {
+                                const dropdown = document.getElementById('widget-dropdown');
+                                if (dropdown) {
+                                  dropdown.classList.toggle('hidden');
+                                }
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              <span>Add Widget</span>
+                            </button>
+                            
+                            <div id="widget-dropdown" className="absolute left-0 right-0 mt-2 hidden rounded-md border border-neutral-200 bg-white shadow-lg z-10">
+                              <div className="py-1">
+                                <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
+                                {/* Widget type buttons for group widgets */}
+                                {[
+                                  { type: WIDGET_TYPES.DETAILS, label: "Ticket Details" },
+                                  { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
+                                  { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
+                                  { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
+                                  { type: WIDGET_TYPES.NOTES, label: "Notes" }
+                                ].map(item => (
+                                  <button 
+                                    key={item.type}
+                                    className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                    onClick={() => {
+                                      addWidget(item.type, currentTicket);
+                                      document.getElementById('widget-dropdown')?.classList.add('hidden');
+                                    }}
+                                  >
+                                    {item.label}
+                                  </button>
+                                ))}
+                                
+                                <div className="my-1 border-t border-neutral-200"></div>
+                                <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Individual Fields</div>
+                                
+                                {/* Widget type buttons for field widgets */}
+                                {[
+                                  { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
+                                  { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
+                                  { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
+                                  { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
+                                  { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
+                                  { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
+                                  { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" }
+                                ].map(item => (
+                                  <button 
+                                    key={item.type}
+                                    className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                    onClick={() => {
+                                      addWidget(item.type, currentTicket);
+                                      document.getElementById('widget-dropdown')?.classList.add('hidden');
+                                    }}
+                                  >
+                                    {item.label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   );
                 } else {

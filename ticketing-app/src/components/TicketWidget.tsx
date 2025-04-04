@@ -27,6 +27,7 @@ interface TicketWidgetProps {
   setShowAssigneeForm?: (show: boolean) => void
   newAssignee?: any
   setNewAssignee?: (assignee: any) => void
+  isEditMode?: boolean
 }
 
 /**
@@ -54,7 +55,8 @@ function TicketWidget({
   showAssigneeForm = false,
   setShowAssigneeForm,
   newAssignee,
-  setNewAssignee
+  setNewAssignee,
+  isEditMode = true
 }: TicketWidgetProps) {
   
   // Function to handle remove click with extra measures to prevent drag
@@ -550,36 +552,41 @@ function TicketWidget({
   return (
     <div className="w-full h-full bg-white rounded-lg border border-neutral-200 shadow-sm flex flex-col overflow-hidden">
       {/* Widget header for dragging and controls */}
-      <div className="bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between react-grid-dragHandle">
+      <div className={cn(
+        "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
+        isEditMode ? "react-grid-dragHandle" : ""
+      )}>
         <h3 className="text-sm font-medium text-neutral-700 truncate">
           {widget.title || 'Widget'}
         </h3>
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => toggleWidgetCollapse(widget.id)}
-            className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
-            title={widget.isCollapsed ? "Expand" : "Collapse"}
-          >
-            {widget.isCollapsed ? (
+        {isEditMode && (
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => toggleWidgetCollapse(widget.id)}
+              className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+              title={widget.isCollapsed ? "Expand" : "Collapse"}
+            >
+              {widget.isCollapsed ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={handleRemoveClick}
+              className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-red-100 hover:text-red-500"
+              title="Remove Widget"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            )}
-          </button>
-          <button
-            onClick={handleRemoveClick}
-            className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-red-100 hover:text-red-500"
-            title="Remove Widget"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
       </div>
       
       {/* Widget content - adjust to fill remaining height */}
