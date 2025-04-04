@@ -235,8 +235,18 @@ function Tickets() {
 
   // Handle removing a time entry
   const handleRemoveTimeEntry = (id: string) => {
-    setTimeEntries(prev => prev.filter(entry => entry.id !== id))
-  }
+    setTimeEntries(timeEntries.filter(entry => entry.id !== id));
+  };
+
+  // Update widget title
+  const updateWidgetTitle = (widgetId: string, newTitle: string) => {
+    const updatedWidgets = widgets.map(widget => 
+      widget.id === widgetId 
+        ? { ...widget, title: newTitle } 
+        : widget
+    );
+    setWidgets(updatedWidgets);
+  };
 
   // Add a new function to apply a custom widget layout
   const applyCustomWidgetLayout = (ticket: Row) => {
@@ -373,7 +383,7 @@ function Tickets() {
     
     // Create layouts for each breakpoint
     return Object.keys(widths).reduce((memo, breakpoint) => {
-      const width = widths[breakpoint as keyof typeof widths]
+      // const width = widths[breakpoint as keyof typeof widths]
       const cols = breakpoint === 'xxs' ? 4 : breakpoint === 'xs' ? 6 : 12
       
       // Group widgets by type for layout placement
@@ -909,7 +919,7 @@ function Tickets() {
                           preventCollision={false}
                           compactType="vertical"
                           useCSSTransforms={true}
-                          draggableHandle={isEditLayoutMode ? ".react-grid-dragHandle" : ""}
+                          draggableHandle=".react-grid-dragHandle"
                         >
                           {widgets.map(widget => (
                             <div key={widget.id} className={`widget-container ${!isEditLayoutMode ? 'static pointer-events-auto' : ''}`}>
@@ -920,6 +930,7 @@ function Tickets() {
                                 handleFieldChange={handleFieldChange}
                                 toggleWidgetCollapse={toggleWidgetCollapse}
                                 removeWidget={removeWidget}
+                                updateWidgetTitle={updateWidgetTitle}
                                 assignees={assignees}
                                 timeEntries={timeEntries}
                                 uploadedImages={uploadedImages}

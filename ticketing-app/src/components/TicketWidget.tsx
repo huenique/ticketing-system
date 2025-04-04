@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Widget, TicketForm, Assignee, TimeEntry } from '../types/tickets'
 import { cn } from '../lib/utils'
 
@@ -9,6 +9,7 @@ interface TicketWidgetProps {
   handleFieldChange: (fieldName: string, value: any) => void
   toggleWidgetCollapse: (widgetId: string) => void
   removeWidget: (widgetId: string) => void
+  updateWidgetTitle?: (widgetId: string, newTitle: string) => void
   
   // Additional props for specific widget types
   assignees?: Assignee[]
@@ -40,6 +41,7 @@ function TicketWidget({
   handleFieldChange,
   toggleWidgetCollapse,
   removeWidget,
+  updateWidgetTitle,
   assignees = [],
   timeEntries = [],
   uploadedImages = [],
@@ -59,6 +61,10 @@ function TicketWidget({
   isEditMode = true
 }: TicketWidgetProps) {
   
+  // State for title editing
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editableTitle, setEditableTitle] = useState(widget.title || 'Widget');
+  
   // Function to handle remove click with extra measures to prevent drag
   const handleRemoveClick = (e: React.MouseEvent) => {
     // These two lines are crucial to prevent the drag behavior
@@ -70,6 +76,34 @@ function TicketWidget({
     
     // Return false to further prevent default behaviors
     return false;
+  };
+
+  // Function to handle title editing
+  const handleStartTitleEdit = (e: React.MouseEvent) => {
+    if (isEditMode && updateWidgetTitle) {
+      e.stopPropagation();
+      setIsEditingTitle(true);
+    }
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditableTitle(e.target.value);
+  };
+
+  const handleTitleSave = () => {
+    if (updateWidgetTitle) {
+      updateWidgetTitle(widget.id, editableTitle);
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setEditableTitle(widget.title || 'Widget');
+      setIsEditingTitle(false);
+    }
   };
 
   const renderWidgetContent = () => {
@@ -138,8 +172,7 @@ function TicketWidget({
             // Return an individual assignee table widget
             return (
               <div className="overflow-auto">
-                <div className="mb-3 flex justify-between items-center">
-                  <h3 className="text-sm font-medium">Team Members</h3>
+                <div className="mb-3 flex justify-end items-center">
                   {setShowAssigneeForm && (
                     <button
                       onClick={() => setShowAssigneeForm(!showAssigneeForm)}
@@ -298,11 +331,7 @@ function TicketWidget({
           else if (widget.type === 'field_time_entries_table') {
             // Return an individual time entries table widget
             return (
-              <div className="overflow-auto">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Time Entries</h3>
-                </div>
-                
+              <div className="overflow-auto">                
                 {timeEntries?.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-neutral-200">
@@ -392,8 +421,7 @@ function TicketWidget({
             // Return an attachment/images gallery widget
             return (
               <div className="overflow-auto">
-                <div className="mb-3 flex justify-between items-center">
-                  <h3 className="text-sm font-medium">Attachments</h3>
+                <div className="mb-3 flex justify-end items-center">
                   <div>
                     <label className="cursor-pointer bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs hover:bg-blue-100">
                       Upload Files
@@ -866,11 +894,51 @@ function TicketWidget({
         "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
         isEditMode ? "react-grid-dragHandle" : ""
       )}>
-        <h3 className="text-sm font-medium text-neutral-700 truncate">
-          {widget.title || 'Widget'}
+        <h3 className="text-sm font-medium text-neutral-700 truncate flex-1">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editableTitle}
+              onChange={handleTitleChange}
+              onBlur={handleTitleSave}
+              onKeyDown={handleTitleKeyDown}
+              className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-1 px-2 text-xs focus:outline-none focus:ring-blue-500"
+              autoFocus
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              style={{ width: `${Math.max(100, editableTitle.length * 8)}px` }}
+            />
+          ) : (
+            <span 
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (isEditMode && updateWidgetTitle) {
+                  setIsEditingTitle(true);
+                }
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              className={cn(
+                "py-1 px-1 rounded",
+                isEditMode && updateWidgetTitle ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600" : ""
+              )}
+            >
+              {widget.title || 'Widget'}
+            </span>
+          )}
         </h3>
+        
         {isEditMode && (
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 ml-2">
             <button
               onClick={() => toggleWidgetCollapse(widget.id)}
               className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
