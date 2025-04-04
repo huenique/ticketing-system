@@ -339,7 +339,8 @@ function Tickets() {
           w,
           h,
           minW: 2,
-          minH: 2
+          minH: 2,
+          resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"] // Add all resize handles
         }
       })
       

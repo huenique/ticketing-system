@@ -78,7 +78,7 @@ function TicketWidget({
       switch (widget.fieldType) {
         case 'select':
           return (
-            <div className="h-[38px]">
+            <div className="h-full flex items-center">
               <select
                 id={widget.fieldName}
                 value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
@@ -98,14 +98,14 @@ function TicketWidget({
           
         case 'text-readonly':
           return (
-            <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
+            <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
               {widget.fieldValue}
             </div>
           )
           
         case 'number':
           return (
-            <div className="h-[38px]">
+            <div className="h-full flex items-center">
               <input
                 type="number"
                 id={widget.fieldName}
@@ -120,13 +120,14 @@ function TicketWidget({
           
         case 'textarea':
           return (
-            <textarea
-              id={widget.fieldName}
-              value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
-              onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
-              rows={5}
-              className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-            />
+            <div className="h-full flex flex-col">
+              <textarea
+                id={widget.fieldName}
+                value={ticketForm[widget.fieldName as keyof typeof ticketForm] || widget.fieldValue}
+                onChange={(e) => handleFieldChange(widget.fieldName || '', e.target.value)}
+                className="block w-full h-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm resize-none"
+              />
+            </div>
           )
       }
     }
@@ -547,55 +548,46 @@ function TicketWidget({
   }
   
   return (
-    <div className="relative" style={{ padding: "0.5rem" }}>
-      {/* Create a separate non-draggable overlay specifically for the remove button */}
-      <div 
-        className="absolute top-0 right-0 w-10 h-10 z-20 pointer-events-auto"
-        style={{ pointerEvents: 'all' }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={handleRemoveClick}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          className="absolute top-2 right-2 z-30 h-7 w-7 rounded-full flex items-center justify-center text-neutral-400 bg-white hover:text-red-500 hover:bg-neutral-50 border border-neutral-200 shadow-sm transition-colors"
-          title="Remove widget"
-          style={{ opacity: 0.8 }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+    <div className="w-full h-full bg-white rounded-lg border border-neutral-200 shadow-sm flex flex-col overflow-hidden">
+      {/* Widget header for dragging and controls */}
+      <div className="bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between react-grid-dragHandle">
+        <h3 className="text-sm font-medium text-neutral-700 truncate">
+          {widget.title || 'Widget'}
+        </h3>
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => toggleWidgetCollapse(widget.id)}
+            className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+            title={widget.isCollapsed ? "Expand" : "Collapse"}
+          >
+            {widget.isCollapsed ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={handleRemoveClick}
+            className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-red-100 hover:text-red-500"
+            title="Remove Widget"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
       
-      {/* The main draggable widget container */}
-      <div 
-        className={`bg-white overflow-hidden rounded-lg border border-neutral-200 ${widget.isDragging ? 'opacity-50 border-dashed border-blue-400' : ''}`}
-      >
-        {/* Widget title bar - minimalist version */}
-        <div 
-          className="h-10 bg-neutral-50 border-b border-neutral-200 flex items-center px-3 react-grid-dragHandle cursor-move"
-        >
-          <div className="text-sm font-medium text-neutral-700 truncate pr-7">
-            {widget.title || (widget.fieldName ? widget.fieldName.charAt(0).toUpperCase() + widget.fieldName.slice(1) : 'Widget')}
-          </div>
-        </div>
-        
-        {/* Widget Content Area - prevent dragging */}
-        <div 
-          className={cn(
-            'widget-content relative px-3 pt-3 pb-4',
-            {
-              'bg-neutral-50': widget.fieldType === 'text-readonly',
-            }
-          )}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
-          {renderWidgetContent()}
-        </div>
+      {/* Widget content - adjust to fill remaining height */}
+      <div className={cn(
+        "p-3 flex-1 overflow-y-auto",
+        widget.isCollapsed ? "hidden" : "flex flex-col h-full"
+      )}>
+        {renderWidgetContent()}
       </div>
     </div>
   )
