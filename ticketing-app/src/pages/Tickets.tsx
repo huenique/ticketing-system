@@ -254,6 +254,25 @@ function Tickets() {
       setWidgetLayouts,
       setViewDialogOpen
     )
+
+    // --- Added code to populate assignees from the ticket row --- 
+    // Assuming assignee data is in specific columns of the ticket row
+    const assigneeFromRow: Assignee = {
+      id: `assignee-${ticket.id}-${ticket.cells['col-5'] || 'default'}`.replace(/\s+/g, '-'), // Create a unique ID
+      name: ticket.cells['col-5'] || 'N/A', // Assignee Name from col-5
+      workDescription: ticket.cells['col-6'] || '', // Work Description from col-6
+      totalHours: ticket.cells['col-7'] || '0', // Total Hours from col-7
+      estTime: ticket.cells['col-8'] || '0' // Est Time from col-8
+    };
+    
+    // Set the assignees state for the dialog with only the assignee from the row
+    // If col-5 doesn't exist or is empty, set an empty array
+    if (assigneeFromRow.name && assigneeFromRow.name !== 'N/A') {
+      setAssignees([assigneeFromRow]);
+    } else {
+      setAssignees([]); // Clear assignees if no name is found in col-5
+    }
+    // --- End of added code ---
   }
 
   // Save ticket changes
@@ -338,17 +357,8 @@ function Tickets() {
     return (
       <div className="p-4">
         {!table ? (
-          <div className="flex justify-center items-center py-16">
-            <button
-              onClick={() => createNewTable(activeTab)}
-              className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-md transition-all duration-200 flex items-center space-x-2 transform hover:scale-105"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>Create New Table</span>
-            </button>
-          </div>
+          // Empty container for spacing
+          <div className="py-4"></div>
         ) : (
           <div className="mb-4 flex space-x-2">
             {/* Placeholder for action buttons if needed */}
@@ -474,6 +484,13 @@ function Tickets() {
       </div>
     )
   }
+
+  // Use an effect to create a table when a new tab is added without a table
+  useEffect(() => {
+    if (activeTab && !tables[activeTab]) {
+      createNewTable(activeTab);
+    }
+  }, [activeTab, tables]);
 
   // Main component render
   return (
