@@ -285,34 +285,10 @@ function Tickets() {
     const savedState = getFromLS("layouts") as { widgets?: Widget[], layouts?: Layouts } | undefined;
     const savedLayouts = savedState?.layouts;
     
-    // If the current ticket has saved layouts, check them first
-    if (currentTicket) {
-      const ticketId = currentTicket.cells['col-1'];
-      const ticketLayoutKey = `ticket-${ticketId}`;
-      const savedTicketState = getFromLS(ticketLayoutKey) as { widgets?: Widget[], layouts?: Layouts } | undefined;
-      
-      // If we have saved ticket-specific layouts and widgets match, use those first
-      if (savedTicketState?.layouts && Object.keys(savedTicketState.layouts).length > 0) {
-        console.log('Using ticket-specific saved layouts:', ticketLayoutKey);
-        
-        // Make sure we have layouts for each widget
-        const allWidgetsHaveLayouts = widgets.every(widget => 
-          Object.keys(savedTicketState.layouts!).some(breakpoint => 
-            Array.isArray(savedTicketState.layouts![breakpoint]) && 
-            savedTicketState.layouts![breakpoint].some((layout: any) => layout.i === widget.id)
-          )
-        );
-        
-        if (allWidgetsHaveLayouts) {
-          return savedTicketState.layouts;
-        } else {
-          console.log('Some widgets are missing layouts in saved state, generating new layouts');
-        }
-      }
-    }
-    
-    // If no ticket-specific layouts or they're incomplete, check general layouts
+    // If we have saved layouts, use them
     if (savedLayouts && Object.keys(savedLayouts).length > 0) {
+      console.log('Using saved global layouts');
+      
       // Make sure we have layouts for each widget
       const allWidgetsHaveLayouts = widgets.every(widget => 
         Object.keys(savedLayouts).some(breakpoint => 
@@ -322,8 +298,9 @@ function Tickets() {
       );
       
       if (allWidgetsHaveLayouts) {
-        console.log('Using general saved layouts');
         return savedLayouts;
+      } else {
+        console.log('Some widgets are missing layouts in saved state, generating new layouts');
       }
     }
     
@@ -584,13 +561,10 @@ function Tickets() {
     // Reset assignee table title
     setAssigneeTableTitle("Assigned Team Members");
     
-    // Check for saved widget layouts for this ticket
-    // Use ticket ID from cells for consistent storage key
-    const ticketId = ticket.cells['col-1'];
-    const ticketLayoutKey = `ticket-${ticketId}`;
-    const savedTicketState = getFromLS(ticketLayoutKey) as { widgets?: Widget[], layouts?: Layouts };
+    // Check for saved global widget layouts
+    const savedState = getFromLS("layouts") as { widgets?: Widget[], layouts?: Layouts };
     
-    console.log('Loading saved state for ticket:', ticketId, savedTicketState);
+    console.log('Loading global saved widget layout state');
     
     // Open dialog
     setViewDialogOpen(true);
@@ -620,23 +594,23 @@ function Tickets() {
     setIsEditLayoutMode(false);
     
     // Process based on whether we have saved state
-    const hasSavedWidgets = savedTicketState && 
-                           Array.isArray(savedTicketState.widgets) && 
-                           savedTicketState.widgets.length > 0;
+    const hasSavedWidgets = savedState && 
+                           Array.isArray(savedState.widgets) && 
+                           savedState.widgets.length > 0;
                            
-    const hasSavedLayouts = savedTicketState && 
-                           savedTicketState.layouts && 
-                           Object.keys(savedTicketState.layouts).length > 0;
+    const hasSavedLayouts = savedState && 
+                           savedState.layouts && 
+                           Object.keys(savedState.layouts).length > 0;
     
     if (hasSavedWidgets && hasSavedLayouts) {
       // We have both saved widgets and layouts
-      console.log('Restoring complete saved state with widgets and layouts');
+      console.log('Restoring global widget layout state');
       
       // First set the widgets
-      setWidgets(savedTicketState.widgets!);
+      setWidgets(savedState.widgets!);
       
       // Immediately set the layouts to ensure they're ready when the grid renders
-      setWidgetLayouts(savedTicketState.layouts!);
+      setWidgetLayouts(savedState.layouts!);
     } else {
       // No saved state, create default widgets
       console.log('Creating default widgets - no saved state found or invalid state');
@@ -853,8 +827,7 @@ function Tickets() {
     // Save ticket details using the tablesStore function
     saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen, activeTab);
     
-    // Save widget layouts to localStorage - both in the general layouts storage
-    // and in a ticket-specific key for this particular ticket
+    // Save widget layouts to localStorage - only in the general layouts storage
     if (currentTicket && widgets.length > 0) {
       // Create a complete widget state object that includes both widget data and layout
       const completeState = {
@@ -862,15 +835,10 @@ function Tickets() {
         layouts: widgetLayouts
       };
       
-      // Save to a ticket-specific key based on ticket ID (not internal ID)
-      const ticketId = currentTicket.cells['col-1'];
-      const ticketLayoutKey = `ticket-${ticketId}`;
-      
-      // Save to localStorage
-      saveToLS(ticketLayoutKey, completeState);
+      // Save only to the general layouts storage
       saveToLS("layouts", completeState);
       
-      console.log('Saved widget state for ticket:', ticketId, 'with', widgets.length, 'widgets and layouts for', Object.keys(widgetLayouts).length, 'breakpoints');
+      console.log('Saved global widget layout with', widgets.length, 'widgets and layouts for', Object.keys(widgetLayouts).length, 'breakpoints');
     }
     
     // Reset the current ticket preset
@@ -1006,23 +974,19 @@ function Tickets() {
                 {isEditLayoutMode && (
                   <button
                     onClick={() => {
-                      // Clear saved layouts for this ticket
-                      if (currentTicket) {
-                        // Use ticket ID from cells for consistent storage key
-                        const ticketId = currentTicket.cells['col-1'];
-                        const ticketLayoutKey = `ticket-${ticketId}`;
-                        
-                        // Clear from localStorage by setting empty state
-                        saveToLS(ticketLayoutKey, { widgets: [], layouts: {} });
-                        
-                        // First clear existing widgets and layouts
-                        setWidgets([]);
-                        setWidgetLayouts({});
-                        
-                        console.log('Reset layout for ticket:', ticketId);
-                        
-                        // Wait for state to clear, then add default widgets
-                        setTimeout(() => {
+                      // Clear saved global layouts
+                      // Clear from localStorage by setting empty state
+                      saveToLS("layouts", { widgets: [], layouts: {} });
+                      
+                      // First clear existing widgets and layouts
+                      setWidgets([]);
+                      setWidgetLayouts({});
+                      
+                      console.log('Reset global widget layout');
+                      
+                      // Wait for state to clear, then add default widgets
+                      setTimeout(() => {
+                        if (currentTicket) {
                           // Status field
                           addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
                           
@@ -1044,10 +1008,10 @@ function Tickets() {
                           addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
                           addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
                           addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
-                        }, 100);
-                      }
+                        }
+                      }, 100);
                     }}
-                    className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded border border-red-200 hover:bg-red-100"
+                    className="mr-2 px-3 py-1.5 rounded-md bg-red-50 text-red-600 text-sm hover:bg-red-100"
                   >
                     Reset Layout
                   </button>
