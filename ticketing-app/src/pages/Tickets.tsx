@@ -281,13 +281,30 @@ function Tickets() {
 
   // Generate responsive layouts for widgets similar to bootstrap style
   const generateResponsiveLayouts = () => {
+    // Check if this tab has the Engineering preset applied
+    const currentTabData = tabs.find(tab => tab.id === activeTab);
+    const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+    
+    // Determine the appropriate storage key
+    const engineeringLayoutKey = "engineering-layouts";
+    let ticketId = "";
+    let tabSpecificLayoutKey = "";
+    
+    if (currentTicket) {
+      ticketId = currentTicket.cells['col-1'];
+      tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+    }
+    
+    // Get saved layout state from appropriate storage location
+    const storageKey = hasEngineeringPreset ? engineeringLayoutKey : tabSpecificLayoutKey;
+    const savedState = getFromLS(storageKey) as { widgets?: Widget[], layouts?: Layouts } | undefined;
+    
     // Check if we have saved layouts in localStorage
-    const savedState = getFromLS("layouts") as { widgets?: Widget[], layouts?: Layouts } | undefined;
     const savedLayouts = savedState?.layouts;
     
     // If we have saved layouts, use them
     if (savedLayouts && Object.keys(savedLayouts).length > 0) {
-      console.log('Using saved global layouts');
+      console.log(`Using saved layouts from ${storageKey}`);
       
       // Make sure we have layouts for each widget
       const allWidgetsHaveLayouts = widgets.every(widget => 
@@ -561,10 +578,19 @@ function Tickets() {
     // Reset assignee table title
     setAssigneeTableTitle("Assigned Team Members");
     
-    // Check for saved global widget layouts
-    const savedState = getFromLS("layouts") as { widgets?: Widget[], layouts?: Layouts };
+    // Check if this tab has the Engineering preset applied
+    const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
     
-    console.log('Loading global saved widget layout state');
+    // Create appropriate storage keys based on preset and tab ID
+    const engineeringLayoutKey = "engineering-layouts";
+    const ticketId = ticket.cells['col-1'];
+    const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+    
+    // Get saved layouts from appropriate storage location
+    const savedEngineeringState = getFromLS(engineeringLayoutKey) as { widgets?: Widget[], layouts?: Layouts };
+    const savedTabSpecificState = getFromLS(tabSpecificLayoutKey) as { widgets?: Widget[], layouts?: Layouts };
+    
+    console.log('Loading saved widget layout state');
     
     // Open dialog
     setViewDialogOpen(true);
@@ -593,56 +619,86 @@ function Tickets() {
     // Set edit layout mode to false when initially opening a ticket
     setIsEditLayoutMode(false);
     
-    // Process based on whether we have saved state
-    const hasSavedWidgets = savedState && 
-                           Array.isArray(savedState.widgets) && 
-                           savedState.widgets.length > 0;
+    // Check if Engineering state has saved widgets and layouts
+    const hasEngineeringSavedWidgets = savedEngineeringState && 
+                           Array.isArray(savedEngineeringState.widgets) && 
+                           savedEngineeringState.widgets.length > 0;
                            
-    const hasSavedLayouts = savedState && 
-                           savedState.layouts && 
-                           Object.keys(savedState.layouts).length > 0;
+    const hasEngineeringSavedLayouts = savedEngineeringState && 
+                           savedEngineeringState.layouts && 
+                           Object.keys(savedEngineeringState.layouts).length > 0;
     
-    if (hasSavedWidgets && hasSavedLayouts) {
-      // We have both saved widgets and layouts
-      console.log('Restoring global widget layout state');
-      
-      // First set the widgets
-      setWidgets(savedState.widgets!);
-      
-      // Immediately set the layouts to ensure they're ready when the grid renders
-      setWidgetLayouts(savedState.layouts!);
+    // Check if tab-specific state has saved widgets and layouts
+    const hasTabSpecificSavedWidgets = savedTabSpecificState && 
+                                 Array.isArray(savedTabSpecificState.widgets) && 
+                                 savedTabSpecificState.widgets.length > 0;
+                                 
+    const hasTabSpecificSavedLayouts = savedTabSpecificState && 
+                                 savedTabSpecificState.layouts && 
+                                 Object.keys(savedTabSpecificState.layouts).length > 0;
+    
+    // Handle different scenarios based on preset and saved state
+    if (hasEngineeringPreset) {
+      // For Engineering preset tabs, use Engineering-specific layouts or create defaults
+      if (hasEngineeringSavedWidgets && hasEngineeringSavedLayouts) {
+        // We have saved Engineering widgets and layouts
+        console.log('Restoring Engineering widget layout state');
+        
+        // First set the widgets
+        setWidgets(savedEngineeringState.widgets!);
+        
+        // Immediately set the layouts to ensure they're ready when the grid renders
+        setWidgetLayouts(savedEngineeringState.layouts!);
+      } else {
+        // No saved state, create default widgets
+        console.log('Creating default widgets for Engineering preset - no saved state found');
+        
+        // Reset widgets and layouts
+        setWidgets([]);
+        setWidgetLayouts({});
+        
+        // Add default widgets after a short delay
+        setTimeout(() => {
+          // Status field
+          addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+          
+          // Customer name field
+          addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+          
+          // Date fields
+          addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+          addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+          
+          // Hours fields
+          addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+          addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+          
+          // Description field
+          addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+          
+          // Add tables as individual widgets
+          addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+          addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+          addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+        }, 100);
+      }
     } else {
-      // No saved state, create default widgets
-      console.log('Creating default widgets - no saved state found or invalid state');
-      
-      // Reset widgets and layouts
-      setWidgets([]);
-      setWidgetLayouts({});
-      
-      // Add default widgets after a short delay
-      setTimeout(() => {
-        // Status field
-        addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+      // For non-Engineering preset tabs, check for tab-specific layouts
+      if (hasTabSpecificSavedWidgets && hasTabSpecificSavedLayouts) {
+        // We have tab-specific saved widgets and layouts
+        console.log('Restoring tab-specific widget layout state');
         
-        // Customer name field
-        addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+        // First set the widgets
+        setWidgets(savedTabSpecificState.widgets!);
         
-        // Date fields
-        addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
-        addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
-        
-        // Hours fields
-        addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
-        addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
-        
-        // Description field
-        addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
-        
-        // Add tables as individual widgets
-        addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
-        addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
-        addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
-      }, 100);
+        // Immediately set the layouts to ensure they're ready when the grid renders
+        setWidgetLayouts(savedTabSpecificState.layouts!);
+      } else {
+        // No saved ticket-specific state, show empty customize layout
+        console.log('No saved tab-specific layout, showing empty customize view');
+        setWidgets([]);
+        setWidgetLayouts({});
+      }
     }
   }
 
@@ -658,6 +714,18 @@ function Tickets() {
       // Pass the layout change to the store
       onLayoutChange(currentLayout, allLayouts);
       
+      // Close any open widget dropdowns
+      const dropdowns = [
+        document.getElementById('widget-dropdown'), 
+        document.getElementById('customize-widget-dropdown')
+      ];
+      
+      dropdowns.forEach(dropdown => {
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+          dropdown.classList.add('hidden');
+        }
+      });
+      
       // Also save to localStorage with the complete state
       if (currentTicket && widgets.length > 0) {
         const completeState = {
@@ -665,14 +733,22 @@ function Tickets() {
           layouts: allLayouts
         };
         
+        // Find current tab to determine if it has Engineering preset
+        const currentTabData = tabs.find(tab => tab.id === activeTab);
+        const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+        
+        // Use appropriate storage key based on tab type
         const ticketId = currentTicket.cells['col-1'];
-        const ticketLayoutKey = `ticket-${ticketId}`;
-        
-        // Save to localStorage
-        saveToLS(ticketLayoutKey, completeState);
-        saveToLS("layouts", completeState);
-        
-        console.log('Saved layout changes for ticket:', ticketId);
+        if (hasEngineeringPreset) {
+          // Save Engineering preset layouts to Engineering-specific key
+          saveToLS("engineering-layouts", completeState);
+          console.log('Saved Engineering layout changes for ticket:', ticketId);
+        } else {
+          // Save non-Engineering layouts to tab-specific key
+          const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+          saveToLS(tabSpecificLayoutKey, completeState);
+          console.log('Saved tab-specific layout changes for tab', activeTab, 'and ticket:', ticketId);
+        }
       }
     }
   }
@@ -827,7 +903,7 @@ function Tickets() {
     // Save ticket details using the tablesStore function
     saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen, activeTab);
     
-    // Save widget layouts to localStorage - only in the general layouts storage
+    // Save widget layouts to localStorage
     if (currentTicket && widgets.length > 0) {
       // Create a complete widget state object that includes both widget data and layout
       const completeState = {
@@ -835,10 +911,23 @@ function Tickets() {
         layouts: widgetLayouts
       };
       
-      // Save only to the general layouts storage
-      saveToLS("layouts", completeState);
+      // Find current tab to determine if it has Engineering preset
+      const currentTabData = tabs.find(tab => tab.id === activeTab);
+      const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
       
-      console.log('Saved global widget layout with', widgets.length, 'widgets and layouts for', Object.keys(widgetLayouts).length, 'breakpoints');
+      // Use the appropriate storage key based on tab type
+      const ticketId = currentTicket.cells['col-1'];
+      if (hasEngineeringPreset) {
+        // For Engineering preset tabs, save to Engineering-specific key
+        saveToLS("engineering-layouts", completeState);
+        console.log('Saved Engineering widget layout with', widgets.length, 'widgets and layouts for', 
+                    Object.keys(widgetLayouts).length, 'breakpoints');
+      } else {
+        // For non-Engineering tabs, save to tab-specific key
+        const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+        saveToLS(tabSpecificLayoutKey, completeState);
+        console.log('Saved tab-specific layout for tab', activeTab, 'and ticket:', ticketId);
+      }
     }
     
     // Reset the current ticket preset
@@ -974,15 +1063,25 @@ function Tickets() {
                 {isEditLayoutMode && (
                   <button
                     onClick={() => {
-                      // Clear saved global layouts
-                      // Clear from localStorage by setting empty state
-                      saveToLS("layouts", { widgets: [], layouts: {} });
+                      // Find current tab to determine if it has Engineering preset
+                      const currentTabData = tabs.find(tab => tab.id === activeTab);
+                      const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+                      
+                      if (hasEngineeringPreset) {
+                        // Clear saved Engineering layouts
+                        saveToLS("engineering-layouts", { widgets: [], layouts: {} });
+                        console.log('Reset Engineering widget layout');
+                      } else if (currentTicket) {
+                        // Clear tab-specific layouts
+                        const ticketId = currentTicket.cells['col-1'];
+                        const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+                        saveToLS(tabSpecificLayoutKey, { widgets: [], layouts: {} });
+                        console.log('Reset tab-specific layout for tab', activeTab, 'and ticket:', ticketId);
+                      }
                       
                       // First clear existing widgets and layouts
                       setWidgets([]);
                       setWidgetLayouts({});
-                      
-                      console.log('Reset global widget layout');
                       
                       // Wait for state to clear, then add default widgets
                       setTimeout(() => {
@@ -1170,91 +1269,146 @@ function Tickets() {
                   // For non-Engineering preset tabs (or if no preset), show the "Customize" view
                   return (
                     <div className="h-full flex flex-col">
-                      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                        <div className="p-6 bg-neutral-50 rounded-lg border border-dashed border-neutral-300 max-w-md">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-neutral-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                          </svg>
-                          <h3 className="text-lg font-medium text-neutral-700 mb-2">
-                            Customize Your Ticket Layout
-                          </h3>
-                          <p className="text-neutral-500 mb-6">
-                            This ticket doesn't have any widgets yet. Add widgets to create your custom layout.
-                          </p>
-                          <div className="flex justify-center">
-                            <div className="relative">
-                              <button 
-                                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center"
-                                onClick={(e) => {
-                                  const dropdown = document.getElementById('customize-widget-dropdown');
-                                  if (dropdown) {
-                                    dropdown.classList.toggle('hidden');
-                                    // Position the dropdown below the button
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    dropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
-                                    dropdown.style.left = `${rect.left + window.scrollX}px`;
-                                  }
-                                }}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                Add Widget
-                              </button>
-                              
-                              <div id="customize-widget-dropdown" className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 text-left max-h-80 overflow-y-auto">
-                                <div className="py-1">
-                                  <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
-                                  {/* Widget type buttons for group widgets */}
-                                  {[
-                                    { type: WIDGET_TYPES.DETAILS, label: "Ticket Details" },
-                                    { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
-                                    { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
-                                    { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
-                                    { type: WIDGET_TYPES.NOTES, label: "Notes" }
-                                  ].map(item => (
-                                    <button 
-                                      key={item.type}
-                                      className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
-                                      onClick={() => {
-                                        addWidget(item.type, currentTicket);
-                                        document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
-                                      }}
-                                    >
-                                      {item.label}
-                                    </button>
-                                  ))}
-                                  
-                                  <div className="my-1 border-t border-neutral-200"></div>
-                                  <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Individual Fields</div>
-                                  
-                                  {/* Widget type buttons for field widgets */}
-                                  {[
-                                    { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
-                                    { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
-                                    { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
-                                    { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
-                                    { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
-                                    { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
-                                    { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" }
-                                  ].map(item => (
-                                    <button 
-                                      key={item.type}
-                                      className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
-                                      onClick={() => {
-                                        addWidget(item.type, currentTicket);
-                                        document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
-                                      }}
-                                    >
-                                      {item.label}
-                                    </button>
-                                  ))}
+                      {widgets.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                          <div className="p-6 bg-neutral-50 rounded-lg border border-dashed border-neutral-300 max-w-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-neutral-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <h3 className="text-lg font-medium text-neutral-700 mb-2">
+                              Customize Your Ticket Layout
+                            </h3>
+                            <p className="text-neutral-500 mb-6">
+                              This ticket doesn't have any widgets yet. Add widgets to create your custom layout.
+                            </p>
+                            <div className="flex justify-center">
+                              <div className="relative">
+                                <button 
+                                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center"
+                                  onClick={(e) => {
+                                    const dropdown = document.getElementById('customize-widget-dropdown');
+                                    if (dropdown) {
+                                      dropdown.classList.toggle('hidden');
+                                      // Position the dropdown below the button
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      dropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                                      dropdown.style.left = `${rect.left + window.scrollX}px`;
+                                    }
+                                  }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                  Add Widget
+                                </button>
+                                
+                                <div id="customize-widget-dropdown" className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 text-left max-h-80 overflow-y-auto">
+                                  <div className="py-1">
+                                    <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
+                                    {/* Widget type buttons for group widgets */}
+                                    {[
+                                      { type: WIDGET_TYPES.DETAILS, label: "Ticket Details" },
+                                      { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
+                                      { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
+                                      { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
+                                      { type: WIDGET_TYPES.NOTES, label: "Notes" }
+                                    ].map(item => (
+                                      <button 
+                                        key={item.type}
+                                        className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                        onClick={() => {
+                                          addWidget(item.type, currentTicket);
+                                          document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
+                                        }}
+                                      >
+                                        {item.label}
+                                      </button>
+                                    ))}
+                                    
+                                    <div className="my-1 border-t border-neutral-200"></div>
+                                    <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Individual Fields</div>
+                                    
+                                    {/* Widget type buttons for field widgets */}
+                                    {[
+                                      { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
+                                      { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
+                                      { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
+                                      { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
+                                      { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
+                                      { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
+                                      { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" }
+                                    ].map(item => (
+                                      <button 
+                                        key={item.type}
+                                        className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                        onClick={() => {
+                                          addWidget(item.type, currentTicket);
+                                          document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
+                                        }}
+                                      >
+                                        {item.label}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        // Display added widgets with a similar layout to the Engineering preset
+                        <div className="w-full relative p-4">
+                          <ResponsiveGridLayout
+                            className={`layout ${!isEditLayoutMode ? 'non-editable' : ''}`}
+                            layouts={generateResponsiveLayouts()}
+                            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 320 }}
+                            cols={{ lg: 12, md: 12, sm: 12, xs: 6, xxs: 4 }}
+                            rowHeight={40}
+                            onLayoutChange={handleLayoutChange}
+                            isDraggable={true}
+                            isResizable={true}
+                            margin={[8, 8]}
+                            containerPadding={[0, 0]}
+                            preventCollision={false}
+                            compactType="vertical"
+                            useCSSTransforms={true}
+                            draggableHandle=".react-grid-dragHandle"
+                            // Force key refresh when widgets change to ensure layout is applied
+                            key={`grid-${widgets.map(w => w.id).join('-')}`}
+                          >
+                            {widgets.map(widget => (
+                              <div key={widget.id} className="widget-container">
+                                <TicketWidget 
+                                  widget={widget}
+                                  ticketForm={ticketForm}
+                                  currentTicket={currentTicket}
+                                  handleFieldChange={handleFieldChange}
+                                  toggleWidgetCollapse={toggleWidgetCollapse}
+                                  removeWidget={removeWidget}
+                                  updateWidgetTitle={updateWidgetTitle}
+                                  assignees={assignees}
+                                  timeEntries={timeEntries}
+                                  uploadedImages={uploadedImages}
+                                  handleAddAssignee={handleAddAssignee}
+                                  handleRemoveAssignee={handleRemoveAssignee}
+                                  handleUpdateAssignee={handleUpdateAssignee}
+                                  handleAddTimeEntry={handleAddTimeEntry}
+                                  handleRemoveTimeEntry={handleRemoveTimeEntry}
+                                  handleUpdateTimeEntry={handleUpdateTimeEntry}
+                                  setTicketForm={setTicketForm}
+                                  handleImageUpload={handleImageUpload}
+                                  setUploadedImages={setUploadedImages}
+                                  showAssigneeForm={showAssigneeForm}
+                                  setShowAssigneeForm={setShowAssigneeForm}
+                                  newAssignee={newAssignee}
+                                  setNewAssignee={setNewAssignee}
+                                  isEditMode={true}
+                                />
+                              </div>
+                            ))}
+                          </ResponsiveGridLayout>
+                        </div>
+                      )}
                     </div>
                   );
                 }
