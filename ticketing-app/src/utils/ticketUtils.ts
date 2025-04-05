@@ -69,6 +69,43 @@ export function getSavedTabsData() {
 }
 
 /**
+ * Get layout data from localStorage
+ * @param key The key to retrieve from localStorage
+ * @returns The retrieved object or undefined if not found
+ */
+export function getFromLS(key: string) {
+  let ls: Record<string, any> = {}
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const storedData = window.localStorage.getItem("rgl-ticket-layouts")
+      ls = storedData ? JSON.parse(storedData) : {}
+    } catch (e) {
+      // Ignore errors in localStorage
+      console.error("Error loading layout from localStorage:", e)
+    }
+  }
+  return ls[key]
+}
+
+/**
+ * Save layout data to localStorage
+ * @param key The key to save under
+ * @param value The value to save
+ */
+export function saveToLS(key: string, value: any) {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const storedData = window.localStorage.getItem("rgl-ticket-layouts")
+      let ls: Record<string, any> = storedData ? JSON.parse(storedData) : {}
+      ls[key] = value
+      window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls))
+    } catch (e) {
+      console.error("Error saving layout to localStorage:", e)
+    }
+  }
+}
+
+/**
  * Get grid styles for React Grid Layout
  */
 export function getGridStyles() {

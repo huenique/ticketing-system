@@ -13,7 +13,7 @@ import useWidgetsStore from "../stores/widgetsStore"
 // Import types, constants and utilities
 import { Row, Table, Widget, Assignee, TimeEntry, TicketForm } from "../types/tickets"
 import { WIDGET_TYPES } from "../constants/tickets"
-import { getSavedTabsData, getGridStyles, getScrollbarStyles } from "../utils/ticketUtils"
+import { getSavedTabsData, getGridStyles, getScrollbarStyles, saveToLS, getFromLS } from "../utils/ticketUtils"
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -279,103 +279,55 @@ function Tickets() {
     addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
   };
 
-  // Initialize the ticket dialog
-  const handleInitializeTicketDialog = (ticket: Row) => {
-    // Find the current tab and store its preset
-    const currentTabData = tabs.find(tab => tab.id === activeTab);
-    
-    // Set the current ticket preset for use in rendering
-    setCurrentTicketPreset(currentTabData?.appliedPreset);
-    
-    // Set the current ticket
-    setCurrentTicket(ticket);
-    
-    // Reset form data based on ticket
-    setTicketForm({
-      status: ticket.cells['col-7'] || 'New',
-      description: ticket.cells['col-4'] || '',
-      billableHours: ticket.cells['col-9'] || '0.0',
-      totalHours: ticket.cells['col-8'] || '0.0',
-    });
-    
-    // Reset uploaded images
-    setUploadedImages([]);
-    
-    // Reset assignee table title
-    setAssigneeTableTitle("Assigned Team Members");
-    
-    // Reset widgets - this now uses the Zustand store directly
-    setWidgets([]);
-    setWidgetLayouts({});
-    
-    // Set edit layout mode to false when initially opening a ticket
-    setIsEditLayoutMode(false);
-    
-    // Open dialog
-    setViewDialogOpen(true);
-
-    // --- Added code to populate assignees from the ticket row --- 
-    // Assuming assignee data is in specific columns of the ticket row
-    const assigneeFromRow: Assignee = {
-      id: `assignee-${ticket.id}-${ticket.cells['col-5'] || 'default'}`.replace(/\s+/g, '-'), // Create a unique ID
-      name: ticket.cells['col-5'] || 'N/A', // Assignee Name from col-5
-      workDescription: ticket.cells['col-6'] || '', // Work Description from col-6
-      totalHours: ticket.cells['col-7'] || '0', // Total Hours from col-7
-      estTime: ticket.cells['col-8'] || '0' // Est Time from col-8
-    };
-    
-    // Set the assignees state for the dialog with only the assignee from the row
-    // If col-5 doesn't exist or is empty, set an empty array
-    if (assigneeFromRow.name && assigneeFromRow.name !== 'N/A') {
-      setAssignees([assigneeFromRow]);
-    } else {
-      setAssignees([]); // Clear assignees if no name is found in col-5
-    }
-    
-    // Clear time entries
-    setTimeEntries([]);
-    
-    // Add initial widgets based on ticket preset
-    setTimeout(() => {
-      // For all tickets, use only individual field widgets
-      // Apply a default layout with individual fields
-      
-      // Status field
-      addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
-      
-      // Customer name field
-      addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
-      
-      // Date fields
-      addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
-      addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
-      
-      // Hours fields
-      addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
-      addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
-      
-      // Description field
-      addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
-      
-      // Add tables as individual widgets
-      addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
-      addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
-      addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
-      
-    }, 100); // Small delay to ensure state is updated properly
-  }
-
-  // Handle layout change from react-grid-layout
-  const handleLayoutChange = (currentLayout: any[], allLayouts: any) => {
-    // Save the user-modified layouts using the Zustand store
-    setWidgetLayouts(allLayouts);
-    
-    // Pass the layout change to the store
-    onLayoutChange(currentLayout, allLayouts);
-  }
-
   // Generate responsive layouts for widgets similar to bootstrap style
   const generateResponsiveLayouts = () => {
+    // Check if we have saved layouts in localStorage
+    const savedState = getFromLS("layouts") as { widgets?: Widget[], layouts?: Layouts } | undefined;
+    const savedLayouts = savedState?.layouts;
+    
+    // If the current ticket has saved layouts, check them first
+    if (currentTicket) {
+      const ticketId = currentTicket.cells['col-1'];
+      const ticketLayoutKey = `ticket-${ticketId}`;
+      const savedTicketState = getFromLS(ticketLayoutKey) as { widgets?: Widget[], layouts?: Layouts } | undefined;
+      
+      // If we have saved ticket-specific layouts and widgets match, use those first
+      if (savedTicketState?.layouts && Object.keys(savedTicketState.layouts).length > 0) {
+        console.log('Using ticket-specific saved layouts:', ticketLayoutKey);
+        
+        // Make sure we have layouts for each widget
+        const allWidgetsHaveLayouts = widgets.every(widget => 
+          Object.keys(savedTicketState.layouts!).some(breakpoint => 
+            Array.isArray(savedTicketState.layouts![breakpoint]) && 
+            savedTicketState.layouts![breakpoint].some((layout: any) => layout.i === widget.id)
+          )
+        );
+        
+        if (allWidgetsHaveLayouts) {
+          return savedTicketState.layouts;
+        } else {
+          console.log('Some widgets are missing layouts in saved state, generating new layouts');
+        }
+      }
+    }
+    
+    // If no ticket-specific layouts or they're incomplete, check general layouts
+    if (savedLayouts && Object.keys(savedLayouts).length > 0) {
+      // Make sure we have layouts for each widget
+      const allWidgetsHaveLayouts = widgets.every(widget => 
+        Object.keys(savedLayouts).some(breakpoint => 
+          Array.isArray(savedLayouts[breakpoint]) && 
+          savedLayouts[breakpoint].some((layout: any) => layout.i === widget.id)
+        )
+      );
+      
+      if (allWidgetsHaveLayouts) {
+        console.log('Using general saved layouts');
+        return savedLayouts;
+      }
+    }
+    
+    console.log('Generating new layouts from scratch');
     if (!widgets.length) return { lg: [], md: [], sm: [], xs: [], xxs: [] }
     
     // Define width ratios for different breakpoints
@@ -607,6 +559,150 @@ function Tickets() {
     }, {} as { [key: string]: any[] })
   }
 
+  // Initialize the ticket dialog
+  const handleInitializeTicketDialog = (ticket: Row) => {
+    // Find the current tab and store its preset
+    const currentTabData = tabs.find(tab => tab.id === activeTab);
+    
+    // Set the current ticket preset for use in rendering
+    setCurrentTicketPreset(currentTabData?.appliedPreset);
+    
+    // Set the current ticket
+    setCurrentTicket(ticket);
+    
+    // Reset form data based on ticket
+    setTicketForm({
+      status: ticket.cells['col-7'] || 'New',
+      description: ticket.cells['col-4'] || '',
+      billableHours: ticket.cells['col-9'] || '0.0',
+      totalHours: ticket.cells['col-8'] || '0.0',
+    });
+    
+    // Reset uploaded images
+    setUploadedImages([]);
+    
+    // Reset assignee table title
+    setAssigneeTableTitle("Assigned Team Members");
+    
+    // Check for saved widget layouts for this ticket
+    // Use ticket ID from cells for consistent storage key
+    const ticketId = ticket.cells['col-1'];
+    const ticketLayoutKey = `ticket-${ticketId}`;
+    const savedTicketState = getFromLS(ticketLayoutKey) as { widgets?: Widget[], layouts?: Layouts };
+    
+    console.log('Loading saved state for ticket:', ticketId, savedTicketState);
+    
+    // Open dialog
+    setViewDialogOpen(true);
+
+    // --- Added code to populate assignees from the ticket row --- 
+    // Assuming assignee data is in specific columns of the ticket row
+    const assigneeFromRow: Assignee = {
+      id: `assignee-${ticket.id}-${ticket.cells['col-5'] || 'default'}`.replace(/\s+/g, '-'), // Create a unique ID
+      name: ticket.cells['col-5'] || 'N/A', // Assignee Name from col-5
+      workDescription: ticket.cells['col-6'] || '', // Work Description from col-6
+      totalHours: ticket.cells['col-7'] || '0', // Total Hours from col-7
+      estTime: ticket.cells['col-8'] || '0' // Est Time from col-8
+    };
+    
+    // Set the assignees state for the dialog with only the assignee from the row
+    // If col-5 doesn't exist or is empty, set an empty array
+    if (assigneeFromRow.name && assigneeFromRow.name !== 'N/A') {
+      setAssignees([assigneeFromRow]);
+    } else {
+      setAssignees([]); // Clear assignees if no name is found in col-5
+    }
+    
+    // Clear time entries
+    setTimeEntries([]);
+    
+    // Set edit layout mode to false when initially opening a ticket
+    setIsEditLayoutMode(false);
+    
+    // Process based on whether we have saved state
+    const hasSavedWidgets = savedTicketState && 
+                           Array.isArray(savedTicketState.widgets) && 
+                           savedTicketState.widgets.length > 0;
+                           
+    const hasSavedLayouts = savedTicketState && 
+                           savedTicketState.layouts && 
+                           Object.keys(savedTicketState.layouts).length > 0;
+    
+    if (hasSavedWidgets && hasSavedLayouts) {
+      // We have both saved widgets and layouts
+      console.log('Restoring complete saved state with widgets and layouts');
+      
+      // First set the widgets
+      setWidgets(savedTicketState.widgets!);
+      
+      // Immediately set the layouts to ensure they're ready when the grid renders
+      setWidgetLayouts(savedTicketState.layouts!);
+    } else {
+      // No saved state, create default widgets
+      console.log('Creating default widgets - no saved state found or invalid state');
+      
+      // Reset widgets and layouts
+      setWidgets([]);
+      setWidgetLayouts({});
+      
+      // Add default widgets after a short delay
+      setTimeout(() => {
+        // Status field
+        addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+        
+        // Customer name field
+        addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+        
+        // Date fields
+        addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+        addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+        
+        // Hours fields
+        addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+        addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+        
+        // Description field
+        addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+        
+        // Add tables as individual widgets
+        addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+        addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+        addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+      }, 100);
+    }
+  }
+
+  // Handle layout change from react-grid-layout
+  const handleLayoutChange = (currentLayout: any[], allLayouts: any) => {
+    console.log('Layout changed:', currentLayout.length, 'items in current layout');
+    
+    // Only update if there are actual layouts
+    if (currentLayout.length > 0) {
+      // Save the user-modified layouts using the Zustand store
+      setWidgetLayouts(allLayouts);
+      
+      // Pass the layout change to the store
+      onLayoutChange(currentLayout, allLayouts);
+      
+      // Also save to localStorage with the complete state
+      if (currentTicket && widgets.length > 0) {
+        const completeState = {
+          widgets: widgets,
+          layouts: allLayouts
+        };
+        
+        const ticketId = currentTicket.cells['col-1'];
+        const ticketLayoutKey = `ticket-${ticketId}`;
+        
+        // Save to localStorage
+        saveToLS(ticketLayoutKey, completeState);
+        saveToLS("layouts", completeState);
+        
+        console.log('Saved layout changes for ticket:', ticketId);
+      }
+    }
+  }
+
   // Modified renderTabContent function to use the Zustand stores
   const renderTabContent = () => {
     const activeTabData = tabs.find(tab => tab.id === activeTab)
@@ -754,7 +850,30 @@ function Tickets() {
 
   // Save ticket changes
   const handleSaveTicketChanges = () => {
+    // Save ticket details using the tablesStore function
     saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen, activeTab);
+    
+    // Save widget layouts to localStorage - both in the general layouts storage
+    // and in a ticket-specific key for this particular ticket
+    if (currentTicket && widgets.length > 0) {
+      // Create a complete widget state object that includes both widget data and layout
+      const completeState = {
+        widgets: widgets,
+        layouts: widgetLayouts
+      };
+      
+      // Save to a ticket-specific key based on ticket ID (not internal ID)
+      const ticketId = currentTicket.cells['col-1'];
+      const ticketLayoutKey = `ticket-${ticketId}`;
+      
+      // Save to localStorage
+      saveToLS(ticketLayoutKey, completeState);
+      saveToLS("layouts", completeState);
+      
+      console.log('Saved widget state for ticket:', ticketId, 'with', widgets.length, 'widgets and layouts for', Object.keys(widgetLayouts).length, 'breakpoints');
+    }
+    
+    // Reset the current ticket preset
     setCurrentTicketPreset(undefined);
   }
 
@@ -882,6 +1001,58 @@ function Tickets() {
                     />
                   </button>
                 </div>
+                
+                {/* Add Reset Layout button */}
+                {isEditLayoutMode && (
+                  <button
+                    onClick={() => {
+                      // Clear saved layouts for this ticket
+                      if (currentTicket) {
+                        // Use ticket ID from cells for consistent storage key
+                        const ticketId = currentTicket.cells['col-1'];
+                        const ticketLayoutKey = `ticket-${ticketId}`;
+                        
+                        // Clear from localStorage by setting empty state
+                        saveToLS(ticketLayoutKey, { widgets: [], layouts: {} });
+                        
+                        // First clear existing widgets and layouts
+                        setWidgets([]);
+                        setWidgetLayouts({});
+                        
+                        console.log('Reset layout for ticket:', ticketId);
+                        
+                        // Wait for state to clear, then add default widgets
+                        setTimeout(() => {
+                          // Status field
+                          addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
+                          
+                          // Customer name field
+                          addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
+                          
+                          // Date fields
+                          addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
+                          addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
+                          
+                          // Hours fields
+                          addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
+                          addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
+                          
+                          // Description field
+                          addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
+                          
+                          // Add tables as individual widgets
+                          addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
+                          addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
+                          addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
+                        }, 100);
+                      }
+                    }}
+                    className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded border border-red-200 hover:bg-red-100"
+                  >
+                    Reset Layout
+                  </button>
+                )}
+                
                 <button 
                   onClick={() => {
                     setViewDialogOpen(false);
@@ -920,6 +1091,8 @@ function Tickets() {
                           compactType="vertical"
                           useCSSTransforms={true}
                           draggableHandle=".react-grid-dragHandle"
+                          // Force key refresh when widgets change to ensure layout is applied
+                          key={`grid-${widgets.map(w => w.id).join('-')}`}
                         >
                           {widgets.map(widget => (
                             <div key={widget.id} className={`widget-container ${!isEditLayoutMode ? 'static pointer-events-auto' : ''}`}>
