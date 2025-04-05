@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Widget, TicketForm, Assignee, TimeEntry } from '../types/tickets'
 import { cn } from '../lib/utils'
+import { WIDGET_TYPES } from '../constants/tickets'
 
 interface TicketWidgetProps {
   widget: Widget
@@ -133,9 +134,20 @@ function TicketWidget({
           )
           
         case 'text-readonly':
+          // Determine the correct value to display based on the widget type
+          let displayValue = widget.value;
+          
+          if (currentTicket && widget.type === WIDGET_TYPES.FIELD_CUSTOMER_NAME) {
+            displayValue = currentTicket.cells['col-3'] || '';
+          } else if (currentTicket && widget.type === WIDGET_TYPES.FIELD_LAST_MODIFIED) {
+            displayValue = currentTicket.cells['col-10'] || '';
+          } else if (currentTicket && widget.type === WIDGET_TYPES.FIELD_DATE_CREATED) {
+            displayValue = currentTicket.cells['col-2'] || '';
+          }
+          
           return (
             <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-              {widget.value}
+              {displayValue}
             </div>
           )
           
