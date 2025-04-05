@@ -1365,8 +1365,8 @@ function Tickets() {
                             cols={{ lg: 12, md: 12, sm: 12, xs: 6, xxs: 4 }}
                             rowHeight={40}
                             onLayoutChange={handleLayoutChange}
-                            isDraggable={true}
-                            isResizable={true}
+                            isDraggable={isEditLayoutMode}
+                            isResizable={isEditLayoutMode}
                             margin={[8, 8]}
                             containerPadding={[0, 0]}
                             preventCollision={false}
@@ -1402,7 +1402,7 @@ function Tickets() {
                                   setShowAssigneeForm={setShowAssigneeForm}
                                   newAssignee={newAssignee}
                                   setNewAssignee={setNewAssignee}
-                                  isEditMode={true}
+                                  isEditMode={isEditLayoutMode}
                                 />
                               </div>
                             ))}
