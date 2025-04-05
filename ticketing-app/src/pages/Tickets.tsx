@@ -292,7 +292,7 @@ function Tickets() {
     
     if (currentTicket) {
       ticketId = currentTicket.cells['col-1'];
-      tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+      tabSpecificLayoutKey = `tab-${activeTab}`;
     }
     
     // Get saved layout state from appropriate storage location
@@ -584,7 +584,7 @@ function Tickets() {
     // Create appropriate storage keys based on preset and tab ID
     const engineeringLayoutKey = "engineering-layouts";
     const ticketId = ticket.cells['col-1'];
-    const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+    const tabSpecificLayoutKey = `tab-${activeTab}`;
     
     // Get saved layouts from appropriate storage location
     const savedEngineeringState = getFromLS(engineeringLayoutKey) as { widgets?: Widget[], layouts?: Layouts };
@@ -694,10 +694,34 @@ function Tickets() {
         // Immediately set the layouts to ensure they're ready when the grid renders
         setWidgetLayouts(savedTabSpecificState.layouts!);
       } else {
-        // No saved ticket-specific state, show empty customize layout
-        console.log('No saved tab-specific layout, showing empty customize view');
-        setWidgets([]);
-        setWidgetLayouts({});
+        // Check if there's an old-format layout saved with ticket ID
+        const oldFormatKey = `tab-${activeTab}-${ticketId}`;
+        const oldSavedState = getFromLS(oldFormatKey) as { widgets?: Widget[], layouts?: Layouts };
+        const hasOldSavedWidgets = oldSavedState && 
+                           Array.isArray(oldSavedState.widgets) && 
+                           oldSavedState.widgets.length > 0;
+        const hasOldSavedLayouts = oldSavedState && 
+                           oldSavedState.layouts && 
+                           Object.keys(oldSavedState.layouts).length > 0;
+                           
+        if (hasOldSavedWidgets && hasOldSavedLayouts) {
+          // We found a layout in the old format, use it and save it in the new format
+          console.log('Found old format layout, migrating to new format');
+          setWidgets(oldSavedState.widgets!);
+          setWidgetLayouts(oldSavedState.layouts!);
+          
+          // Save in new format
+          const completeState = {
+            widgets: oldSavedState.widgets,
+            layouts: oldSavedState.layouts
+          };
+          saveToLS(tabSpecificLayoutKey, completeState);
+        } else {
+          // No saved ticket-specific state, show empty customize layout
+          console.log('No saved tab-specific layout, showing empty customize view');
+          setWidgets([]);
+          setWidgetLayouts({});
+        }
       }
     }
   }
@@ -745,7 +769,7 @@ function Tickets() {
           console.log('Saved Engineering layout changes for ticket:', ticketId);
         } else {
           // Save non-Engineering layouts to tab-specific key
-          const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+          const tabSpecificLayoutKey = `tab-${activeTab}`;
           saveToLS(tabSpecificLayoutKey, completeState);
           console.log('Saved tab-specific layout changes for tab', activeTab, 'and ticket:', ticketId);
         }
@@ -924,7 +948,7 @@ function Tickets() {
                     Object.keys(widgetLayouts).length, 'breakpoints');
       } else {
         // For non-Engineering tabs, save to tab-specific key
-        const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+        const tabSpecificLayoutKey = `tab-${activeTab}`;
         saveToLS(tabSpecificLayoutKey, completeState);
         console.log('Saved tab-specific layout for tab', activeTab, 'and ticket:', ticketId);
       }
@@ -1074,7 +1098,7 @@ function Tickets() {
                       } else if (currentTicket) {
                         // Clear tab-specific layouts
                         const ticketId = currentTicket.cells['col-1'];
-                        const tabSpecificLayoutKey = `tab-${activeTab}-${ticketId}`;
+                        const tabSpecificLayoutKey = `tab-${activeTab}`;
                         saveToLS(tabSpecificLayoutKey, { widgets: [], layouts: {} });
                         console.log('Reset tab-specific layout for tab', activeTab, 'and ticket:', ticketId);
                       }
