@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, Navigate } from "react-router-dom"
 import { DashboardLayout } from "./components/dashboard-layout"
 import Tickets from "./pages/Tickets"
 import Users from "./pages/Users"
@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound"
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/tickets" replace />} />
       <Route 
         path="/tickets" 
         element={
