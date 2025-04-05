@@ -1058,10 +1058,14 @@ function Tickets() {
                   <div className="relative">
                     <button 
                       className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100 flex items-center"
-                      onClick={() => {
+                      onClick={(e) => {
                         const dropdown = document.getElementById('widget-dropdown');
                         if (dropdown) {
                           dropdown.classList.toggle('hidden');
+                          // Position the dropdown below the button
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          dropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                          dropdown.style.left = `${rect.left + window.scrollX}px`;
                         }
                       }}
                     >
@@ -1071,7 +1075,7 @@ function Tickets() {
                       <span>Add Widget</span>
                     </button>
                     
-                    <div id="widget-dropdown" className="absolute right-0 mt-2 hidden rounded-md border border-neutral-200 bg-white shadow-lg z-10 w-48">
+                    <div id="widget-dropdown" className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 max-h-80 overflow-y-auto">
                       <div className="py-1">
                         <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
                         {/* Widget type buttons for group widgets */}
@@ -1213,36 +1217,77 @@ function Tickets() {
                           <p className="text-neutral-500 mb-6">
                             This ticket doesn't have any widgets yet. Add widgets to create your custom layout.
                           </p>
-                          <div className="flex flex-wrap justify-center gap-2">
-                            <button 
-                              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                              onClick={() => addWidget(WIDGET_TYPES.DETAILS, currentTicket)}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Add Details Widget
-                            </button>
-                            <button 
-                              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
-                              onClick={() => applyCustomWidgetLayout(currentTicket!)}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                              </svg>
-                              Use Custom Layout
-                            </button>
-                            <button 
-                              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                              onClick={() => addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket)}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              Add Form Field
-                            </button>
+                          <div className="flex justify-center">
+                            <div className="relative">
+                              <button 
+                                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center"
+                                onClick={(e) => {
+                                  const dropdown = document.getElementById('customize-widget-dropdown');
+                                  if (dropdown) {
+                                    dropdown.classList.toggle('hidden');
+                                    // Position the dropdown below the button
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    dropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                                    dropdown.style.left = `${rect.left + window.scrollX}px`;
+                                  }
+                                }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Add Widget
+                              </button>
+                              
+                              <div id="customize-widget-dropdown" className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 text-left max-h-80 overflow-y-auto">
+                                <div className="py-1">
+                                  <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Groups</div>
+                                  {/* Widget type buttons for group widgets */}
+                                  {[
+                                    { type: WIDGET_TYPES.DETAILS, label: "Ticket Details" },
+                                    { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
+                                    { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
+                                    { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
+                                    { type: WIDGET_TYPES.NOTES, label: "Notes" }
+                                  ].map(item => (
+                                    <button 
+                                      key={item.type}
+                                      className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                      onClick={() => {
+                                        addWidget(item.type, currentTicket);
+                                        document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
+                                      }}
+                                    >
+                                      {item.label}
+                                    </button>
+                                  ))}
+                                  
+                                  <div className="my-1 border-t border-neutral-200"></div>
+                                  <div className="px-4 py-1 text-xs font-semibold text-neutral-500 uppercase">Individual Fields</div>
+                                  
+                                  {/* Widget type buttons for field widgets */}
+                                  {[
+                                    { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
+                                    { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
+                                    { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
+                                    { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
+                                    { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
+                                    { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
+                                    { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" }
+                                  ].map(item => (
+                                    <button 
+                                      key={item.type}
+                                      className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-100"
+                                      onClick={() => {
+                                        addWidget(item.type, currentTicket);
+                                        document.getElementById('customize-widget-dropdown')?.classList.add('hidden');
+                                      }}
+                                    >
+                                      {item.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
