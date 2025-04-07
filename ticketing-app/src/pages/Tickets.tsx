@@ -104,6 +104,7 @@ function Tickets() {
     workDescription: "",
     totalHours: "0",
     estTime: "0",
+    priority: "3",
   });
   const [showAssigneeForm, setShowAssigneeForm] = useState(false);
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false);
@@ -155,6 +156,7 @@ function Tickets() {
       workDescription: "",
       totalHours: "0",
       estTime: "0",
+      priority: "3",
     });
     setShowAssigneeForm(false);
   };
@@ -658,6 +660,7 @@ function Tickets() {
       workDescription: ticket.cells["col-6"] || "", // Work Description from col-6
       totalHours: ticket.cells["col-7"] || "0", // Total Hours from col-7
       estTime: ticket.cells["col-8"] || "0", // Est Time from col-8
+      priority: "3", // Default to medium priority
     };
 
     // Set the assignees state for the dialog with only the assignee from the row

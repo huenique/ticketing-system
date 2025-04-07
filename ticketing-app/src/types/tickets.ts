@@ -32,6 +32,7 @@ export interface Assignee {
   workDescription: string;
   totalHours: string;
   estTime: string;
+  priority: string; // Priority from 1 (highest) to 5 (lowest)
 }
 
 export interface TimeEntry {

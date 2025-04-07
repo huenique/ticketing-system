@@ -236,6 +236,27 @@ function TicketWidget({
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-neutral-700">
+                            Priority
+                          </label>
+                          <select
+                            value={newAssignee.priority || "3"}
+                            onChange={(e) =>
+                              setNewAssignee({
+                                ...newAssignee,
+                                priority: e.target.value,
+                              })
+                            }
+                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                          >
+                            <option value="1">1 - Highest</option>
+                            <option value="2">2 - High</option>
+                            <option value="3">3 - Medium</option>
+                            <option value="4">4 - Low</option>
+                            <option value="5">5 - Lowest</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700">
                             Total Hours
                           </label>
                           <input
@@ -294,6 +315,9 @@ function TicketWidget({
                             Work Description
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Priority
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                             Total Hours
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -305,7 +329,15 @@ function TicketWidget({
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-neutral-200">
-                        {assignees.map((assignee) => (
+                        {assignees
+                          .slice()
+                          .sort((a, b) => {
+                            // Sort by priority (lowest number first)
+                            const priorityA = parseInt(a.priority || "5");
+                            const priorityB = parseInt(b.priority || "5");
+                            return priorityA - priorityB;
+                          })
+                          .map((assignee) => (
                           <tr key={assignee.id}>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <input
@@ -336,6 +368,26 @@ function TicketWidget({
                                 }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <select
+                                value={assignee.priority || "5"}
+                                onChange={(e) =>
+                                  handleUpdateAssignee &&
+                                  handleUpdateAssignee(
+                                    assignee.id,
+                                    "priority",
+                                    e.target.value,
+                                  )
+                                }
+                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                              >
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3">3 - Medium</option>
+                                <option value="4">4 - Low</option>
+                                <option value="5">5 - Lowest</option>
+                              </select>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <input
@@ -798,6 +850,27 @@ function TicketWidget({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-neutral-700">
+                      Priority
+                    </label>
+                    <select
+                      value={newAssignee.priority || "3"}
+                      onChange={(e) =>
+                        setNewAssignee({
+                          ...newAssignee,
+                          priority: e.target.value,
+                        })
+                      }
+                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                    >
+                      <option value="1">1 - Highest</option>
+                      <option value="2">2 - High</option>
+                      <option value="3">3 - Medium</option>
+                      <option value="4">4 - Low</option>
+                      <option value="5">5 - Lowest</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700">
                       Total Hours
                     </label>
                     <input
@@ -813,7 +886,7 @@ function TicketWidget({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-neutral-700">
-                      Estimated Time
+                      Est. Time
                     </label>
                     <input
                       type="number"
@@ -881,6 +954,9 @@ function TicketWidget({
                       Work Description
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Priority
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                       Total Hours
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -927,6 +1003,25 @@ function TicketWidget({
                           }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-900">
+                        <select
+                          value={assignee.priority || "5"}
+                          onChange={(e) =>
+                            handleUpdateAssignee(
+                              assignee.id,
+                              "priority",
+                              e.target.value,
+                            )
+                          }
+                          className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                        >
+                          <option value="1">1 - Highest</option>
+                          <option value="2">2 - High</option>
+                          <option value="3">3 - Medium</option>
+                          <option value="4">4 - Low</option>
+                          <option value="5">5 - Lowest</option>
+                        </select>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         <input
