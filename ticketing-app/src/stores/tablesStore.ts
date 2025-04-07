@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { PRESET_TABLES } from "../constants/tickets";
-import { Row, Table, TicketForm } from "../types/tickets";
+import { Row, Tab, Table, TicketForm } from "../types/tickets";
 import { generateMockRowData } from "../utils/ticketUtils";
 import { persist } from "./middleware";
 import useTabsStore from "./tabsStore";
@@ -190,8 +190,67 @@ const useTablesStore = create<TablesState>()(
         // Update the tabs store to mark this tab with the applied preset
         const tabsStore = useTabsStore.getState();
         const updatedTabs = tabsStore.tabs.map((tab) =>
-          tab.id === tabId ? { ...tab, appliedPreset: presetKey } : tab,
+          tab.id === tabId ? { ...tab, appliedPreset: presetKey, title: "All Tickets" } : tab,
         );
+
+        // For Engineering preset, also create a Tasks tab
+        if (presetKey === "Engineering") {
+          // Find if a "Tasks" tab already exists
+          const existingTasksTab = tabsStore.tabs.find(tab => tab.title === "Tasks");
+          
+          if (!existingTasksTab) {
+            // Create a new Tasks tab
+            const tasksTabId = `tab-${updatedTabs.length + 1}`;
+            const tasksTab: Tab = {
+              id: tasksTabId,
+              title: "Tasks",
+              content: "tasks",
+              appliedPreset: presetKey
+            };
+            
+            updatedTabs.push(tasksTab);
+            
+            // Create a table specifically for the Tasks tab
+            const tasksTable: Table = {
+              columns: [
+                { id: "col-1", title: "Ticket ID", width: "120px" },
+                { id: "col-2", title: "Name", width: "150px" },
+                { id: "col-3", title: "Work Description", width: "200px" },
+                { id: "col-4", title: "Total Hours", width: "100px" },
+                { id: "col-5", title: "Est. Time", width: "100px" },
+                { id: "col-6", title: "Action", width: "100px" },
+              ],
+              rows: []
+            };
+            
+            // Generate task rows based on the ticket rows
+            const taskRows: Row[] = mockRows.map((ticketRow, index) => {
+              return {
+                id: `task-row-${index + 1}`,
+                cells: {
+                  "col-1": ticketRow.cells["col-1"], // Ticket ID
+                  "col-2": ticketRow.cells["col-5"] || `Team Member ${index + 1}`, // Name from Assign To or default
+                  "col-3": ticketRow.cells["col-4"] || "", // Work Description
+                  "col-4": ticketRow.cells["col-8"] || "0", // Total Hours
+                  "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(1), // Est. Time as 1.5x Total Hours
+                  "col-6": "action_buttons" // Action button
+                }
+              };
+            });
+            
+            // Add the tasks table to state
+            set((state) => ({
+              tables: {
+                ...state.tables,
+                [tasksTabId]: {
+                  ...tasksTable,
+                  rows: taskRows
+                }
+              }
+            }));
+          }
+        }
+        
         tabsStore.setTabs(updatedTabs);
       },
 

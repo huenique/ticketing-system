@@ -2,13 +2,13 @@ import React, { useState } from "react";
 
 import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
-import { Assignee, TicketForm, TimeEntry, Widget } from "../types/tickets";
+import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 
 interface TicketWidgetProps {
   widget: Widget;
   ticketForm: TicketForm;
-  currentTicket?: Record<string, never> | null;
-  handleFieldChange: (fieldName: string, value: unknown) => void;
+  currentTicket?: Row | null;
+  handleFieldChange: (fieldName: string, value: string, widgetId?: string) => void;
   toggleWidgetCollapse: (widgetId: string) => void;
   removeWidget: (widgetId: string) => void;
   updateWidgetTitle?: (widgetId: string, newTitle: string) => void;

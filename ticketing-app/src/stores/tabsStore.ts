@@ -25,7 +25,7 @@ interface TabsState {
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, targetTabId: string) => void;
   addTab: () => void;
-  closeTab: (tabId: string, e: React.MouseEvent, tables: Tables) => void;
+  closeTab: (tabId: string, e: React.MouseEvent) => void;
   handleDoubleClick: (tabId: string) => void;
   saveTabName: () => void;
   cancelTabRename: () => void;

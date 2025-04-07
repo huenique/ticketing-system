@@ -85,7 +85,7 @@ export function getSavedTabsData() {
  * @returns The retrieved object or undefined if not found
  */
 export function getFromLS(key: string) {
-  let ls: Record<string, never> = {};
+  let ls: Record<string, any> = {};
   if (typeof window !== "undefined" && window.localStorage) {
     try {
       const storedData = window.localStorage.getItem("rgl-ticket-layouts");
@@ -103,11 +103,11 @@ export function getFromLS(key: string) {
  * @param key The key to save under
  * @param value The value to save
  */
-export function saveToLS(key: string, value: never) {
+export function saveToLS(key: string, value: any) {
   if (typeof window !== "undefined" && window.localStorage) {
     try {
       const storedData = window.localStorage.getItem("rgl-ticket-layouts");
-      const ls: Record<string, never> = storedData ? JSON.parse(storedData) : {};
+      const ls: Record<string, any> = storedData ? JSON.parse(storedData) : {};
       ls[key] = value;
       window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls));
     } catch (e) {
