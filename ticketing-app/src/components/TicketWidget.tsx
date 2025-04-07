@@ -1,35 +1,35 @@
-import React, { useState } from 'react'
-import { Widget, TicketForm, Assignee, TimeEntry } from '../types/tickets'
-import { cn } from '../lib/utils'
-import { WIDGET_TYPES } from '../constants/tickets'
+import React, { useState } from "react";
+import { Widget, TicketForm, Assignee, TimeEntry } from "../types/tickets";
+import { cn } from "../lib/utils";
+import { WIDGET_TYPES } from "../constants/tickets";
 
 interface TicketWidgetProps {
-  widget: Widget
-  ticketForm: TicketForm
-  currentTicket?: Record<string, any> | null
-  handleFieldChange: (fieldName: string, value: any) => void
-  toggleWidgetCollapse: (widgetId: string) => void
-  removeWidget: (widgetId: string) => void
-  updateWidgetTitle?: (widgetId: string, newTitle: string) => void
-  
+  widget: Widget;
+  ticketForm: TicketForm;
+  currentTicket?: Record<string, any> | null;
+  handleFieldChange: (fieldName: string, value: any) => void;
+  toggleWidgetCollapse: (widgetId: string) => void;
+  removeWidget: (widgetId: string) => void;
+  updateWidgetTitle?: (widgetId: string, newTitle: string) => void;
+
   // Additional props for specific widget types
-  assignees?: Assignee[]
-  timeEntries?: TimeEntry[]
-  uploadedImages?: string[]
-  handleAddAssignee?: () => void
-  handleRemoveAssignee?: (id: string) => void
-  handleUpdateAssignee?: (id: string, field: string, value: string) => void
-  handleAddTimeEntry?: (assigneeId: string) => void
-  handleRemoveTimeEntry?: (id: string) => void
-  handleUpdateTimeEntry?: (id: string, field: string, value: string) => void
-  setTicketForm?: (form: TicketForm) => void
-  handleImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  setUploadedImages?: (images: string[]) => void
-  showAssigneeForm?: boolean
-  setShowAssigneeForm?: (show: boolean) => void
-  newAssignee?: any
-  setNewAssignee?: (assignee: any) => void
-  isEditMode?: boolean
+  assignees?: Assignee[];
+  timeEntries?: TimeEntry[];
+  uploadedImages?: string[];
+  handleAddAssignee?: () => void;
+  handleRemoveAssignee?: (id: string) => void;
+  handleUpdateAssignee?: (id: string, field: string, value: string) => void;
+  handleAddTimeEntry?: (assigneeId: string) => void;
+  handleRemoveTimeEntry?: (id: string) => void;
+  handleUpdateTimeEntry?: (id: string, field: string, value: string) => void;
+  setTicketForm?: (form: TicketForm) => void;
+  handleImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  setUploadedImages?: (images: string[]) => void;
+  showAssigneeForm?: boolean;
+  setShowAssigneeForm?: (show: boolean) => void;
+  newAssignee?: any;
+  setNewAssignee?: (assignee: any) => void;
+  isEditMode?: boolean;
 }
 
 /**
@@ -59,22 +59,21 @@ function TicketWidget({
   setShowAssigneeForm,
   newAssignee,
   setNewAssignee,
-  isEditMode = true
+  isEditMode = true,
 }: TicketWidgetProps) {
-  
   // State for title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editableTitle, setEditableTitle] = useState(widget.title || 'Widget');
-  
+  const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
+
   // Function to handle remove click with extra measures to prevent drag
   const handleRemoveClick = (e: React.MouseEvent) => {
     // These two lines are crucial to prevent the drag behavior
     e.stopPropagation();
     e.preventDefault();
-    
+
     // Remove the widget
     removeWidget(widget.id);
-    
+
     // Return false to further prevent default behaviors
     return false;
   };
@@ -99,31 +98,35 @@ function TicketWidget({
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleTitleSave();
-    } else if (e.key === 'Escape') {
-      setEditableTitle(widget.title || 'Widget');
+    } else if (e.key === "Escape") {
+      setEditableTitle(widget.title || "Widget");
       setIsEditingTitle(false);
     }
   };
 
   const renderWidgetContent = () => {
-    if (widget.collapsed) return null
-    
+    if (widget.collapsed) return null;
+
     // First check if it's an individual field widget
     if (widget.fieldType) {
       switch (widget.fieldType) {
-        case 'select':
+        case "select":
           return (
             <div className="h-full flex items-center">
               <select
                 id={widget.field}
-                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
-                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
+                value={
+                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                }
+                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
               >
                 <option value="New">New</option>
-                <option value="Awaiting Customer Response">Awaiting Customer Response</option>
+                <option value="Awaiting Customer Response">
+                  Awaiting Customer Response
+                </option>
                 <option value="Awaiting Parts">Awaiting Parts</option>
                 <option value="Open">Open</option>
                 <option value="In Progress">In Progress</option>
@@ -131,56 +134,63 @@ function TicketWidget({
                 <option value="Declined">Declined</option>
               </select>
             </div>
-          )
-          
-        case 'text-readonly':
+          );
+
+        case "text-readonly":
           // Determine the correct value to display based on the widget type
           let displayValue = widget.value;
-          
+
           if (currentTicket && widget.type === WIDGET_TYPES.FIELD_CUSTOMER_NAME) {
-            displayValue = currentTicket.cells['col-3'] || '';
-          } else if (currentTicket && widget.type === WIDGET_TYPES.FIELD_LAST_MODIFIED) {
-            displayValue = currentTicket.cells['col-10'] || '';
+            displayValue = currentTicket.cells["col-3"] || "";
+          } else if (
+            currentTicket &&
+            widget.type === WIDGET_TYPES.FIELD_LAST_MODIFIED
+          ) {
+            displayValue = currentTicket.cells["col-10"] || "";
           } else if (currentTicket && widget.type === WIDGET_TYPES.FIELD_DATE_CREATED) {
-            displayValue = currentTicket.cells['col-2'] || '';
+            displayValue = currentTicket.cells["col-2"] || "";
           }
-          
+
           return (
             <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
               {displayValue}
             </div>
-          )
-          
-        case 'number':
+          );
+
+        case "number":
           return (
             <div className="h-full flex items-center">
               <input
                 type="number"
                 id={widget.field}
-                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
-                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
+                value={
+                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                }
+                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 step="0.1"
                 min="0"
               />
             </div>
-          )
-          
-        case 'textarea':
+          );
+
+        case "textarea":
           return (
             <div className="h-full flex flex-col">
               <textarea
                 id={widget.field}
-                value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
-                onChange={(e) => handleFieldChange(widget.field || '', e.target.value)}
+                value={
+                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                }
+                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
                 className="block w-full h-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm resize-none"
               />
             </div>
-          )
-        
-        case 'table':
+          );
+
+        case "table":
           // Handle the assignee table and time entries table
-          if (widget.type === 'field_assignee_table') {
+          if (widget.type === "field_assignee_table") {
             // Return an individual assignee table widget
             return (
               <div className="overflow-auto">
@@ -190,76 +200,114 @@ function TicketWidget({
                       onClick={() => setShowAssigneeForm(!showAssigneeForm)}
                       className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
                     >
-                      {showAssigneeForm ? 'Cancel' : 'Add Member'}
+                      {showAssigneeForm ? "Cancel" : "Add Member"}
                     </button>
                   )}
                 </div>
-                
-                {showAssigneeForm && setNewAssignee && newAssignee && handleAddAssignee && (
-                  <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700">Name</label>
-                        <input
-                          type="text"
-                          value={newAssignee.name}
-                          onChange={(e) => setNewAssignee({...newAssignee, name: e.target.value})}
-                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                        />
+
+                {showAssigneeForm &&
+                  setNewAssignee &&
+                  newAssignee &&
+                  handleAddAssignee && (
+                    <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={newAssignee.name}
+                            onChange={(e) =>
+                              setNewAssignee({ ...newAssignee, name: e.target.value })
+                            }
+                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700">
+                            Work Description
+                          </label>
+                          <input
+                            type="text"
+                            value={newAssignee.workDescription}
+                            onChange={(e) =>
+                              setNewAssignee({
+                                ...newAssignee,
+                                workDescription: e.target.value,
+                              })
+                            }
+                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700">
+                            Total Hours
+                          </label>
+                          <input
+                            type="number"
+                            value={newAssignee.totalHours}
+                            onChange={(e) =>
+                              setNewAssignee({
+                                ...newAssignee,
+                                totalHours: e.target.value,
+                              })
+                            }
+                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                            step="0.1"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-neutral-700">
+                            Est. Time
+                          </label>
+                          <input
+                            type="number"
+                            value={newAssignee.estTime}
+                            onChange={(e) =>
+                              setNewAssignee({
+                                ...newAssignee,
+                                estTime: e.target.value,
+                              })
+                            }
+                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                            step="0.1"
+                            min="0"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700">Work Description</label>
-                        <input
-                          type="text"
-                          value={newAssignee.workDescription}
-                          onChange={(e) => setNewAssignee({...newAssignee, workDescription: e.target.value})}
-                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700">Total Hours</label>
-                        <input
-                          type="number"
-                          value={newAssignee.totalHours}
-                          onChange={(e) => setNewAssignee({...newAssignee, totalHours: e.target.value})}
-                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          step="0.1"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700">Est. Time</label>
-                        <input
-                          type="number"
-                          value={newAssignee.estTime}
-                          onChange={(e) => setNewAssignee({...newAssignee, estTime: e.target.value})}
-                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          step="0.1"
-                          min="0"
-                        />
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={handleAddAssignee}
+                          className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
+                        >
+                          Add Member
+                        </button>
                       </div>
                     </div>
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={handleAddAssignee}
-                        className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
-                      >
-                        Add Member
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
+                  )}
+
                 {assignees?.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-neutral-200">
                       <thead className="bg-neutral-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Work Description</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Total Hours</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Est. Time</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Name
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Work Description
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Total Hours
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Est. Time
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-neutral-200">
@@ -269,7 +317,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={assignee.name}
-                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'name', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateAssignee &&
+                                  handleUpdateAssignee(
+                                    assignee.id,
+                                    "name",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
                             </td>
@@ -277,7 +332,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={assignee.workDescription}
-                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'workDescription', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateAssignee &&
+                                  handleUpdateAssignee(
+                                    assignee.id,
+                                    "workDescription",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
                             </td>
@@ -285,7 +347,14 @@ function TicketWidget({
                               <input
                                 type="number"
                                 value={assignee.totalHours}
-                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'totalHours', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateAssignee &&
+                                  handleUpdateAssignee(
+                                    assignee.id,
+                                    "totalHours",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                                 step="0.1"
                                 min="0"
@@ -295,7 +364,14 @@ function TicketWidget({
                               <input
                                 type="number"
                                 value={assignee.estTime}
-                                onChange={(e) => handleUpdateAssignee && handleUpdateAssignee(assignee.id, 'estTime', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateAssignee &&
+                                  handleUpdateAssignee(
+                                    assignee.id,
+                                    "estTime",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                                 step="0.1"
                                 min="0"
@@ -309,8 +385,19 @@ function TicketWidget({
                                     className="text-blue-600 hover:text-blue-800"
                                     title="Add Time Entry"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
                                     </svg>
                                   </button>
                                 )}
@@ -320,8 +407,19 @@ function TicketWidget({
                                     className="text-red-600 hover:text-red-800"
                                     title="Remove Assignee"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
                                     </svg>
                                   </button>
                                 )}
@@ -338,24 +436,37 @@ function TicketWidget({
                   </div>
                 )}
               </div>
-            )
-          }
-          else if (widget.type === 'field_time_entries_table') {
+            );
+          } else if (widget.type === "field_time_entries_table") {
             // Return an individual time entries table widget
             return (
-              <div className="overflow-auto">                
+              <div className="overflow-auto">
                 {timeEntries?.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-neutral-200">
                       <thead className="bg-neutral-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Assignee</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Start Time</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Stop Time</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Duration (hrs)</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Remarks</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Assignee
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Start Time
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Stop Time
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Duration (hrs)
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Remarks
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-neutral-200">
@@ -368,7 +479,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={entry.startTime}
-                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'startTime', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateTimeEntry &&
+                                  handleUpdateTimeEntry(
+                                    entry.id,
+                                    "startTime",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
                             </td>
@@ -376,7 +494,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={entry.stopTime}
-                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'stopTime', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateTimeEntry &&
+                                  handleUpdateTimeEntry(
+                                    entry.id,
+                                    "stopTime",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
                             </td>
@@ -384,7 +509,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={entry.duration}
-                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'duration', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateTimeEntry &&
+                                  handleUpdateTimeEntry(
+                                    entry.id,
+                                    "duration",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                                 readOnly
                               />
@@ -396,7 +528,14 @@ function TicketWidget({
                               <input
                                 type="text"
                                 value={entry.remarks}
-                                onChange={(e) => handleUpdateTimeEntry && handleUpdateTimeEntry(entry.id, 'remarks', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateTimeEntry &&
+                                  handleUpdateTimeEntry(
+                                    entry.id,
+                                    "remarks",
+                                    e.target.value,
+                                  )
+                                }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
                             </td>
@@ -407,8 +546,19 @@ function TicketWidget({
                                   className="text-red-600 hover:text-red-800"
                                   title="Remove Time Entry"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
                                   </svg>
                                 </button>
                               )}
@@ -424,12 +574,12 @@ function TicketWidget({
                   </div>
                 )}
               </div>
-            )
+            );
           }
           return null;
-        
-        case 'gallery':
-          if (widget.type === 'field_attachments_gallery') {
+
+        case "gallery":
+          if (widget.type === "field_attachments_gallery") {
             // Return an attachment/images gallery widget
             return (
               <div className="overflow-auto">
@@ -447,7 +597,7 @@ function TicketWidget({
                     </label>
                   </div>
                 </div>
-                
+
                 {uploadedImages && uploadedImages.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
                     {uploadedImages.map((image, index) => (
@@ -458,12 +608,28 @@ function TicketWidget({
                           className="h-40 w-full object-cover rounded-md"
                         />
                         <button
-                          onClick={() => setUploadedImages && setUploadedImages(uploadedImages.filter((_, i) => i !== index))}
+                          onClick={() =>
+                            setUploadedImages &&
+                            setUploadedImages(
+                              uploadedImages.filter((_, i) => i !== index),
+                            )
+                          }
                           className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
                           title="Remove Image"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -471,23 +637,34 @@ function TicketWidget({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-neutral-500 text-sm bg-neutral-50 rounded-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-2 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-10 w-10 mx-auto mb-2 text-neutral-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                     No images uploaded yet.
                   </div>
                 )}
               </div>
-            )
+            );
           }
           return null;
       }
     }
-    
+
     // If not an individual field, fall back to the original widget types
     switch (widget.type) {
-      case 'details':
-        if (!setTicketForm) return null
+      case "details":
+        if (!setTicketForm) return null;
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -495,11 +672,15 @@ function TicketWidget({
                 <select
                   id="status"
                   value={ticketForm.status}
-                  onChange={(e) => setTicketForm({...ticketForm, status: e.target.value})}
+                  onChange={(e) =>
+                    setTicketForm({ ...ticketForm, status: e.target.value })
+                  }
                   className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 >
                   <option value="New">New</option>
-                  <option value="Awaiting Customer Response">Awaiting Customer Response</option>
+                  <option value="Awaiting Customer Response">
+                    Awaiting Customer Response
+                  </option>
                   <option value="Awaiting Parts">Awaiting Parts</option>
                   <option value="Open">Open</option>
                   <option value="In Progress">In Progress</option>
@@ -507,33 +688,35 @@ function TicketWidget({
                   <option value="Declined">Declined</option>
                 </select>
               </div>
-              
+
               <div>
                 <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                  {currentTicket?.cells['col-3']}
+                  {currentTicket?.cells["col-3"]}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                    {currentTicket?.cells['col-2']}
+                    {currentTicket?.cells["col-2"]}
                   </div>
                 </div>
                 <div>
                   <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                    {currentTicket?.cells['col-10']}
+                    {currentTicket?.cells["col-10"]}
                   </div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="h-[38px]">
                   <input
                     type="number"
                     id="billableHours"
                     value={ticketForm.billableHours}
-                    onChange={(e) => setTicketForm({...ticketForm, billableHours: e.target.value})}
+                    onChange={(e) =>
+                      setTicketForm({ ...ticketForm, billableHours: e.target.value })
+                    }
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"
@@ -544,7 +727,9 @@ function TicketWidget({
                     type="number"
                     id="totalHours"
                     value={ticketForm.totalHours}
-                    onChange={(e) => setTicketForm({...ticketForm, totalHours: e.target.value})}
+                    onChange={(e) =>
+                      setTicketForm({ ...ticketForm, totalHours: e.target.value })
+                    }
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"
@@ -552,27 +737,36 @@ function TicketWidget({
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <textarea
                   id="description"
                   value={ticketForm.description}
-                  onChange={(e) => setTicketForm({...ticketForm, description: e.target.value})}
+                  onChange={(e) =>
+                    setTicketForm({ ...ticketForm, description: e.target.value })
+                  }
                   rows={5}
                   className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 />
               </div>
             </div>
           </div>
-        )
-      
-      case 'assignees':
-        if (!setShowAssigneeForm || !handleAddAssignee || !setNewAssignee || !newAssignee || 
-            !handleUpdateAssignee || !handleRemoveAssignee || !handleAddTimeEntry) {
-          return null
+        );
+
+      case "assignees":
+        if (
+          !setShowAssigneeForm ||
+          !handleAddAssignee ||
+          !setNewAssignee ||
+          !newAssignee ||
+          !handleUpdateAssignee ||
+          !handleRemoveAssignee ||
+          !handleAddTimeEntry
+        ) {
+          return null;
         }
-        
+
         return (
           <div>
             {/* Form to add a new assignee */}
@@ -580,40 +774,59 @@ function TicketWidget({
               <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Name</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Name
+                    </label>
                     <input
                       type="text"
                       value={newAssignee.name}
-                      onChange={(e) => setNewAssignee({...newAssignee, name: e.target.value})}
+                      onChange={(e) =>
+                        setNewAssignee({ ...newAssignee, name: e.target.value })
+                      }
                       className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Work Description</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Work Description
+                    </label>
                     <input
                       type="text"
                       value={newAssignee.workDescription}
-                      onChange={(e) => setNewAssignee({...newAssignee, workDescription: e.target.value})}
+                      onChange={(e) =>
+                        setNewAssignee({
+                          ...newAssignee,
+                          workDescription: e.target.value,
+                        })
+                      }
                       className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Total Hours</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Total Hours
+                    </label>
                     <input
                       type="number"
                       value={newAssignee.totalHours}
-                      onChange={(e) => setNewAssignee({...newAssignee, totalHours: e.target.value})}
+                      onChange={(e) =>
+                        setNewAssignee({ ...newAssignee, totalHours: e.target.value })
+                      }
                       className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                       step="0.1"
                       min="0"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Estimated Time</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Estimated Time
+                    </label>
                     <input
                       type="number"
                       value={newAssignee.estTime}
-                      onChange={(e) => setNewAssignee({...newAssignee, estTime: e.target.value})}
+                      onChange={(e) =>
+                        setNewAssignee({ ...newAssignee, estTime: e.target.value })
+                      }
                       className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                       step="0.1"
                       min="0"
@@ -636,7 +849,7 @@ function TicketWidget({
                 </div>
               </div>
             )}
-            
+
             <div className="flex justify-between mb-3">
               <div></div>
               <button
@@ -644,40 +857,66 @@ function TicketWidget({
                 className="flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
                 title="Add assignee"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
                 Add Team Member
               </button>
             </div>
-            
+
             {/* Assignees table */}
             <div className="border rounded-lg overflow-hidden">
               <table className="min-w-full divide-y divide-neutral-200">
                 <thead className="bg-neutral-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Work Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Total Hours</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Est. Time</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Work Description
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Total Hours
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Est. Time
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-neutral-200">
                   {assignees.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-4 text-center text-sm text-neutral-500">
+                      <td
+                        colSpan={5}
+                        className="px-4 py-4 text-center text-sm text-neutral-500"
+                      >
                         No team members assigned yet
                       </td>
                     </tr>
                   )}
-                  {assignees.map(assignee => (
+                  {assignees.map((assignee) => (
                     <tr key={assignee.id} className="hover:bg-neutral-50">
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         <input
                           type="text"
                           value={assignee.name}
-                          onChange={(e) => handleUpdateAssignee(assignee.id, 'name', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateAssignee(assignee.id, "name", e.target.value)
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
                       </td>
@@ -685,7 +924,13 @@ function TicketWidget({
                         <input
                           type="text"
                           value={assignee.workDescription}
-                          onChange={(e) => handleUpdateAssignee(assignee.id, 'workDescription', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateAssignee(
+                              assignee.id,
+                              "workDescription",
+                              e.target.value,
+                            )
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
                       </td>
@@ -693,7 +938,13 @@ function TicketWidget({
                         <input
                           type="number"
                           value={assignee.totalHours}
-                          onChange={(e) => handleUpdateAssignee(assignee.id, 'totalHours', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateAssignee(
+                              assignee.id,
+                              "totalHours",
+                              e.target.value,
+                            )
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                           step="0.1"
                           min="0"
@@ -703,20 +954,33 @@ function TicketWidget({
                         <input
                           type="number"
                           value={assignee.estTime}
-                          onChange={(e) => handleUpdateAssignee(assignee.id, 'estTime', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateAssignee(assignee.id, "estTime", e.target.value)
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                           step="0.1"
                           min="0"
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
-                        <button 
+                        <button
                           onClick={() => handleAddTimeEntry(assignee.id)}
                           className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                           title="Add time entry"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         </button>
                         <button
@@ -724,8 +988,19 @@ function TicketWidget({
                           className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                           title="Remove assignee"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </td>
@@ -735,38 +1010,57 @@ function TicketWidget({
               </table>
             </div>
           </div>
-        )
-        
-      case 'time_entries':
+        );
+
+      case "time_entries":
         if (!handleUpdateTimeEntry || !handleRemoveTimeEntry) {
-          return null
+          return null;
         }
-        
+
         return (
           <div>
             <div className="border rounded-lg overflow-hidden">
               <table className="min-w-full divide-y divide-neutral-200">
                 <thead className="bg-neutral-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Assignee</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Start Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Stop Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Duration</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Remarks</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Assignee
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Start Time
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Stop Time
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Duration
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Remarks
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-neutral-200">
                   {timeEntries.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-4 py-4 text-center text-sm text-neutral-500">
+                      <td
+                        colSpan={8}
+                        className="px-4 py-4 text-center text-sm text-neutral-500"
+                      >
                         No time entries recorded yet
                       </td>
                     </tr>
                   )}
-                  {timeEntries.map(entry => (
+                  {timeEntries.map((entry) => (
                     <tr key={entry.id} className="hover:bg-neutral-50">
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         {entry.assigneeName}
@@ -778,7 +1072,9 @@ function TicketWidget({
                         <input
                           type="time"
                           value={entry.startTime}
-                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'startTime', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateTimeEntry(entry.id, "startTime", e.target.value)
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
                       </td>
@@ -786,7 +1082,9 @@ function TicketWidget({
                         <input
                           type="time"
                           value={entry.stopTime}
-                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'stopTime', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateTimeEntry(entry.id, "stopTime", e.target.value)
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
                       </td>
@@ -800,7 +1098,9 @@ function TicketWidget({
                         <input
                           type="text"
                           value={entry.remarks}
-                          onChange={(e) => handleUpdateTimeEntry(entry.id, 'remarks', e.target.value)}
+                          onChange={(e) =>
+                            handleUpdateTimeEntry(entry.id, "remarks", e.target.value)
+                          }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                           placeholder="Add remarks..."
                         />
@@ -811,8 +1111,19 @@ function TicketWidget({
                           className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                           title="Remove time entry"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </td>
@@ -822,13 +1133,13 @@ function TicketWidget({
               </table>
             </div>
           </div>
-        )
-        
-      case 'attachments':
+        );
+
+      case "attachments":
         if (!handleImageUpload || !setUploadedImages) {
-          return null
+          return null;
         }
-        
+
         return (
           <div>
             <div className="mb-4">
@@ -838,25 +1149,47 @@ function TicketWidget({
                 </label>
                 <label className="cursor-pointer rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600">
                   <span className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 mr-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
                     </svg>
                     Upload
                   </span>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*" 
-                    multiple 
-                    onChange={handleImageUpload} 
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
                   />
                 </label>
               </div>
-              
+
               {uploadedImages.length === 0 ? (
                 <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mx-auto h-12 w-12 text-neutral-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <p className="mt-2 text-sm text-neutral-500">
                     Drag and drop files here or click the upload button
@@ -867,19 +1200,34 @@ function TicketWidget({
                   {uploadedImages.map((image, index) => (
                     <div key={index} className="relative group">
                       <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden border border-neutral-200">
-                        <img 
-                          src={image} 
-                          alt={`Uploaded image ${index + 1}`} 
+                        <img
+                          src={image}
+                          alt={`Uploaded image ${index + 1}`}
                           className="object-cover w-full h-full"
                         />
                       </div>
                       <button
-                        onClick={() => setUploadedImages(uploadedImages.filter((_, i) => i !== index))}
+                        onClick={() =>
+                          setUploadedImages(
+                            uploadedImages.filter((_, i) => i !== index),
+                          )
+                        }
                         className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 h-7 w-7 rounded-full flex items-center justify-center text-white bg-red-500 hover:bg-red-600 transition-opacity"
                         title="Remove image"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -888,24 +1236,26 @@ function TicketWidget({
               )}
             </div>
           </div>
-        )
-        
+        );
+
       default:
         return (
           <div className="py-4 text-center text-neutral-500">
             No content for this widget type
           </div>
-        )
+        );
     }
-  }
-  
+  };
+
   return (
     <div className="w-full h-full bg-white rounded-lg border border-neutral-200 shadow-sm flex flex-col overflow-hidden">
       {/* Widget header for dragging and controls */}
-      <div className={cn(
-        "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
-        isEditMode ? "react-grid-dragHandle" : ""
-      )}>
+      <div
+        className={cn(
+          "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
+          isEditMode ? "react-grid-dragHandle" : "",
+        )}
+      >
         <h3 className="text-sm font-medium text-neutral-700 truncate flex-1">
           {isEditingTitle ? (
             <input
@@ -927,7 +1277,7 @@ function TicketWidget({
               style={{ width: `${Math.max(100, editableTitle.length * 8)}px` }}
             />
           ) : (
-            <span 
+            <span
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -941,14 +1291,16 @@ function TicketWidget({
               }}
               className={cn(
                 "py-1 px-1 rounded",
-                isEditMode && updateWidgetTitle ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600" : ""
+                isEditMode && updateWidgetTitle
+                  ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600"
+                  : "",
               )}
             >
-              {widget.title || 'Widget'}
+              {widget.title || "Widget"}
             </span>
           )}
         </h3>
-        
+
         {isEditMode && (
           <div className="flex items-center space-x-1 ml-2">
             <button
@@ -957,12 +1309,34 @@ function TicketWidget({
               title={widget.collapsed ? "Expand" : "Collapse"}
             >
               {widget.collapsed ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 15l7-7 7 7"
+                  />
                 </svg>
               )}
             </button>
@@ -971,23 +1345,36 @@ function TicketWidget({
               className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-red-100 hover:text-red-500"
               title="Remove Widget"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
         )}
       </div>
-      
+
       {/* Widget content - adjust to fill remaining height */}
-      <div className={cn(
-        "p-3 flex-1 overflow-y-auto",
-        widget.collapsed ? "hidden" : "flex flex-col h-full"
-      )}>
+      <div
+        className={cn(
+          "p-3 flex-1 overflow-y-auto",
+          widget.collapsed ? "hidden" : "flex flex-col h-full",
+        )}
+      >
         {renderWidgetContent()}
       </div>
     </div>
-  )
+  );
 }
 
-export default TicketWidget 
+export default TicketWidget;

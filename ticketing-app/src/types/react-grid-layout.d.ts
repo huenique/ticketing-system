@@ -1,6 +1,6 @@
-declare module 'react-grid-layout' {
-  import * as React from 'react';
-  
+declare module "react-grid-layout" {
+  import * as React from "react";
+
   export interface Layout {
     i: string;
     x: number;
@@ -14,11 +14,11 @@ declare module 'react-grid-layout' {
     static?: boolean;
     isDraggable?: boolean;
     isResizable?: boolean;
-    resizeHandles?: Array<'s' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'>;
+    resizeHandles?: Array<"s" | "w" | "e" | "n" | "sw" | "nw" | "se" | "ne">;
     isBounded?: boolean;
   }
 
-  export type Layouts = {[key: string]: Layout[]};
+  export type Layouts = { [key: string]: Layout[] };
 
   export interface CoreProps {
     className?: string;
@@ -40,31 +40,78 @@ declare module 'react-grid-layout' {
     useCSSTransforms?: boolean;
     transformScale?: number;
     verticalCompact?: boolean;
-    compactType?: 'vertical' | 'horizontal' | null;
+    compactType?: "vertical" | "horizontal" | null;
     onLayoutChange?: (layout: Layout[]) => void;
-    onDragStart?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onDrag?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onDragStop?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onResizeStart?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onResize?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
-    onResizeStop?: (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, event: MouseEvent, element: HTMLElement) => void;
+    onDragStart?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onDrag?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onDragStop?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onResizeStart?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onResize?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
+    onResizeStop?: (
+      layout: Layout[],
+      oldItem: Layout,
+      newItem: Layout,
+      placeholder: Layout,
+      event: MouseEvent,
+      element: HTMLElement,
+    ) => void;
     onDrop?: (layout: Layout[], item: Layout, event: Event) => void;
     children?: React.ReactNode;
   }
 
   export interface ResponsiveProps extends CoreProps {
-    breakpoints?: {lg?: number, md?: number, sm?: number, xs?: number, xxs?: number};
-    cols?: {lg?: number, md?: number, sm?: number, xs?: number, xxs?: number};
+    breakpoints?: { lg?: number; md?: number; sm?: number; xs?: number; xxs?: number };
+    cols?: { lg?: number; md?: number; sm?: number; xs?: number; xxs?: number };
     layouts?: Layouts;
     onBreakpointChange?: (breakpoint: string, cols: number) => void;
     onLayoutChange?: (layout: Layout[], layouts: Layouts) => void;
-    onWidthChange?: (containerWidth: number, margin: [number, number], cols: number, containerPadding: [number, number]) => void;
+    onWidthChange?: (
+      containerWidth: number,
+      margin: [number, number],
+      cols: number,
+      containerPadding: [number, number],
+    ) => void;
   }
 
   export class Responsive extends React.Component<ResponsiveProps> {}
   export class RGL extends React.Component<CoreProps> {}
-  
+
   export function WidthProvider<P extends object>(
-    ComposedComponent: React.ComponentType<P>
-  ): React.ComponentType<Omit<P, 'width'>>;
-} 
+    ComposedComponent: React.ComponentType<P>,
+  ): React.ComponentType<Omit<P, "width">>;
+}

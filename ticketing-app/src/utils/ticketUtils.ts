@@ -1,71 +1,82 @@
-import { MOCK_CUSTOMERS, MOCK_PARTS, MOCK_STATUSES, MOCK_ASSIGNEES } from '../constants/tickets'
+import {
+  MOCK_CUSTOMERS,
+  MOCK_PARTS,
+  MOCK_STATUSES,
+  MOCK_ASSIGNEES,
+} from "../constants/tickets";
 
 /**
  * Generate mock data for a table row
  */
 export function generateMockRowData(rowIndex: number): Record<string, string> {
-  const today = new Date()
-  const weekAgo = new Date(today)
-  weekAgo.setDate(today.getDate() - 7)
-  
-  const dateCreated = randomDate(weekAgo, today)
-  const lastModified = randomDate(dateCreated, today)
-  
-  const randomCustomer = MOCK_CUSTOMERS[Math.floor(Math.random() * MOCK_CUSTOMERS.length)]
-  const randomStatus = MOCK_STATUSES[Math.floor(Math.random() * MOCK_STATUSES.length)]
-  
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
+
+  const dateCreated = randomDate(weekAgo, today);
+  const lastModified = randomDate(dateCreated, today);
+
+  const randomCustomer =
+    MOCK_CUSTOMERS[Math.floor(Math.random() * MOCK_CUSTOMERS.length)];
+  const randomStatus = MOCK_STATUSES[Math.floor(Math.random() * MOCK_STATUSES.length)];
+
   // Generate 1-3 random parts
-  const randomPartCount = Math.floor(Math.random() * 3) + 1
-  const randomParts = Array(randomPartCount).fill(0).map(() => 
-    MOCK_PARTS[Math.floor(Math.random() * MOCK_PARTS.length)]
-  ).join(", ")
-  
+  const randomPartCount = Math.floor(Math.random() * 3) + 1;
+  const randomParts = Array(randomPartCount)
+    .fill(0)
+    .map(() => MOCK_PARTS[Math.floor(Math.random() * MOCK_PARTS.length)])
+    .join(", ");
+
   // Generate random hours
-  const totalHours = (Math.random() * 10 + 1).toFixed(1)
-  const billableHours = (Math.random() * parseFloat(totalHours)).toFixed(1)
-  
+  const totalHours = (Math.random() * 10 + 1).toFixed(1);
+  const billableHours = (Math.random() * parseFloat(totalHours)).toFixed(1);
+
   return {
-    'col-1': `TK-${1000 + rowIndex}`, // Ticket ID
-    'col-2': formatDate(dateCreated), // Date Created
-    'col-3': randomCustomer, // Customer Name
-    'col-4': `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`, // Work Description
-    'col-5': MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)], // Assign To
-    'col-6': randomParts, // Parts Used
-    'col-7': randomStatus, // Status
-    'col-8': totalHours, // Total Hours
-    'col-9': billableHours, // Billable Hours 
-    'col-10': formatDate(lastModified), // Last Modified
-    'col-11': 'action_buttons' // Actions
-  }
+    "col-1": `TK-${1000 + rowIndex}`, // Ticket ID
+    "col-2": formatDate(dateCreated), // Date Created
+    "col-3": randomCustomer, // Customer Name
+    "col-4": `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`, // Work Description
+    "col-5": MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)], // Assign To
+    "col-6": randomParts, // Parts Used
+    "col-7": randomStatus, // Status
+    "col-8": totalHours, // Total Hours
+    "col-9": billableHours, // Billable Hours
+    "col-10": formatDate(lastModified), // Last Modified
+    "col-11": "action_buttons", // Actions
+  };
 }
 
 /**
  * Generate a random date between two dates
  */
 function randomDate(start: Date, end: Date): Date {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
 /**
  * Format a date to a readable string
  */
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 /**
  * Get saved tabs data from localStorage
  */
 export function getSavedTabsData() {
-  if (typeof window === "undefined") return { tabs: null, activeTab: null }
-  
-  const savedTabs = localStorage.getItem("ticket-tabs")
-  const savedActiveTab = localStorage.getItem("ticket-active-tab")
-  
+  if (typeof window === "undefined") return { tabs: null, activeTab: null };
+
+  const savedTabs = localStorage.getItem("ticket-tabs");
+  const savedActiveTab = localStorage.getItem("ticket-active-tab");
+
   return {
     tabs: savedTabs ? JSON.parse(savedTabs) : null,
     activeTab: savedActiveTab || null,
-  }
+  };
 }
 
 /**
@@ -74,17 +85,17 @@ export function getSavedTabsData() {
  * @returns The retrieved object or undefined if not found
  */
 export function getFromLS(key: string) {
-  let ls: Record<string, any> = {}
+  let ls: Record<string, any> = {};
   if (typeof window !== "undefined" && window.localStorage) {
     try {
-      const storedData = window.localStorage.getItem("rgl-ticket-layouts")
-      ls = storedData ? JSON.parse(storedData) : {}
+      const storedData = window.localStorage.getItem("rgl-ticket-layouts");
+      ls = storedData ? JSON.parse(storedData) : {};
     } catch (e) {
       // Ignore errors in localStorage
-      console.error("Error loading layout from localStorage:", e)
+      console.error("Error loading layout from localStorage:", e);
     }
   }
-  return ls[key]
+  return ls[key];
 }
 
 /**
@@ -95,12 +106,12 @@ export function getFromLS(key: string) {
 export function saveToLS(key: string, value: any) {
   if (typeof window !== "undefined" && window.localStorage) {
     try {
-      const storedData = window.localStorage.getItem("rgl-ticket-layouts")
-      let ls: Record<string, any> = storedData ? JSON.parse(storedData) : {}
-      ls[key] = value
-      window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls))
+      const storedData = window.localStorage.getItem("rgl-ticket-layouts");
+      let ls: Record<string, any> = storedData ? JSON.parse(storedData) : {};
+      ls[key] = value;
+      window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls));
     } catch (e) {
-      console.error("Error saving layout to localStorage:", e)
+      console.error("Error saving layout to localStorage:", e);
     }
   }
 }
@@ -265,5 +276,5 @@ export function getScrollbarStyles(): string {
       -ms-overflow-style: none;  /* IE and Edge */
       scrollbar-width: none;  /* Firefox */
     }
-  `
-} 
+  `;
+}

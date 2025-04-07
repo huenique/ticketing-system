@@ -29,6 +29,7 @@ The codebase was recently refactored to improve maintainability and organization
 ### No Functional Changes
 
 The refactoring preserved all existing functionality:
+
 - Tab management (adding, renaming, closing, and dragging)
 - Table management (column manipulation, row handling)
 - Ticket viewing and editing
