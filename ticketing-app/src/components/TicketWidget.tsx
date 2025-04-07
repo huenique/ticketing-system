@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Widget, TicketForm, Assignee, TimeEntry } from "../types/tickets";
-import { cn } from "../lib/utils";
+
 import { WIDGET_TYPES } from "../constants/tickets";
+import { cn } from "../lib/utils";
+import { Assignee, TicketForm, TimeEntry,Widget } from "../types/tickets";
 
 interface TicketWidgetProps {
   widget: Widget;

@@ -1,7 +1,8 @@
-import { create } from "zustand";
 import { Layout, Layouts } from "react-grid-layout";
-import { Row, Widget, TicketForm } from "../types/tickets";
+import { create } from "zustand";
+
 import { WIDGET_TYPES } from "../constants/tickets";
+import { Row, TicketForm,Widget } from "../types/tickets";
 import { persist } from "./middleware";
 
 interface WidgetsState {

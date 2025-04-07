@@ -1,7 +1,8 @@
-import { cn } from "@/lib/utils";
-import { LucideIcon, Home, Ticket, Users, Settings, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Home, LogOut,LucideIcon, Settings, Ticket, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SidebarItemProps {
   icon: LucideIcon;

@@ -1,4 +1,5 @@
 import React from "react";
+
 import { Tab } from "../types/tickets";
 
 interface TabNavigationProps {

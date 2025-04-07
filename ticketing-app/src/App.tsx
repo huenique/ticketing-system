@@ -1,10 +1,11 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate,Route, Routes } from "react-router-dom";
+
 import { DashboardLayout } from "./components/dashboard-layout";
-import Tickets from "./pages/Tickets";
-import Users from "./pages/Users";
-import Settings from "./pages/Settings";
 import Logout from "./pages/Logout";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
+import Tickets from "./pages/Tickets";
+import Users from "./pages/Users";
 
 function App() {
   return (

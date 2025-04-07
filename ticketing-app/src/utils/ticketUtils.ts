@@ -1,8 +1,8 @@
 import {
+  MOCK_ASSIGNEES,
   MOCK_CUSTOMERS,
   MOCK_PARTS,
   MOCK_STATUSES,
-  MOCK_ASSIGNEES,
 } from "../constants/tickets";
 
 /**
@@ -107,7 +107,7 @@ export function saveToLS(key: string, value: any) {
   if (typeof window !== "undefined" && window.localStorage) {
     try {
       const storedData = window.localStorage.getItem("rgl-ticket-layouts");
-      let ls: Record<string, any> = storedData ? JSON.parse(storedData) : {};
+      const ls: Record<string, any> = storedData ? JSON.parse(storedData) : {};
       ls[key] = value;
       window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls));
     } catch (e) {

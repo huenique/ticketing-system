@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import { Table, Row, TicketForm } from "../types/tickets";
-import { generateMockRowData } from "../utils/ticketUtils";
+
 import { PRESET_TABLES } from "../constants/tickets";
+import { Row, Table, TicketForm } from "../types/tickets";
+import { generateMockRowData } from "../utils/ticketUtils";
 import { persist } from "./middleware";
 import useTabsStore from "./tabsStore";
 

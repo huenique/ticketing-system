@@ -1,24 +1,26 @@
-import { useState, useEffect, Fragment } from "react";
-import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+
+import { Fragment,useEffect, useState } from "react";
+import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
+
 // Import components
 import TabNavigation from "../components/TabNavigation";
 import TicketWidget from "../components/TicketWidget";
+import { WIDGET_TYPES } from "../constants/tickets";
+import useColumnsStore from "../stores/columnsStore";
+import useTablesStore from "../stores/tablesStore";
 // Import Zustand stores
 import useTabsStore from "../stores/tabsStore";
-import useTablesStore from "../stores/tablesStore";
-import useColumnsStore from "../stores/columnsStore";
 import useWidgetsStore from "../stores/widgetsStore";
 // Import types, constants and utilities
-import { Row, Table, Widget, Assignee, TimeEntry, TicketForm } from "../types/tickets";
-import { WIDGET_TYPES } from "../constants/tickets";
+import { Assignee, Row, Table, TicketForm,TimeEntry, Widget } from "../types/tickets";
 import {
-  getSavedTabsData,
+  getFromLS,
   getGridStyles,
+  getSavedTabsData,
   getScrollbarStyles,
   saveToLS,
-  getFromLS,
 } from "../utils/ticketUtils";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -569,8 +571,8 @@ function Tickets() {
         let otherY = yPos;
 
         otherWidgets.forEach((widget) => {
-          let w = breakpoint === "xxs" ? cols : breakpoint === "xs" ? 3 : 3;
-          let h = 2;
+          const w = breakpoint === "xxs" ? cols : breakpoint === "xs" ? 3 : 3;
+          const h = 2;
 
           // If otherX + w exceeds cols, move to next row
           if (otherX + w > cols) {

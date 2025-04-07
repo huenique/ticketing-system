@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect,useState } from "react";
 import { Layout, Layouts } from "react-grid-layout";
+
+import { PRESET_TABLES,WIDGET_TYPES } from "../constants/tickets";
 import {
+  Assignee,
+  Row,
   Tab,
   Table,
-  Row,
-  Assignee,
+  TicketForm,
   TimeEntry,
   Widget,
-  TicketForm,
 } from "../types/tickets";
-import { WIDGET_TYPES, PRESET_TABLES } from "../constants/tickets";
 import { generateMockRowData, getSavedTabsData } from "../utils/ticketUtils";
 
 /**
