@@ -1,16 +1,14 @@
-import { useCallback,useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Layout, Layouts } from "react-grid-layout";
 
 import { WIDGET_TYPES } from "../constants/tickets";
-import { TicketForm,Widget } from "../types/tickets";
+import { TicketForm, Widget } from "../types/tickets";
 
 /**
  * Custom hook to manage widget operations
  */
 export function useWidgets(ticketForm: TicketForm) {
   const [widgets, setWidgets] = useState<Widget[]>([]);
-  const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
-  const [isDraggingWidget, setIsDraggingWidget] = useState(false);
 
   // State for grid layout
   const [widgetLayouts, setWidgetLayouts] = useState<Layouts>({
@@ -77,7 +75,7 @@ export function useWidgets(ticketForm: TicketForm) {
   }, []);
 
   // Add a new widget to the dialog
-  const addWidget = (type: string, currentTicket?: Record<string, any>) => {
+  const addWidget = (type: string, currentTicket?: Record<string, never>) => {
     const newWidgetId = `widget-${Date.now()}`;
     let title = "New Widget";
     let width = 12;
@@ -231,7 +229,7 @@ export function useWidgets(ticketForm: TicketForm) {
   };
 
   // Handle layout changes
-  const onLayoutChange = useCallback((layout: Layout[], layouts: Layouts) => {
+  const onLayoutChange = useCallback((_layout: Layout[], layouts: Layouts) => {
     // Save the user-modified layouts when they change
     setWidgetLayouts(layouts);
   }, []);
@@ -243,7 +241,7 @@ export function useWidgets(ticketForm: TicketForm) {
   }, [widgets]);
 
   // Field change handler
-  const handleFieldChange = (fieldName: string, value: any) => {
+  const handleFieldChange = (fieldName: string, value: never) => {
     if (!fieldName) return;
 
     // Update the widget's fieldValue
@@ -272,8 +270,8 @@ export function useWidgets(ticketForm: TicketForm) {
             return Math.max(maxY, layout.y + layout.h);
           }, 0);
 
-          const wSize = widget.width;
-          const hSize = widget.height;
+          const wSize = widget.width ?? 4; // Default to 4 if undefined
+          const hSize = widget.height ?? 2; // Default to 2 if undefined
 
           // Add to layouts for each breakpoint
           newLayouts.lg.push({

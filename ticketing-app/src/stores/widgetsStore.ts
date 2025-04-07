@@ -2,7 +2,7 @@ import { Layout, Layouts } from "react-grid-layout";
 import { create } from "zustand";
 
 import { WIDGET_TYPES } from "../constants/tickets";
-import { Row, TicketForm,Widget } from "../types/tickets";
+import { Row, Widget } from "../types/tickets";
 import { persist } from "./middleware";
 
 interface WidgetsState {
@@ -271,7 +271,7 @@ const useWidgetsStore = create<WidgetsState>()(
         }));
       },
 
-      onLayoutChange: (currentLayout, allLayouts) => {
+      onLayoutChange: (_currentLayout, allLayouts) => {
         // Save the new layouts
         set({ widgetLayouts: allLayouts });
       },

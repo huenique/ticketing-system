@@ -1,4 +1,4 @@
-import { Home, LogOut,LucideIcon, Settings, Ticket, Users } from "lucide-react";
+import { LogOut, LucideIcon, Settings, Ticket, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";

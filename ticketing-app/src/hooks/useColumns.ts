@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { EditingColumn } from "../types/tickets";
+import { Tables } from "@/types/tables";
+import { EditingColumn } from "@/types/tickets";
 
 /**
  * Custom hook to manage column operations
@@ -12,25 +13,20 @@ export function useColumns() {
   const [isDraggingColumn, setIsDraggingColumn] = useState(false);
 
   // Handle column rename
-  const handleColumnDoubleClick = (
-    tabId: string,
-    columnId: string,
-    tables: Record<string, any>,
-  ) => {
+  const handleColumnDoubleClick = (tabId: string, columnId: string, tables: Tables) => {
     const table = tables[tabId];
     if (!table) return;
 
-    const column = table.columns.find((col: any) => col.id === columnId);
+    const column = table.columns.find(
+      (col: Record<string, string>) => col.id === columnId,
+    );
     if (!column) return;
 
     setEditingColumn({ tabId, columnId });
     setEditingColumnTitle(column.title);
   };
 
-  const saveColumnName = (
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
-  ) => {
+  const saveColumnName = (tables: Tables, setTables: (tables: Tables) => void) => {
     if (!editingColumn) return;
 
     const { tabId, columnId } = editingColumn;
@@ -47,7 +43,7 @@ export function useColumns() {
       ...tables,
       [tabId]: {
         ...table,
-        columns: table.columns.map((col: any) =>
+        columns: table.columns.map((col) =>
           col.id === columnId ? { ...col, title: editingColumnTitle.trim() } : col,
         ),
       },
@@ -64,8 +60,8 @@ export function useColumns() {
 
   const handleColumnRenameKeyDown = (
     e: React.KeyboardEvent,
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
+    tables: Tables,
+    setTables: (tables: Tables) => void,
   ) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -81,8 +77,8 @@ export function useColumns() {
     e: React.DragEvent,
     tabId: string,
     columnId: string,
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
+    tables: Tables,
+    setTables: (tables: Tables) => void,
   ) => {
     e.stopPropagation();
     setIsDraggingColumn(true);
@@ -98,7 +94,7 @@ export function useColumns() {
         ...tables,
         [tabId]: {
           ...table,
-          columns: table.columns.map((col: any) =>
+          columns: table.columns.map((col) =>
             col.id === columnId ? { ...col, isDragging: true } : col,
           ),
         },
@@ -108,8 +104,8 @@ export function useColumns() {
 
   const handleColumnDragEnd = (
     tabId: string,
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
+    tables: Tables,
+    setTables: (tables: Tables) => void,
   ) => {
     setIsDraggingColumn(false);
     setDraggedColumn(null);
@@ -121,16 +117,12 @@ export function useColumns() {
       ...tables,
       [tabId]: {
         ...table,
-        columns: table.columns.map((col: any) => ({ ...col, isDragging: false })),
+        columns: table.columns.map((col) => ({ ...col, isDragging: false })),
       },
     });
   };
 
-  const handleColumnDragOver = (
-    e: React.DragEvent<HTMLTableHeaderCellElement>,
-    tabId: string,
-    columnId: string,
-  ) => {
+  const handleColumnDragOver = (e: React.DragEvent<HTMLTableHeaderCellElement>) => {
     e.preventDefault();
     // We only need to prevent default to allow dropping
   };
@@ -139,8 +131,8 @@ export function useColumns() {
     e: React.DragEvent,
     tabId: string,
     targetColumnId: string,
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
+    tables: Tables,
+    setTables: (tables: Tables) => void,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -151,10 +143,10 @@ export function useColumns() {
     if (!table) return;
 
     const draggedColumnIndex = table.columns.findIndex(
-      (col: any) => col.id === draggedColumn,
+      (col) => col.id === draggedColumn,
     );
     const targetColumnIndex = table.columns.findIndex(
-      (col: any) => col.id === targetColumnId,
+      (col) => col.id === targetColumnId,
     );
 
     if (draggedColumnIndex === -1 || targetColumnIndex === -1) return;

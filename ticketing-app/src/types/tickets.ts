@@ -60,7 +60,9 @@ export interface Widget {
   isDragging?: boolean;
   isCollapsed?: boolean; // Should be renamed to be consistent with usage in code
   collapsed?: boolean; // Alternative name used in some places
-  layouts?: Record<string, any>;
+  layouts?: Record<string, never>;
+  fieldName?: string; // Field name for the widget
+  fieldValue?: string | null; // Value for the field
 }
 
 export interface TicketForm {

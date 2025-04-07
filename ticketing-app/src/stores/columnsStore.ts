@@ -150,7 +150,7 @@ const useColumnsStore = create<ColumnsState>()((set, get) => {
       tablesStore.setTables(updatedTables);
     },
 
-    handleColumnDragOver: (e, tabId, columnId) => {
+    handleColumnDragOver: (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
     },

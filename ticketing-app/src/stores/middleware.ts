@@ -1,4 +1,4 @@
-import { StateCreator, StoreMutatorIdentifier } from "zustand";
+import { StateCreator, StoreApi, StoreMutatorIdentifier } from "zustand";
 
 // Define a type for the persist middleware
 type PersistOptions<T> = {
@@ -19,8 +19,12 @@ type Persist = <
 // Implementation of the persist middleware
 export const persist = (
   <T>() =>
-  (f: any, options: PersistOptions<T>) =>
-  (set: any, get: any, store: any) => {
+  (f: StateCreator<T, [], []>, options: PersistOptions<T>) =>
+  (
+    set: (state: never, replace?: boolean) => void,
+    get: () => T,
+    store: StoreApi<T>,
+  ) => {
     const { name, partialize = (state: T) => state as unknown as Partial<T> } = options;
 
     // Try to get the stored state from localStorage
@@ -46,7 +50,7 @@ export const persist = (
     };
 
     // Create a wrapped setter that persists after each update
-    const persistSet = (state: any, replace?: boolean) => {
+    const persistSet = (state: never, replace?: boolean) => {
       set(state, replace);
       saveState();
     };

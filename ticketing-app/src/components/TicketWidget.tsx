@@ -2,13 +2,13 @@ import React, { useState } from "react";
 
 import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
-import { Assignee, TicketForm, TimeEntry,Widget } from "../types/tickets";
+import { Assignee, TicketForm, TimeEntry, Widget } from "../types/tickets";
 
 interface TicketWidgetProps {
   widget: Widget;
   ticketForm: TicketForm;
-  currentTicket?: Record<string, any> | null;
-  handleFieldChange: (fieldName: string, value: any) => void;
+  currentTicket?: Record<string, never> | null;
+  handleFieldChange: (fieldName: string, value: unknown) => void;
   toggleWidgetCollapse: (widgetId: string) => void;
   removeWidget: (widgetId: string) => void;
   updateWidgetTitle?: (widgetId: string, newTitle: string) => void;
@@ -28,14 +28,11 @@ interface TicketWidgetProps {
   setUploadedImages?: (images: string[]) => void;
   showAssigneeForm?: boolean;
   setShowAssigneeForm?: (show: boolean) => void;
-  newAssignee?: any;
-  setNewAssignee?: (assignee: any) => void;
+  newAssignee?: unknown;
+  setNewAssignee?: (assignee: Assignee) => void;
   isEditMode?: boolean;
 }
 
-/**
- * Widget component to render each draggable section of the ticket dialog
- */
 function TicketWidget({
   widget,
   ticketForm,
@@ -61,7 +58,10 @@ function TicketWidget({
   newAssignee,
   setNewAssignee,
   isEditMode = true,
-}: TicketWidgetProps) {
+}: TicketWidgetProps & {
+  newAssignee: Assignee;
+  setNewAssignee: (assignee: Assignee) => void;
+}) {
   // State for title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
@@ -77,14 +77,6 @@ function TicketWidget({
 
     // Return false to further prevent default behaviors
     return false;
-  };
-
-  // Function to handle title editing
-  const handleStartTitleEdit = (e: React.MouseEvent) => {
-    if (isEditMode && updateWidgetTitle) {
-      e.stopPropagation();
-      setIsEditingTitle(true);
-    }
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +129,7 @@ function TicketWidget({
             </div>
           );
 
-        case "text-readonly":
+        case "text-readonly": {
           // Determine the correct value to display based on the widget type
           let displayValue = widget.value;
 
@@ -157,6 +149,7 @@ function TicketWidget({
               {displayValue}
             </div>
           );
+        }
 
         case "number":
           return (

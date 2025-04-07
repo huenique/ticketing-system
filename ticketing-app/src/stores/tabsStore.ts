@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import { Tables } from "@/types/tables";
+
 import { Tab } from "../types/tickets";
 import { persist } from "./middleware";
 
@@ -23,7 +25,7 @@ interface TabsState {
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, targetTabId: string) => void;
   addTab: () => void;
-  closeTab: (tabId: string, e: React.MouseEvent, tables: Record<string, any>) => void;
+  closeTab: (tabId: string, e: React.MouseEvent, tables: Tables) => void;
   handleDoubleClick: (tabId: string) => void;
   saveTabName: () => void;
   cancelTabRename: () => void;
@@ -31,25 +33,25 @@ interface TabsState {
 }
 
 // Helper function to initialize tabs from localStorage or defaults
-const getInitialTabs = (): { tabs: Tab[]; activeTab: string } => {
-  try {
-    const storedTabs = localStorage.getItem("ticket-tabs");
-    const storedActiveTab = localStorage.getItem("ticket-active-tab");
+// const getInitialTabs = (): { tabs: Tab[]; activeTab: string } => {
+//   try {
+//     const storedTabs = localStorage.getItem("ticket-tabs");
+//     const storedActiveTab = localStorage.getItem("ticket-active-tab");
 
-    return {
-      tabs: storedTabs
-        ? JSON.parse(storedTabs)
-        : [{ id: "tab-1", title: "All Tickets", content: "all" }],
-      activeTab: storedActiveTab || "tab-1",
-    };
-  } catch (error) {
-    console.error("Error loading tabs from localStorage:", error);
-    return {
-      tabs: [{ id: "tab-1", title: "All Tickets", content: "all" }],
-      activeTab: "tab-1",
-    };
-  }
-};
+//     return {
+//       tabs: storedTabs
+//         ? JSON.parse(storedTabs)
+//         : [{ id: "tab-1", title: "All Tickets", content: "all" }],
+//       activeTab: storedActiveTab || "tab-1",
+//     };
+//   } catch (error) {
+//     console.error("Error loading tabs from localStorage:", error);
+//     return {
+//       tabs: [{ id: "tab-1", title: "All Tickets", content: "all" }],
+//       activeTab: "tab-1",
+//     };
+//   }
+// };
 
 const useTabsStore = create<TabsState>()(
   persist(
@@ -133,7 +135,7 @@ const useTabsStore = create<TabsState>()(
         });
       },
 
-      closeTab: (tabId, e, tables) => {
+      closeTab: (tabId, e) => {
         e.stopPropagation();
         const { tabs, activeTab } = get();
         if (tabs.length === 1) return; // Don't close the last tab

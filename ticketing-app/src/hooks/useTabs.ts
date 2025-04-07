@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { Tab } from "../types/tickets";
+import { Tables } from "@/types/tables";
+import { Tab } from "@/types/tickets";
 
 /**
  * Custom hook to manage tab operations
@@ -70,8 +71,8 @@ export function useTabs(initialTabs: Tab[], initialActiveTab: string) {
   const closeTab = (
     tabId: string,
     e: React.MouseEvent,
-    tables: Record<string, any>,
-    setTables: (tables: Record<string, any>) => void,
+    tables: Tables,
+    setTables: (tables: Tables) => void,
   ) => {
     e.stopPropagation();
     if (tabs.length === 1) return; // Don't close the last tab

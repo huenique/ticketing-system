@@ -1,7 +1,7 @@
-import { useEffect,useState } from "react";
-import { Layout, Layouts } from "react-grid-layout";
+import { useEffect, useState } from "react";
+import { Layouts } from "react-grid-layout";
 
-import { PRESET_TABLES,WIDGET_TYPES } from "../constants/tickets";
+import { PRESET_TABLES, WIDGET_TYPES } from "../constants/tickets";
 import {
   Assignee,
   Row,

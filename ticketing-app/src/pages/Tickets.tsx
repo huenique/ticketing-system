@@ -1,7 +1,7 @@
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
-import { Fragment,useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
 
 // Import components
@@ -14,7 +14,7 @@ import useTablesStore from "../stores/tablesStore";
 import useTabsStore from "../stores/tabsStore";
 import useWidgetsStore from "../stores/widgetsStore";
 // Import types, constants and utilities
-import { Assignee, Row, Table, TicketForm,TimeEntry, Widget } from "../types/tickets";
+import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import {
   getFromLS,
   getGridStyles,
@@ -30,8 +30,6 @@ function Tickets() {
   const {
     tabs,
     activeTab,
-    isDragging,
-    draggedTab,
     editingTab,
     editingTitle,
     setEditingTitle,
@@ -42,7 +40,6 @@ function Tickets() {
     addTab,
     closeTab,
     handleDoubleClick,
-    saveTabName,
     handleRenameKeyDown,
   } = useTabsStore();
 
@@ -50,7 +47,6 @@ function Tickets() {
     tables,
     tabsSaved,
     showPresetsMenu,
-    setShowPresetsMenu,
     saveTabs,
     resetTabs,
     createNewTable,
@@ -101,8 +97,7 @@ function Tickets() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-  const [assigneeTableTitle, setAssigneeTableTitle] = useState("Assigned Team Members");
-  const [editingAssigneeTableTitle, setEditingAssigneeTableTitle] = useState(false);
+  const [, setAssigneeTableTitle] = useState("Assigned Team Members");
   const [newAssignee, setNewAssignee] = useState<Assignee>({
     id: "",
     name: "",
@@ -114,12 +109,14 @@ function Tickets() {
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false);
 
   // Initialize data from localStorage
-  const initialData = (() => {
+  (() => {
     const { tabs, activeTab } = getSavedTabsData();
-    return {
-      tabs: tabs || [{ id: "tab-1", title: "All Tickets", content: "all" }],
-      activeTab: activeTab || "tab-1",
-    };
+    if (tabs) {
+      useTabsStore.getState().setTabs(tabs);
+    }
+    if (activeTab) {
+      useTabsStore.getState().setActiveTab(activeTab);
+    }
   })();
 
   // Load tables from localStorage on initial render
@@ -260,35 +257,35 @@ function Tickets() {
   };
 
   // Add a new function to apply a custom widget layout
-  const applyCustomWidgetLayout = (ticket: Row) => {
-    // Clear any existing widgets first
-    setWidgets([]);
-    setWidgetLayouts({});
+  // const applyCustomWidgetLayout = (ticket: Row) => {
+  //   // Clear any existing widgets first
+  //   setWidgets([]);
+  //   setWidgetLayouts({});
 
-    // Add individual widgets in a specific order to create a logical layout
+  //   // Add individual widgets in a specific order to create a logical layout
 
-    // Status field
-    addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+  //   // Status field
+  //   addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
 
-    // Customer name field
-    addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+  //   // Customer name field
+  //   addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
 
-    // Date fields
-    addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
-    addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+  //   // Date fields
+  //   addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+  //   addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
 
-    // Description field
-    addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+  //   // Description field
+  //   addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
 
-    // Hours fields
-    addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
-    addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+  //   // Hours fields
+  //   addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+  //   addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
 
-    // Individual versions of the larger widgets
-    addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
-    addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
-    addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
-  };
+  //   // Individual versions of the larger widgets
+  //   addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+  //   addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+  //   addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+  // };
 
   // Generate responsive layouts for widgets similar to bootstrap style
   const generateResponsiveLayouts = () => {
@@ -298,11 +295,9 @@ function Tickets() {
 
     // Determine the appropriate storage key
     const engineeringLayoutKey = "engineering-layouts";
-    let ticketId = "";
     let tabSpecificLayoutKey = "";
 
     if (currentTicket) {
-      ticketId = currentTicket.cells["col-1"];
       tabSpecificLayoutKey = `tab-${activeTab}`;
     }
 
@@ -326,7 +321,7 @@ function Tickets() {
         Object.keys(savedLayouts).some(
           (breakpoint) =>
             Array.isArray(savedLayouts[breakpoint]) &&
-            savedLayouts[breakpoint].some((layout: any) => layout.i === widget.id),
+            savedLayouts[breakpoint].some((layout) => layout.i === widget.id),
         ),
       );
 
@@ -598,7 +593,9 @@ function Tickets() {
 
         return memo;
       },
-      {} as { [key: string]: any[] },
+      {} as {
+        [key: string]: { i: string; x: number; y: number; w: number; h: number }[];
+      },
     );
   };
 
@@ -796,7 +793,7 @@ function Tickets() {
   };
 
   // Handle layout change from react-grid-layout
-  const handleLayoutChange = (currentLayout: any[], allLayouts: any) => {
+  const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
     console.log("Layout changed:", currentLayout.length, "items in current layout");
 
     // Only update if there are actual layouts
