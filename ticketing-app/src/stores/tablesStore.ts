@@ -202,14 +202,16 @@ const useTablesStore = create<TablesState>()(
         // Update the tabs store to mark this tab with the applied preset
         const tabsStore = useTabsStore.getState();
         const updatedTabs = tabsStore.tabs.map((tab) =>
-          tab.id === tabId ? { ...tab, appliedPreset: presetKey, title: "All Tickets" } : tab,
+          tab.id === tabId
+            ? { ...tab, appliedPreset: presetKey, title: "All Tickets" }
+            : tab,
         );
 
         // For Engineering preset, also create a Tasks tab
         if (presetKey === "Engineering") {
           // Find if a "Tasks" tab already exists
-          const existingTasksTab = tabsStore.tabs.find(tab => tab.title === "Tasks");
-          
+          const existingTasksTab = tabsStore.tabs.find((tab) => tab.title === "Tasks");
+
           if (!existingTasksTab) {
             // Create a new Tasks tab
             const tasksTabId = `tab-${updatedTabs.length + 1}`;
@@ -217,11 +219,11 @@ const useTablesStore = create<TablesState>()(
               id: tasksTabId,
               title: "Tasks",
               content: "tasks",
-              appliedPreset: presetKey
+              appliedPreset: presetKey,
             };
-            
+
             updatedTabs.push(tasksTab);
-            
+
             // Create a table specifically for the Tasks tab
             const tasksTable: Table = {
               columns: [
@@ -233,9 +235,9 @@ const useTablesStore = create<TablesState>()(
                 { id: "col-6", title: "Status", width: "100px" },
                 { id: "col-7", title: "Action", width: "100px" },
               ],
-              rows: []
+              rows: [],
             };
-            
+
             // Generate task rows based on the ticket rows
             const taskRows: Row[] = mockRows.map((ticketRow, index) => {
               // Assign 2-3 tasks to the current user
@@ -251,27 +253,35 @@ const useTablesStore = create<TablesState>()(
                   "col-2": assigneeName, // Name from current user or default
                   "col-3": ticketRow.cells["col-4"] || "", // Work Description
                   "col-4": ticketRow.cells["col-8"] || "0", // Total Hours
+<<<<<<< HEAD
                   "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(1), // Est. Time as 1.5x Total Hours
                   "col-6": "In Progress", // Status - default to In Progress
                   "col-7": "action_buttons" // Action button
                 },
                 completed: false // Initialize as not completed
+=======
+                  "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(
+                    1,
+                  ), // Est. Time as 1.5x Total Hours
+                  "col-6": "action_buttons", // Action button
+                },
+>>>>>>> e86268116023486ce00734fcad0cf06c35d42fd1
               };
             });
-            
+
             // Add the tasks table to state
             set((state) => ({
               tables: {
                 ...state.tables,
                 [tasksTabId]: {
                   ...tasksTable,
-                  rows: taskRows
-                }
-              }
+                  rows: taskRows,
+                },
+              },
             }));
           }
         }
-        
+
         tabsStore.setTabs(updatedTabs);
       },
 

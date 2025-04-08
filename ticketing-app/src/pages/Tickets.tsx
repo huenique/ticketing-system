@@ -1004,6 +1004,7 @@ function Tickets() {
                 </tr>
               </thead>
               <tbody>
+<<<<<<< HEAD
                 {(() => {
                   // For Tasks tab, sort rows so current user's tasks appear first
                   if (activeTabData.title === "Tasks" && currentUser) {
@@ -1065,6 +1066,54 @@ function Tickets() {
                                       } else {
                                         // Regular behavior for other tabs
                                         handleInitializeTicketDialog(row);
+=======
+                {table.rows.map((row) => (
+                  <tr key={row.id} className="border-b hover:bg-neutral-50">
+                    {table.columns.map((column) => (
+                      <td key={`${row.id}-${column.id}`} className="px-4 py-3">
+                        {column.id === "col-11" ||
+                        column.title === "Actions" ||
+                        row.cells[column.id] === "action_buttons" ? (
+                          <div className="flex space-x-2">
+                            <button
+                              className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
+                              title="View Ticket"
+                              onClick={() => {
+                                // Check if we're in the Tasks tab
+                                const currentTabData = tabs.find(
+                                  (tab) => tab.id === activeTab,
+                                );
+                                if (currentTabData?.title === "Tasks") {
+                                  // Find the All Tickets tab
+                                  const allTicketsTab = tabs.find(
+                                    (tab) => tab.title === "All Tickets",
+                                  );
+                                  if (allTicketsTab) {
+                                    // Get the ticket ID from the row
+                                    const ticketId = row.cells["col-1"];
+
+                                    // Switch to the All Tickets tab
+                                    useTabsStore
+                                      .getState()
+                                      .setActiveTab(allTicketsTab.id);
+
+                                    // Find the corresponding ticket in the All Tickets tab
+                                    const allTicketsTable = tables[allTicketsTab.id];
+                                    if (allTicketsTable) {
+                                      const correspondingTicket =
+                                        allTicketsTable.rows.find(
+                                          (ticketRow) =>
+                                            ticketRow.cells["col-1"] === ticketId,
+                                        );
+
+                                      if (correspondingTicket) {
+                                        // Open the ticket dialog
+                                        setTimeout(() => {
+                                          handleInitializeTicketDialog(
+                                            correspondingTicket,
+                                          );
+                                        }, 100); // Small delay to ensure tab switch completes
+>>>>>>> e86268116023486ce00734fcad0cf06c35d42fd1
                                       }
                                     }}
                                     disabled={!isAssignedToUser}
