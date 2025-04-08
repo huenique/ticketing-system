@@ -1006,28 +1006,38 @@ function Tickets() {
                               title="View Ticket"
                               onClick={() => {
                                 // Check if we're in the Tasks tab
-                                const currentTabData = tabs.find((tab) => tab.id === activeTab);
+                                const currentTabData = tabs.find(
+                                  (tab) => tab.id === activeTab,
+                                );
                                 if (currentTabData?.title === "Tasks") {
                                   // Find the All Tickets tab
-                                  const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
+                                  const allTicketsTab = tabs.find(
+                                    (tab) => tab.title === "All Tickets",
+                                  );
                                   if (allTicketsTab) {
                                     // Get the ticket ID from the row
                                     const ticketId = row.cells["col-1"];
-                                    
+
                                     // Switch to the All Tickets tab
-                                    useTabsStore.getState().setActiveTab(allTicketsTab.id);
-                                    
+                                    useTabsStore
+                                      .getState()
+                                      .setActiveTab(allTicketsTab.id);
+
                                     // Find the corresponding ticket in the All Tickets tab
                                     const allTicketsTable = tables[allTicketsTab.id];
                                     if (allTicketsTable) {
-                                      const correspondingTicket = allTicketsTable.rows.find(
-                                        (ticketRow) => ticketRow.cells["col-1"] === ticketId
-                                      );
-                                      
+                                      const correspondingTicket =
+                                        allTicketsTable.rows.find(
+                                          (ticketRow) =>
+                                            ticketRow.cells["col-1"] === ticketId,
+                                        );
+
                                       if (correspondingTicket) {
                                         // Open the ticket dialog
                                         setTimeout(() => {
-                                          handleInitializeTicketDialog(correspondingTicket);
+                                          handleInitializeTicketDialog(
+                                            correspondingTicket,
+                                          );
                                         }, 100); // Small delay to ensure tab switch completes
                                       }
                                     }

@@ -338,141 +338,141 @@ function TicketWidget({
                             return priorityA - priorityB;
                           })
                           .map((assignee) => (
-                          <tr key={assignee.id}>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={assignee.name}
-                                onChange={(e) =>
-                                  handleUpdateAssignee &&
-                                  handleUpdateAssignee(
-                                    assignee.id,
-                                    "name",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={assignee.workDescription}
-                                onChange={(e) =>
-                                  handleUpdateAssignee &&
-                                  handleUpdateAssignee(
-                                    assignee.id,
-                                    "workDescription",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <select
-                                value={assignee.priority || "5"}
-                                onChange={(e) =>
-                                  handleUpdateAssignee &&
-                                  handleUpdateAssignee(
-                                    assignee.id,
-                                    "priority",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              >
-                                <option value="1">1 - Highest</option>
-                                <option value="2">2 - High</option>
-                                <option value="3">3 - Medium</option>
-                                <option value="4">4 - Low</option>
-                                <option value="5">5 - Lowest</option>
-                              </select>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="number"
-                                value={assignee.totalHours}
-                                onChange={(e) =>
-                                  handleUpdateAssignee &&
-                                  handleUpdateAssignee(
-                                    assignee.id,
-                                    "totalHours",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                                step="0.1"
-                                min="0"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="number"
-                                value={assignee.estTime}
-                                onChange={(e) =>
-                                  handleUpdateAssignee &&
-                                  handleUpdateAssignee(
-                                    assignee.id,
-                                    "estTime",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                                step="0.1"
-                                min="0"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex justify-end space-x-2">
-                                {handleAddTimeEntry && (
-                                  <button
-                                    onClick={() => handleAddTimeEntry(assignee.id)}
-                                    className="text-blue-600 hover:text-blue-800"
-                                    title="Add Time Entry"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                            <tr key={assignee.id}>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <input
+                                  type="text"
+                                  value={assignee.name}
+                                  onChange={(e) =>
+                                    handleUpdateAssignee &&
+                                    handleUpdateAssignee(
+                                      assignee.id,
+                                      "name",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                />
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <input
+                                  type="text"
+                                  value={assignee.workDescription}
+                                  onChange={(e) =>
+                                    handleUpdateAssignee &&
+                                    handleUpdateAssignee(
+                                      assignee.id,
+                                      "workDescription",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                />
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <select
+                                  value={assignee.priority || "5"}
+                                  onChange={(e) =>
+                                    handleUpdateAssignee &&
+                                    handleUpdateAssignee(
+                                      assignee.id,
+                                      "priority",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                >
+                                  <option value="1">1 - Highest</option>
+                                  <option value="2">2 - High</option>
+                                  <option value="3">3 - Medium</option>
+                                  <option value="4">4 - Low</option>
+                                  <option value="5">5 - Lowest</option>
+                                </select>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <input
+                                  type="number"
+                                  value={assignee.totalHours}
+                                  onChange={(e) =>
+                                    handleUpdateAssignee &&
+                                    handleUpdateAssignee(
+                                      assignee.id,
+                                      "totalHours",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                  step="0.1"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <input
+                                  type="number"
+                                  value={assignee.estTime}
+                                  onChange={(e) =>
+                                    handleUpdateAssignee &&
+                                    handleUpdateAssignee(
+                                      assignee.id,
+                                      "estTime",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                  step="0.1"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex justify-end space-x-2">
+                                  {handleAddTimeEntry && (
+                                    <button
+                                      onClick={() => handleAddTimeEntry(assignee.id)}
+                                      className="text-blue-600 hover:text-blue-800"
+                                      title="Add Time Entry"
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                                {handleRemoveAssignee && (
-                                  <button
-                                    onClick={() => handleRemoveAssignee(assignee.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                    title="Remove Assignee"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  {handleRemoveAssignee && (
+                                    <button
+                                      onClick={() => handleRemoveAssignee(assignee.id)}
+                                      className="text-red-600 hover:text-red-800"
+                                      title="Remove Assignee"
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>

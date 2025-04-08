@@ -1,8 +1,7 @@
 import { create } from "zustand";
 
-import { Tables } from "@/types/tables";
+import { Tab } from "@/types/tickets";
 
-import { Tab } from "../types/tickets";
 import { persist } from "./middleware";
 
 interface TabsState {
