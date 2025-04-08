@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { persist } from "./middleware";
 
 export interface User {
@@ -22,14 +23,14 @@ const useUserStore = create<UserState>()(
         name: "John Doe",
         email: "john.doe@example.com",
         role: "Engineer",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John"
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
       },
       setCurrentUser: (user) => set({ currentUser: user }),
     }),
     {
       name: "user-storage",
-    }
-  )
+    },
+  ),
 );
 
-export default useUserStore; 
+export default useUserStore;

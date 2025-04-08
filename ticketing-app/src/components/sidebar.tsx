@@ -67,16 +67,25 @@ function Sidebar({ className }: SidebarProps) {
           <div className="mb-2 flex items-center gap-3 px-3 py-2 rounded-md bg-neutral-50">
             <div className="h-8 w-8 rounded-full overflow-hidden bg-neutral-200 flex-shrink-0">
               {currentUser.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs">
-                  {currentUser.name.split(' ').map(n => n[0]).join('')}
+                  {currentUser.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
                 </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm truncate">{currentUser.name}</div>
-              <div className="text-xs text-neutral-500 truncate">{currentUser.role}</div>
+              <div className="text-xs text-neutral-500 truncate">
+                {currentUser.role}
+              </div>
             </div>
           </div>
         )}

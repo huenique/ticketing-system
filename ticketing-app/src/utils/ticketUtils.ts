@@ -4,7 +4,6 @@ import {
   MOCK_PARTS,
   MOCK_STATUSES,
 } from "../constants/tickets";
-import useUserStore from "../stores/userStore";
 
 /**
  * Generate mock data for a table row
@@ -39,7 +38,7 @@ export function generateMockRowData(rowIndex: number): Record<string, string> {
     assignTo = "John Doe";
   } else {
     // Randomly select from other assignees (excluding John Doe)
-    const otherAssignees = MOCK_ASSIGNEES.filter(name => name !== "John Doe");
+    const otherAssignees = MOCK_ASSIGNEES.filter((name) => name !== "John Doe");
     assignTo = otherAssignees[Math.floor(Math.random() * otherAssignees.length)];
   }
 
@@ -97,7 +96,7 @@ export function getSavedTabsData() {
  * @returns The retrieved object or undefined if not found
  */
 export function getFromLS(key: string) {
-  let ls: Record<string, any> = {};
+  let ls: Record<string, never> = {};
   if (typeof window !== "undefined" && window.localStorage) {
     try {
       const storedData = window.localStorage.getItem("rgl-ticket-layouts");
@@ -119,7 +118,7 @@ export function saveToLS<T>(key: string, value: T): void {
   if (typeof window !== "undefined" && window.localStorage) {
     try {
       const storedData = window.localStorage.getItem("rgl-ticket-layouts");
-      const ls: Record<string, any> = storedData ? JSON.parse(storedData) : {};
+      const ls: Record<string, T> = storedData ? JSON.parse(storedData) : {};
       ls[key] = value;
       window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(ls));
     } catch (e) {

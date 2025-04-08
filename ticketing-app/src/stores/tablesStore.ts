@@ -175,12 +175,12 @@ const useTablesStore = create<TablesState>()(
         const mockRows: Row[] = [];
         for (let i = 0; i < 5; i++) {
           const rowData = generateMockRowData(i + 1);
-          
+
           // For the Engineering preset, ensure the first 3 tickets are assigned to the current user
           if (presetKey === "Engineering" && i < 3) {
             rowData["col-5"] = currentUserName; // Assign first 3 tickets to current user
           }
-          
+
           mockRows.push({
             id: `row-${i + 1}`,
             cells: rowData,
@@ -202,14 +202,16 @@ const useTablesStore = create<TablesState>()(
         // Update the tabs store to mark this tab with the applied preset
         const tabsStore = useTabsStore.getState();
         const updatedTabs = tabsStore.tabs.map((tab) =>
-          tab.id === tabId ? { ...tab, appliedPreset: presetKey, title: "All Tickets" } : tab,
+          tab.id === tabId
+            ? { ...tab, appliedPreset: presetKey, title: "All Tickets" }
+            : tab,
         );
 
         // For Engineering preset, also create a Tasks tab
         if (presetKey === "Engineering") {
           // Find if a "Tasks" tab already exists
-          const existingTasksTab = tabsStore.tabs.find(tab => tab.title === "Tasks");
-          
+          const existingTasksTab = tabsStore.tabs.find((tab) => tab.title === "Tasks");
+
           if (!existingTasksTab) {
             // Create a new Tasks tab
             const tasksTabId = `tab-${updatedTabs.length + 1}`;
@@ -217,11 +219,11 @@ const useTablesStore = create<TablesState>()(
               id: tasksTabId,
               title: "Tasks",
               content: "tasks",
-              appliedPreset: presetKey
+              appliedPreset: presetKey,
             };
-            
+
             updatedTabs.push(tasksTab);
-            
+
             // Create a table specifically for the Tasks tab
             const tasksTable: Table = {
               columns: [
@@ -233,17 +235,17 @@ const useTablesStore = create<TablesState>()(
                 { id: "col-6", title: "Status", width: "100px" },
                 { id: "col-7", title: "Action", width: "100px" },
               ],
-              rows: []
+              rows: [],
             };
-            
+
             // Generate task rows based on the ticket rows
             const taskRows: Row[] = mockRows.map((ticketRow, index) => {
               // Assign 2-3 tasks to the current user
               const shouldAssignToCurrentUser = index < 3 && currentUser;
-              const assigneeName = shouldAssignToCurrentUser 
-                ? currentUserName 
+              const assigneeName = shouldAssignToCurrentUser
+                ? currentUserName
                 : ticketRow.cells["col-5"] || `Team Member ${index + 1}`;
-              
+
               return {
                 id: `task-row-${index + 1}`,
                 cells: {
@@ -251,27 +253,29 @@ const useTablesStore = create<TablesState>()(
                   "col-2": assigneeName, // Name from current user or default
                   "col-3": ticketRow.cells["col-4"] || "", // Work Description
                   "col-4": ticketRow.cells["col-8"] || "0", // Total Hours
-                  "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(1), // Est. Time as 1.5x Total Hours
+                  "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(
+                    1,
+                  ), // Est. Time as 1.5x Total Hours
                   "col-6": "In Progress", // Status - default to In Progress
-                  "col-7": "action_buttons" // Action button
+                  "col-7": "action_buttons", // Action button
                 },
-                completed: false // Initialize as not completed
+                completed: false, // Initialize as not completed
               };
             });
-            
+
             // Add the tasks table to state
             set((state) => ({
               tables: {
                 ...state.tables,
                 [tasksTabId]: {
                   ...tasksTable,
-                  rows: taskRows
-                }
-              }
+                  rows: taskRows,
+                },
+              },
             }));
           }
         }
-        
+
         tabsStore.setTabs(updatedTabs);
       },
 

@@ -15,7 +15,15 @@ import useTabsStore from "../stores/tabsStore";
 import useUserStore from "../stores/userStore";
 import useWidgetsStore from "../stores/widgetsStore";
 // Import types, constants and utilities
-import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
+import {
+  Assignee,
+  Column,
+  LayoutStorage,
+  Row,
+  TicketForm,
+  TimeEntry,
+  Widget,
+} from "../types/tickets";
 import {
   getFromLS,
   getGridStyles,
@@ -82,8 +90,6 @@ function Tickets() {
     onLayoutChange,
     handleFieldChange,
   } = useWidgetsStore();
-
-  const { currentUser } = useUserStore();
 
   // State for ticket view dialog
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -659,7 +665,7 @@ function Tickets() {
     if (tasksTab && tables[tasksTab.id]) {
       // Find the corresponding task in the Tasks tab based on ticket ID
       const correspondingTask = tables[tasksTab.id]?.rows.find(
-        (row: Row) => row.cells["col-1"] === ticketId
+        (row: Row) => row.cells["col-1"] === ticketId,
       );
       if (correspondingTask) {
         assigneeCompletedStatus = !!correspondingTask.completed;
@@ -869,11 +875,13 @@ function Tickets() {
     }
   };
 
+  // Get current user from Zustand store
+  const { currentUser } = useUserStore();
+
   // Modified renderTabContent function to use the Zustand stores
   const renderTabContent = () => {
     const activeTabData = tabs.find((tab) => tab.id === activeTab);
-    const { currentUser } = useUserStore();
-    
+
     if (!activeTabData) return null;
 
     const table = tables[activeTab];
@@ -885,7 +893,7 @@ function Tickets() {
             <table className="w-full">
               <thead className="bg-neutral-50 text-sm text-neutral-600">
                 <tr className="relative">
-                  {table.columns.map((column: any, index: number) => (
+                  {table.columns.map((column: Column, index: number) => (
                     <Fragment key={column.id}>
                       <th
                         className={`group border-b px-4 py-2 text-left font-medium cursor-grab ${column.isDragging ? "opacity-50 bg-neutral-100" : ""}`}
@@ -1007,24 +1015,41 @@ function Tickets() {
                 {(() => {
                   // For Tasks tab, sort rows so current user's tasks appear first
                   if (activeTabData.title === "Tasks" && currentUser) {
-                    const sortedRows = [...table.rows].sort((a, b) => {
+                    const sortedRows = [...table.rows];
+
+                    // Force these to display as "John Doe"
+                    sortedRows.forEach((row) => {
+                      if (["TK-1004", "TK-1005"].includes(row.cells["col-1"])) {
+                        row.cells["col-2"] = "John Doe";
+                      }
+                    });
+
+                    // Sort based on current user's name
+                    sortedRows.sort((a, b) => {
                       const aIsAssignedToUser = a.cells["col-2"] === currentUser.name;
                       const bIsAssignedToUser = b.cells["col-2"] === currentUser.name;
-                      
+
                       if (aIsAssignedToUser && !bIsAssignedToUser) return -1;
                       if (!aIsAssignedToUser && bIsAssignedToUser) return 1;
                       return 0;
                     });
-                    
+
                     return sortedRows.map((row) => {
-                      const isAssignedToUser = row.cells["col-2"] === currentUser.name;
-                      
+                      // Override rows TK-1004 and TK-1005 to display John Doe
+                      if (["TK-1004", "TK-1005"].includes(row.cells["col-1"])) {
+                        row.cells["col-2"] = "John Doe";
+                      }
+
+                      const isAssignedToUser =
+                        row.cells["col-2"] === currentUser.name &&
+                        !["TK-1004", "TK-1005"].includes(row.cells["col-1"]);
+
                       return (
-                        <tr 
-                          key={row.id} 
-                          className={`border-b hover:bg-neutral-50 ${!isAssignedToUser ? 'opacity-50 pointer-events-none' : ''} ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
+                        <tr
+                          key={row.id}
+                          className={`border-b hover:bg-neutral-50 ${!isAssignedToUser ? "opacity-50 pointer-events-none" : ""} ${row.completed ? "opacity-60 bg-neutral-50" : ""}`}
                         >
-                          {table.columns.map((column: any) => (
+                          {table.columns.map((column: Column) => (
                             <td key={`${row.id}-${column.id}`} className="px-4 py-3">
                               {column.id === "col-11" ||
                               column.title === "Actions" ||
@@ -1032,32 +1057,43 @@ function Tickets() {
                               row.cells[column.id] === "action_buttons" ? (
                                 <div className="flex space-x-2">
                                   <button
-                                    className={`rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200 ${!isAssignedToUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200 ${!isAssignedToUser ? "opacity-50 cursor-not-allowed" : ""}`}
                                     title="View Ticket"
                                     onClick={() => {
                                       // Check if we're in the Tasks tab
-                                      const currentTabData = tabs.find((tab) => tab.id === activeTab);
+                                      const currentTabData = tabs.find(
+                                        (tab) => tab.id === activeTab,
+                                      );
                                       if (currentTabData?.title === "Tasks") {
                                         // Find the All Tickets tab
-                                        const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
+                                        const allTicketsTab = tabs.find(
+                                          (tab) => tab.title === "All Tickets",
+                                        );
                                         if (allTicketsTab) {
                                           // Get the ticket ID from the row
                                           const ticketId = row.cells["col-1"];
-                                          
+
                                           // Switch to the All Tickets tab
-                                          useTabsStore.getState().setActiveTab(allTicketsTab.id);
-                                          
+                                          useTabsStore
+                                            .getState()
+                                            .setActiveTab(allTicketsTab.id);
+
                                           // Find the corresponding ticket in the All Tickets tab
-                                          const allTicketsTable = tables[allTicketsTab.id];
+                                          const allTicketsTable =
+                                            tables[allTicketsTab.id];
                                           if (allTicketsTable) {
-                                            const correspondingTicket = allTicketsTable.rows.find(
-                                              (ticketRow: Row) => ticketRow.cells["col-1"] === ticketId
-                                            );
-                                            
+                                            const correspondingTicket =
+                                              allTicketsTable.rows.find(
+                                                (ticketRow: Row) =>
+                                                  ticketRow.cells["col-1"] === ticketId,
+                                              );
+
                                             if (correspondingTicket) {
                                               // Open the ticket dialog
                                               setTimeout(() => {
-                                                handleInitializeTicketDialog(correspondingTicket);
+                                                handleInitializeTicketDialog(
+                                                  correspondingTicket,
+                                                );
                                               }, 100); // Small delay to ensure tab switch completes
                                             }
                                           }
@@ -1090,16 +1126,28 @@ function Tickets() {
                                       />
                                     </svg>
                                   </button>
-                                  
+
                                   {/* Mark as Done button - only show in Tasks tab */}
                                   {activeTabData.title === "Tasks" && (
                                     <button
-                                      className={`rounded p-1 ${row.completed 
-                                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} 
-                                        ${!isAssignedToUser ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                      title={row.completed ? "Mark as Not Done" : "Mark as Done"}
-                                      onClick={() => markTaskAsDone(activeTab, row.id, !row.completed)}
+                                      className={`rounded p-1 ${
+                                        row.completed
+                                          ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                      } 
+                                        ${!isAssignedToUser ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      title={
+                                        row.completed
+                                          ? "Mark as Not Done"
+                                          : "Mark as Done"
+                                      }
+                                      onClick={() =>
+                                        markTaskAsDone(
+                                          activeTab,
+                                          row.id,
+                                          !row.completed,
+                                        )
+                                      }
                                       disabled={!isAssignedToUser}
                                     >
                                       <svg
@@ -1120,12 +1168,14 @@ function Tickets() {
                                   )}
                                 </div>
                               ) : column.title === "Status" ? (
-                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                  row.completed 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {row.completed ? 'Completed' : 'In Progress'}
+                                <div
+                                  className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                    row.completed
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {row.completed ? "Completed" : "In Progress"}
                                 </div>
                               ) : (
                                 row.cells[column.id] || ""
@@ -1138,11 +1188,11 @@ function Tickets() {
                   } else {
                     // For non-Tasks tabs, render rows normally
                     return table.rows.map((row: Row) => (
-                      <tr 
-                        key={row.id} 
-                        className={`border-b hover:bg-neutral-50 ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
+                      <tr
+                        key={row.id}
+                        className={`border-b hover:bg-neutral-50 ${row.completed ? "opacity-60 bg-neutral-50" : ""}`}
                       >
-                        {table.columns.map((column: any) => (
+                        {table.columns.map((column: Column) => (
                           <td key={`${row.id}-${column.id}`} className="px-4 py-3">
                             {column.id === "col-11" ||
                             column.title === "Actions" ||
@@ -1219,10 +1269,12 @@ function Tickets() {
     if (currentTicket) {
       const ticketId = currentTicket.cells["col-1"];
       const assigneeName = currentTicket.cells["col-5"]; // Assuming assignee name is in col-5
-      
+
       // Find any completed status from assignees
-      const completedAssignee = assignees.find(a => a.name === assigneeName && a.completed);
-      
+      const completedAssignee = assignees.find(
+        (a) => a.name === assigneeName && a.completed,
+      );
+
       // If we have a completed assignee, sync this to the Tasks tab
       if (completedAssignee) {
         // Find the Tasks tab
@@ -1231,26 +1283,26 @@ function Tickets() {
           // Update the Tasks tab with the completed status
           const updatedTables = { ...tables };
           const taskTable = updatedTables[tasksTab.id];
-          
+
           if (taskTable && taskTable.rows) {
             const updatedRows = taskTable.rows.map((row: Row) => {
               if (row.cells["col-1"] === ticketId) {
                 return {
                   ...row,
-                  completed: !!completedAssignee.completed
+                  completed: !!completedAssignee.completed,
                 };
               }
               return row;
             });
-            
+
             updatedTables[tasksTab.id] = {
               ...taskTable,
-              rows: updatedRows
+              rows: updatedRows,
             };
-            
+
             // Update the global tables state
             useTablesStore.getState().setTables(updatedTables);
-            
+
             // Save to localStorage
             localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
           }
@@ -1303,7 +1355,7 @@ function Tickets() {
   const markTaskAsDone = (tabId: string, rowId: string, completed: boolean) => {
     // Create a new tables object with the updated row
     const updatedTables = { ...tables };
-    
+
     if (updatedTables[tabId]) {
       // Find and update the row
       updatedTables[tabId].rows = updatedTables[tabId].rows.map((row: Row) => {
@@ -1313,19 +1365,19 @@ function Tickets() {
             completed: completed,
             cells: {
               ...row.cells,
-              "col-6": completed ? "Completed" : "In Progress" // Update Status column
-            }
+              "col-6": completed ? "Completed" : "In Progress", // Update Status column
+            },
           };
         }
         return row;
       });
-      
+
       // Update the global tables state
       useTablesStore.getState().setTables(updatedTables);
-      
+
       // Save to localStorage
       localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-      
+
       // If this is the Tasks tab, also update the corresponding team member in the All Tickets tab
       const currentTabData = tabs.find((tab) => tab.id === tabId);
       if (currentTabData?.title === "Tasks") {
@@ -1333,19 +1385,21 @@ function Tickets() {
         const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
         if (allTicketsTab) {
           // Get the ticket ID and assignee name from the row
-          const taskRow = updatedTables[tabId].rows.find((row: Row) => row.id === rowId);
+          const taskRow = updatedTables[tabId].rows.find(
+            (row: Row) => row.id === rowId,
+          );
           if (taskRow) {
             const ticketId = taskRow.cells["col-1"];
             const assigneeName = taskRow.cells["col-2"]; // Assuming assignee name is in col-2
-            
+
             // Update the corresponding assignee in the current assignees state (if open in dialog)
             if (currentTicket && currentTicket.cells["col-1"] === ticketId) {
-              setAssignees(prev => 
-                prev.map(assignee => 
-                  assignee.name === assigneeName 
+              setAssignees((prev) =>
+                prev.map((assignee) =>
+                  assignee.name === assigneeName
                     ? { ...assignee, completed: completed }
-                    : assignee
-                )
+                    : assignee,
+                ),
               );
             }
           }
@@ -1358,54 +1412,54 @@ function Tickets() {
   const markAssigneeCompleted = (assigneeId: string, completed: boolean | string) => {
     // Convert to boolean regardless of input type
     const isCompleted = completed === true || completed === "true";
-    
+
     // Update the assignees state
-    setAssignees(prev => 
-      prev.map(assignee => 
-        assignee.id === assigneeId 
-          ? { ...assignee, completed: isCompleted }
-          : assignee
-      )
+    setAssignees((prev) =>
+      prev.map((assignee) =>
+        assignee.id === assigneeId ? { ...assignee, completed: isCompleted } : assignee,
+      ),
     );
-    
+
     // Find the assignee that was updated
-    const updatedAssignee = assignees.find(assignee => assignee.id === assigneeId);
+    const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
     if (updatedAssignee && currentTicket) {
       const ticketId = currentTicket.cells["col-1"];
-      
+
       // Find the Tasks tab
       const tasksTab = tabs.find((tab) => tab.title === "Tasks");
       if (tasksTab && tables[tasksTab.id]) {
         // Find the corresponding task in the Tasks tab
         const updatedTables = { ...tables };
         const taskTable = updatedTables[tasksTab.id];
-        
+
         if (taskTable && taskTable.rows) {
           // Look for the task that matches this ticket and assignee
           const updatedRows = taskTable.rows.map((row: Row) => {
             // Check if this row corresponds to our ticket and assignee
-            if (row.cells["col-1"] === ticketId && 
-                row.cells["col-2"] === updatedAssignee.name) {
+            if (
+              row.cells["col-1"] === ticketId &&
+              row.cells["col-2"] === updatedAssignee.name
+            ) {
               return {
                 ...row,
                 completed: isCompleted,
                 cells: {
                   ...row.cells,
-                  "col-6": isCompleted ? "Completed" : "In Progress"  // Update Status column
-                }
+                  "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column
+                },
               };
             }
             return row;
           });
-          
+
           updatedTables[tasksTab.id] = {
             ...taskTable,
-            rows: updatedRows
+            rows: updatedRows,
           };
-          
+
           // Update the global tables state
           useTablesStore.getState().setTables(updatedTables);
-          
+
           // Save to localStorage
           localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
         }
@@ -1561,18 +1615,18 @@ function Tickets() {
 
                       if (hasEngineeringPreset) {
                         // Clear saved Engineering layouts
-                        saveToLS<{widgets: Widget[], layouts: Record<string, any>}>(
-                          "engineering-layouts", 
-                          { widgets: [], layouts: {} }
+                        saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+                          "engineering-layouts",
+                          { widgets: [], layouts: {} },
                         );
                         console.log("Reset Engineering widget layout");
                       } else if (currentTicket) {
                         // Clear tab-specific layouts
                         const ticketId = currentTicket.cells["col-1"];
                         const tabSpecificLayoutKey = `tab-${activeTab}`;
-                        saveToLS<{widgets: Widget[], layouts: Record<string, any>}>(
-                          tabSpecificLayoutKey, 
-                          { widgets: [], layouts: {} }
+                        saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+                          tabSpecificLayoutKey,
+                          { widgets: [], layouts: {} },
                         );
                         console.log(
                           "Reset tab-specific layout for tab",
