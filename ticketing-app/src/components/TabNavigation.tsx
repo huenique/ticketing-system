@@ -17,6 +17,7 @@ interface TabNavigationProps {
   onDrop: (e: React.DragEvent, targetTabId: string) => void;
   onEditingTitleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRenameKeyDown: (e: React.KeyboardEvent) => void;
+  onRenameBlur?: () => void;
 }
 
 /**
@@ -37,6 +38,7 @@ function TabNavigation({
   onDrop,
   onEditingTitleChange,
   onRenameKeyDown,
+  onRenameBlur,
 }: TabNavigationProps) {
   return (
     <div className="flex items-center border-b bg-neutral-50">
@@ -63,6 +65,7 @@ function TabNavigation({
                 value={editingTitle}
                 onChange={onEditingTitleChange}
                 onKeyDown={onRenameKeyDown}
+                onBlur={onRenameBlur}
                 className="w-full min-w-[80px] bg-transparent px-0 py-0 outline-none focus:ring-0 border-none"
                 autoFocus
                 onClick={(e) => e.stopPropagation()}

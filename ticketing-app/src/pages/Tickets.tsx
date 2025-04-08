@@ -1236,6 +1236,7 @@ function Tickets() {
           onDrop={handleDrop}
           onEditingTitleChange={(e) => setEditingTitle(e.target.value)}
           onRenameKeyDown={handleRenameKeyDown}
+          onRenameBlur={useTabsStore.getState().saveTabName}
         />
 
         {/* Tab content */}
