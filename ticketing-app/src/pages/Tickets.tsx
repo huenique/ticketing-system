@@ -1038,6 +1038,8 @@ function Tickets() {
                       // Override rows TK-1004 and TK-1005 to display John Doe
                       if (["TK-1004", "TK-1005"].includes(row.cells["col-1"])) {
                         row.cells["col-2"] = "John Doe";
+                        row.cells["col-6"] = "Completed";
+                        row.completed = true;
                       }
 
                       const isAssignedToUser =
