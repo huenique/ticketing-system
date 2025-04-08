@@ -15,7 +15,7 @@ import useTabsStore from "../stores/tabsStore";
 import useUserStore from "../stores/userStore";
 import useWidgetsStore from "../stores/widgetsStore";
 // Import types, constants and utilities
-import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
+import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import {
   getFromLS,
   getGridStyles,
@@ -659,7 +659,7 @@ function Tickets() {
     if (tasksTab && tables[tasksTab.id]) {
       // Find the corresponding task in the Tasks tab based on ticket ID
       const correspondingTask = tables[tasksTab.id]?.rows.find(
-        row => row.cells["col-1"] === ticketId
+        (row: Row) => row.cells["col-1"] === ticketId
       );
       if (correspondingTask) {
         assigneeCompletedStatus = !!correspondingTask.completed;
@@ -798,11 +798,11 @@ function Tickets() {
           setWidgetLayouts(oldSavedState.layouts!);
 
           // Save in new format
-          const completeState = {
-            widgets: oldSavedState.widgets,
-            layouts: oldSavedState.layouts,
+          const completeState: LayoutStorage = {
+            widgets: oldSavedState.widgets || [],
+            layouts: oldSavedState.layouts || {},
           };
-          saveToLS(tabSpecificLayoutKey, completeState);
+          saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
         } else {
           // No saved ticket-specific state, show empty customize layout
           console.log("No saved tab-specific layout, showing empty customize view");
@@ -852,12 +852,12 @@ function Tickets() {
         const ticketId = currentTicket.cells["col-1"];
         if (hasEngineeringPreset) {
           // Save Engineering preset layouts to Engineering-specific key
-          saveToLS("engineering-layouts", completeState);
+          saveToLS<LayoutStorage>("engineering-layouts", completeState);
           console.log("Saved Engineering layout changes for ticket:", ticketId);
         } else {
           // Save non-Engineering layouts to tab-specific key
           const tabSpecificLayoutKey = `tab-${activeTab}`;
-          saveToLS(tabSpecificLayoutKey, completeState);
+          saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
           console.log(
             "Saved tab-specific layout changes for tab",
             activeTab,
@@ -885,7 +885,7 @@ function Tickets() {
             <table className="w-full">
               <thead className="bg-neutral-50 text-sm text-neutral-600">
                 <tr className="relative">
-                  {table.columns.map((column, index) => (
+                  {table.columns.map((column: any, index: number) => (
                     <Fragment key={column.id}>
                       <th
                         className={`group border-b px-4 py-2 text-left font-medium cursor-grab ${column.isDragging ? "opacity-50 bg-neutral-100" : ""}`}
@@ -1004,7 +1004,6 @@ function Tickets() {
                 </tr>
               </thead>
               <tbody>
-<<<<<<< HEAD
                 {(() => {
                   // For Tasks tab, sort rows so current user's tasks appear first
                   if (activeTabData.title === "Tasks" && currentUser) {
@@ -1025,7 +1024,7 @@ function Tickets() {
                           key={row.id} 
                           className={`border-b hover:bg-neutral-50 ${!isAssignedToUser ? 'opacity-50 pointer-events-none' : ''} ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
                         >
-                          {table.columns.map((column) => (
+                          {table.columns.map((column: any) => (
                             <td key={`${row.id}-${column.id}`} className="px-4 py-3">
                               {column.id === "col-11" ||
                               column.title === "Actions" ||
@@ -1052,7 +1051,7 @@ function Tickets() {
                                           const allTicketsTable = tables[allTicketsTab.id];
                                           if (allTicketsTable) {
                                             const correspondingTicket = allTicketsTable.rows.find(
-                                              (ticketRow) => ticketRow.cells["col-1"] === ticketId
+                                              (ticketRow: Row) => ticketRow.cells["col-1"] === ticketId
                                             );
                                             
                                             if (correspondingTicket) {
@@ -1066,54 +1065,6 @@ function Tickets() {
                                       } else {
                                         // Regular behavior for other tabs
                                         handleInitializeTicketDialog(row);
-=======
-                {table.rows.map((row) => (
-                  <tr key={row.id} className="border-b hover:bg-neutral-50">
-                    {table.columns.map((column) => (
-                      <td key={`${row.id}-${column.id}`} className="px-4 py-3">
-                        {column.id === "col-11" ||
-                        column.title === "Actions" ||
-                        row.cells[column.id] === "action_buttons" ? (
-                          <div className="flex space-x-2">
-                            <button
-                              className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
-                              title="View Ticket"
-                              onClick={() => {
-                                // Check if we're in the Tasks tab
-                                const currentTabData = tabs.find(
-                                  (tab) => tab.id === activeTab,
-                                );
-                                if (currentTabData?.title === "Tasks") {
-                                  // Find the All Tickets tab
-                                  const allTicketsTab = tabs.find(
-                                    (tab) => tab.title === "All Tickets",
-                                  );
-                                  if (allTicketsTab) {
-                                    // Get the ticket ID from the row
-                                    const ticketId = row.cells["col-1"];
-
-                                    // Switch to the All Tickets tab
-                                    useTabsStore
-                                      .getState()
-                                      .setActiveTab(allTicketsTab.id);
-
-                                    // Find the corresponding ticket in the All Tickets tab
-                                    const allTicketsTable = tables[allTicketsTab.id];
-                                    if (allTicketsTable) {
-                                      const correspondingTicket =
-                                        allTicketsTable.rows.find(
-                                          (ticketRow) =>
-                                            ticketRow.cells["col-1"] === ticketId,
-                                        );
-
-                                      if (correspondingTicket) {
-                                        // Open the ticket dialog
-                                        setTimeout(() => {
-                                          handleInitializeTicketDialog(
-                                            correspondingTicket,
-                                          );
-                                        }, 100); // Small delay to ensure tab switch completes
->>>>>>> e86268116023486ce00734fcad0cf06c35d42fd1
                                       }
                                     }}
                                     disabled={!isAssignedToUser}
@@ -1186,12 +1137,12 @@ function Tickets() {
                     });
                   } else {
                     // For non-Tasks tabs, render rows normally
-                    return table.rows.map((row) => (
+                    return table.rows.map((row: Row) => (
                       <tr 
                         key={row.id} 
                         className={`border-b hover:bg-neutral-50 ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
                       >
-                        {table.columns.map((column) => (
+                        {table.columns.map((column: any) => (
                           <td key={`${row.id}-${column.id}`} className="px-4 py-3">
                             {column.id === "col-11" ||
                             column.title === "Actions" ||
@@ -1282,7 +1233,7 @@ function Tickets() {
           const taskTable = updatedTables[tasksTab.id];
           
           if (taskTable && taskTable.rows) {
-            const updatedRows = taskTable.rows.map(row => {
+            const updatedRows = taskTable.rows.map((row: Row) => {
               if (row.cells["col-1"] === ticketId) {
                 return {
                   ...row,
@@ -1323,7 +1274,7 @@ function Tickets() {
       const ticketId = currentTicket.cells["col-1"];
       if (hasEngineeringPreset) {
         // For Engineering preset tabs, save to Engineering-specific key
-        saveToLS("engineering-layouts", completeState);
+        saveToLS<LayoutStorage>("engineering-layouts", completeState);
         console.log(
           "Saved Engineering widget layout with",
           widgets.length,
@@ -1334,7 +1285,7 @@ function Tickets() {
       } else {
         // For non-Engineering tabs, save to tab-specific key
         const tabSpecificLayoutKey = `tab-${activeTab}`;
-        saveToLS(tabSpecificLayoutKey, completeState);
+        saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
         console.log(
           "Saved tab-specific layout for tab",
           activeTab,
@@ -1355,7 +1306,7 @@ function Tickets() {
     
     if (updatedTables[tabId]) {
       // Find and update the row
-      updatedTables[tabId].rows = updatedTables[tabId].rows.map(row => {
+      updatedTables[tabId].rows = updatedTables[tabId].rows.map((row: Row) => {
         if (row.id === rowId) {
           return {
             ...row,
@@ -1382,7 +1333,7 @@ function Tickets() {
         const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
         if (allTicketsTab) {
           // Get the ticket ID and assignee name from the row
-          const taskRow = updatedTables[tabId].rows.find(row => row.id === rowId);
+          const taskRow = updatedTables[tabId].rows.find((row: Row) => row.id === rowId);
           if (taskRow) {
             const ticketId = taskRow.cells["col-1"];
             const assigneeName = taskRow.cells["col-2"]; // Assuming assignee name is in col-2
@@ -1431,7 +1382,7 @@ function Tickets() {
         
         if (taskTable && taskTable.rows) {
           // Look for the task that matches this ticket and assignee
-          const updatedRows = taskTable.rows.map(row => {
+          const updatedRows = taskTable.rows.map((row: Row) => {
             // Check if this row corresponds to our ticket and assignee
             if (row.cells["col-1"] === ticketId && 
                 row.cells["col-2"] === updatedAssignee.name) {
@@ -1610,13 +1561,19 @@ function Tickets() {
 
                       if (hasEngineeringPreset) {
                         // Clear saved Engineering layouts
-                        saveToLS("engineering-layouts", { widgets: [], layouts: {} });
+                        saveToLS<{widgets: Widget[], layouts: Record<string, any>}>(
+                          "engineering-layouts", 
+                          { widgets: [], layouts: {} }
+                        );
                         console.log("Reset Engineering widget layout");
                       } else if (currentTicket) {
                         // Clear tab-specific layouts
                         const ticketId = currentTicket.cells["col-1"];
                         const tabSpecificLayoutKey = `tab-${activeTab}`;
-                        saveToLS(tabSpecificLayoutKey, { widgets: [], layouts: {} });
+                        saveToLS<{widgets: Widget[], layouts: Record<string, any>}>(
+                          tabSpecificLayoutKey, 
+                          { widgets: [], layouts: {} }
+                        );
                         console.log(
                           "Reset tab-specific layout for tab",
                           activeTab,
