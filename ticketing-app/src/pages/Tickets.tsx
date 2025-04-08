@@ -12,6 +12,7 @@ import useColumnsStore from "../stores/columnsStore";
 import useTablesStore from "../stores/tablesStore";
 // Import Zustand stores
 import useTabsStore from "../stores/tabsStore";
+import useUserStore from "../stores/userStore";
 import useWidgetsStore from "../stores/widgetsStore";
 // Import types, constants and utilities
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
@@ -81,6 +82,8 @@ function Tickets() {
     onLayoutChange,
     handleFieldChange,
   } = useWidgetsStore();
+
+  const { currentUser } = useUserStore();
 
   // State for ticket view dialog
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -649,6 +652,20 @@ function Tickets() {
     // Open dialog
     setViewDialogOpen(true);
 
+    // --- Check if this ticket has a completed status in the Tasks tab ---
+    let assigneeCompletedStatus = false;
+    // Find the Tasks tab
+    const tasksTab = tabs.find((tab) => tab.title === "Tasks");
+    if (tasksTab && tables[tasksTab.id]) {
+      // Find the corresponding task in the Tasks tab based on ticket ID
+      const correspondingTask = tables[tasksTab.id]?.rows.find(
+        row => row.cells["col-1"] === ticketId
+      );
+      if (correspondingTask) {
+        assigneeCompletedStatus = !!correspondingTask.completed;
+      }
+    }
+
     // --- Added code to populate assignees from the ticket row ---
     // Assuming assignee data is in specific columns of the ticket row
     const assigneeFromRow: Assignee = {
@@ -661,6 +678,7 @@ function Tickets() {
       totalHours: ticket.cells["col-7"] || "0", // Total Hours from col-7
       estTime: ticket.cells["col-8"] || "0", // Est Time from col-8
       priority: "3", // Default to medium priority
+      completed: assigneeCompletedStatus, // Set completed status based on task status
     };
 
     // Set the assignees state for the dialog with only the assignee from the row
@@ -854,21 +872,14 @@ function Tickets() {
   // Modified renderTabContent function to use the Zustand stores
   const renderTabContent = () => {
     const activeTabData = tabs.find((tab) => tab.id === activeTab);
+    const { currentUser } = useUserStore();
+    
     if (!activeTabData) return null;
 
     const table = tables[activeTab];
 
     return (
       <div className="p-4">
-        {!table ? (
-          // Empty container for spacing
-          <div className="py-4"></div>
-        ) : (
-          <div className="mb-4 flex space-x-2">
-            {/* Placeholder for action buttons if needed */}
-          </div>
-        )}
-
         {table && (
           <div className="rounded-lg border overflow-x-auto relative">
             <table className="w-full">
@@ -993,80 +1004,187 @@ function Tickets() {
                 </tr>
               </thead>
               <tbody>
-                {table.rows.map((row) => (
-                  <tr key={row.id} className="border-b hover:bg-neutral-50">
-                    {table.columns.map((column) => (
-                      <td key={`${row.id}-${column.id}`} className="px-4 py-3">
-                        {column.id === "col-11" ||
-                        column.title === "Actions" ||
-                        row.cells[column.id] === "action_buttons" ? (
-                          <div className="flex space-x-2">
-                            <button
-                              className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
-                              title="View Ticket"
-                              onClick={() => {
-                                // Check if we're in the Tasks tab
-                                const currentTabData = tabs.find((tab) => tab.id === activeTab);
-                                if (currentTabData?.title === "Tasks") {
-                                  // Find the All Tickets tab
-                                  const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
-                                  if (allTicketsTab) {
-                                    // Get the ticket ID from the row
-                                    const ticketId = row.cells["col-1"];
-                                    
-                                    // Switch to the All Tickets tab
-                                    useTabsStore.getState().setActiveTab(allTicketsTab.id);
-                                    
-                                    // Find the corresponding ticket in the All Tickets tab
-                                    const allTicketsTable = tables[allTicketsTab.id];
-                                    if (allTicketsTable) {
-                                      const correspondingTicket = allTicketsTable.rows.find(
-                                        (ticketRow) => ticketRow.cells["col-1"] === ticketId
-                                      );
-                                      
-                                      if (correspondingTicket) {
-                                        // Open the ticket dialog
-                                        setTimeout(() => {
-                                          handleInitializeTicketDialog(correspondingTicket);
-                                        }, 100); // Small delay to ensure tab switch completes
+                {(() => {
+                  // For Tasks tab, sort rows so current user's tasks appear first
+                  if (activeTabData.title === "Tasks" && currentUser) {
+                    const sortedRows = [...table.rows].sort((a, b) => {
+                      const aIsAssignedToUser = a.cells["col-2"] === currentUser.name;
+                      const bIsAssignedToUser = b.cells["col-2"] === currentUser.name;
+                      
+                      if (aIsAssignedToUser && !bIsAssignedToUser) return -1;
+                      if (!aIsAssignedToUser && bIsAssignedToUser) return 1;
+                      return 0;
+                    });
+                    
+                    return sortedRows.map((row) => {
+                      const isAssignedToUser = row.cells["col-2"] === currentUser.name;
+                      
+                      return (
+                        <tr 
+                          key={row.id} 
+                          className={`border-b hover:bg-neutral-50 ${!isAssignedToUser ? 'opacity-50 pointer-events-none' : ''} ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
+                        >
+                          {table.columns.map((column) => (
+                            <td key={`${row.id}-${column.id}`} className="px-4 py-3">
+                              {column.id === "col-11" ||
+                              column.title === "Actions" ||
+                              column.title === "Action" ||
+                              row.cells[column.id] === "action_buttons" ? (
+                                <div className="flex space-x-2">
+                                  <button
+                                    className={`rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200 ${!isAssignedToUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    title="View Ticket"
+                                    onClick={() => {
+                                      // Check if we're in the Tasks tab
+                                      const currentTabData = tabs.find((tab) => tab.id === activeTab);
+                                      if (currentTabData?.title === "Tasks") {
+                                        // Find the All Tickets tab
+                                        const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
+                                        if (allTicketsTab) {
+                                          // Get the ticket ID from the row
+                                          const ticketId = row.cells["col-1"];
+                                          
+                                          // Switch to the All Tickets tab
+                                          useTabsStore.getState().setActiveTab(allTicketsTab.id);
+                                          
+                                          // Find the corresponding ticket in the All Tickets tab
+                                          const allTicketsTable = tables[allTicketsTab.id];
+                                          if (allTicketsTable) {
+                                            const correspondingTicket = allTicketsTable.rows.find(
+                                              (ticketRow) => ticketRow.cells["col-1"] === ticketId
+                                            );
+                                            
+                                            if (correspondingTicket) {
+                                              // Open the ticket dialog
+                                              setTimeout(() => {
+                                                handleInitializeTicketDialog(correspondingTicket);
+                                              }, 100); // Small delay to ensure tab switch completes
+                                            }
+                                          }
+                                        }
+                                      } else {
+                                        // Regular behavior for other tabs
+                                        handleInitializeTicketDialog(row);
                                       }
-                                    }
-                                  }
-                                } else {
-                                  // Regular behavior for other tabs
-                                  handleInitializeTicketDialog(row);
-                                }
-                              }}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          row.cells[column.id] || ""
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                                    }}
+                                    disabled={!isAssignedToUser}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                      />
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                      />
+                                    </svg>
+                                  </button>
+                                  
+                                  {/* Mark as Done button - only show in Tasks tab */}
+                                  {activeTabData.title === "Tasks" && (
+                                    <button
+                                      className={`rounded p-1 ${row.completed 
+                                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} 
+                                        ${!isAssignedToUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      title={row.completed ? "Mark as Not Done" : "Mark as Done"}
+                                      onClick={() => markTaskAsDone(activeTab, row.id, !row.completed)}
+                                      disabled={!isAssignedToUser}
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              ) : column.title === "Status" ? (
+                                <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                  row.completed 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {row.completed ? 'Completed' : 'In Progress'}
+                                </div>
+                              ) : (
+                                row.cells[column.id] || ""
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    });
+                  } else {
+                    // For non-Tasks tabs, render rows normally
+                    return table.rows.map((row) => (
+                      <tr 
+                        key={row.id} 
+                        className={`border-b hover:bg-neutral-50 ${row.completed ? 'opacity-60 bg-neutral-50' : ''}`}
+                      >
+                        {table.columns.map((column) => (
+                          <td key={`${row.id}-${column.id}`} className="px-4 py-3">
+                            {column.id === "col-11" ||
+                            column.title === "Actions" ||
+                            column.title === "Action" ||
+                            row.cells[column.id] === "action_buttons" ? (
+                              <div className="flex space-x-2">
+                                <button
+                                  className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
+                                  title="View Ticket"
+                                  onClick={() => handleInitializeTicketDialog(row)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              row.cells[column.id] || ""
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ));
+                  }
+                })()}
                 {table.rows.length === 0 && (
                   <tr>
                     <td
@@ -1096,6 +1214,49 @@ function Tickets() {
   const handleSaveTicketChanges = () => {
     // Save ticket details using the tablesStore function
     saveTicketChanges(currentTicket, ticketForm, setViewDialogOpen, activeTab);
+
+    // Now sync the completed status between tabs if needed
+    if (currentTicket) {
+      const ticketId = currentTicket.cells["col-1"];
+      const assigneeName = currentTicket.cells["col-5"]; // Assuming assignee name is in col-5
+      
+      // Find any completed status from assignees
+      const completedAssignee = assignees.find(a => a.name === assigneeName && a.completed);
+      
+      // If we have a completed assignee, sync this to the Tasks tab
+      if (completedAssignee) {
+        // Find the Tasks tab
+        const tasksTab = tabs.find((tab) => tab.title === "Tasks");
+        if (tasksTab && tables[tasksTab.id]) {
+          // Update the Tasks tab with the completed status
+          const updatedTables = { ...tables };
+          const taskTable = updatedTables[tasksTab.id];
+          
+          if (taskTable && taskTable.rows) {
+            const updatedRows = taskTable.rows.map(row => {
+              if (row.cells["col-1"] === ticketId) {
+                return {
+                  ...row,
+                  completed: !!completedAssignee.completed
+                };
+              }
+              return row;
+            });
+            
+            updatedTables[tasksTab.id] = {
+              ...taskTable,
+              rows: updatedRows
+            };
+            
+            // Update the global tables state
+            useTablesStore.getState().setTables(updatedTables);
+            
+            // Save to localStorage
+            localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+          }
+        }
+      }
+    }
 
     // Save widget layouts to localStorage
     if (currentTicket && widgets.length > 0) {
@@ -1136,6 +1297,120 @@ function Tickets() {
 
     // Reset the current ticket preset
     setCurrentTicketPreset(undefined);
+  };
+
+  // Function to mark a row/task as done
+  const markTaskAsDone = (tabId: string, rowId: string, completed: boolean) => {
+    // Create a new tables object with the updated row
+    const updatedTables = { ...tables };
+    
+    if (updatedTables[tabId]) {
+      // Find and update the row
+      updatedTables[tabId].rows = updatedTables[tabId].rows.map(row => {
+        if (row.id === rowId) {
+          return {
+            ...row,
+            completed: completed,
+            cells: {
+              ...row.cells,
+              "col-6": completed ? "Completed" : "In Progress" // Update Status column
+            }
+          };
+        }
+        return row;
+      });
+      
+      // Update the global tables state
+      useTablesStore.getState().setTables(updatedTables);
+      
+      // Save to localStorage
+      localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+      
+      // If this is the Tasks tab, also update the corresponding team member in the All Tickets tab
+      const currentTabData = tabs.find((tab) => tab.id === tabId);
+      if (currentTabData?.title === "Tasks") {
+        // Find the All Tickets tab
+        const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
+        if (allTicketsTab) {
+          // Get the ticket ID and assignee name from the row
+          const taskRow = updatedTables[tabId].rows.find(row => row.id === rowId);
+          if (taskRow) {
+            const ticketId = taskRow.cells["col-1"];
+            const assigneeName = taskRow.cells["col-2"]; // Assuming assignee name is in col-2
+            
+            // Update the corresponding assignee in the current assignees state (if open in dialog)
+            if (currentTicket && currentTicket.cells["col-1"] === ticketId) {
+              setAssignees(prev => 
+                prev.map(assignee => 
+                  assignee.name === assigneeName 
+                    ? { ...assignee, completed: completed }
+                    : assignee
+                )
+              );
+            }
+          }
+        }
+      }
+    }
+  };
+
+  // Function to update assignee completion status
+  const markAssigneeCompleted = (assigneeId: string, completed: boolean | string) => {
+    // Convert to boolean regardless of input type
+    const isCompleted = completed === true || completed === "true";
+    
+    // Update the assignees state
+    setAssignees(prev => 
+      prev.map(assignee => 
+        assignee.id === assigneeId 
+          ? { ...assignee, completed: isCompleted }
+          : assignee
+      )
+    );
+    
+    // Find the assignee that was updated
+    const updatedAssignee = assignees.find(assignee => assignee.id === assigneeId);
+    if (updatedAssignee && currentTicket) {
+      const ticketId = currentTicket.cells["col-1"];
+      
+      // Find the Tasks tab
+      const tasksTab = tabs.find((tab) => tab.title === "Tasks");
+      if (tasksTab && tables[tasksTab.id]) {
+        // Find the corresponding task in the Tasks tab
+        const updatedTables = { ...tables };
+        const taskTable = updatedTables[tasksTab.id];
+        
+        if (taskTable && taskTable.rows) {
+          // Look for the task that matches this ticket and assignee
+          const updatedRows = taskTable.rows.map(row => {
+            // Check if this row corresponds to our ticket and assignee
+            if (row.cells["col-1"] === ticketId && 
+                row.cells["col-2"] === updatedAssignee.name) {
+              return {
+                ...row,
+                completed: isCompleted,
+                cells: {
+                  ...row.cells,
+                  "col-6": isCompleted ? "Completed" : "In Progress"  // Update Status column
+                }
+              };
+            }
+            return row;
+          });
+          
+          updatedTables[tasksTab.id] = {
+            ...taskTable,
+            rows: updatedRows
+          };
+          
+          // Update the global tables state
+          useTablesStore.getState().setTables(updatedTables);
+          
+          // Save to localStorage
+          localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+        }
+      }
+    }
   };
 
   // Main component render
@@ -1535,6 +1810,7 @@ function Tickets() {
                                 newAssignee={newAssignee}
                                 setNewAssignee={setNewAssignee}
                                 isEditMode={isEditLayoutMode}
+                                markAssigneeCompleted={markAssigneeCompleted}
                               />
                             </div>
                           ))}
@@ -1756,6 +2032,7 @@ function Tickets() {
                                   newAssignee={newAssignee}
                                   setNewAssignee={setNewAssignee}
                                   isEditMode={isEditLayoutMode}
+                                  markAssigneeCompleted={markAssigneeCompleted}
                                 />
                               </div>
                             ))}

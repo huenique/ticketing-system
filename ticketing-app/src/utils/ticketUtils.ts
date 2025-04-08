@@ -4,6 +4,7 @@ import {
   MOCK_PARTS,
   MOCK_STATUSES,
 } from "../constants/tickets";
+import useUserStore from "../stores/userStore";
 
 /**
  * Generate mock data for a table row
@@ -31,12 +32,23 @@ export function generateMockRowData(rowIndex: number): Record<string, string> {
   const totalHours = (Math.random() * 10 + 1).toFixed(1);
   const billableHours = (Math.random() * parseFloat(totalHours)).toFixed(1);
 
+  // For Assign To column, make "John Doe" appear more frequently (50% chance)
+  let assignTo;
+  if (rowIndex <= 3 || Math.random() < 0.5) {
+    // For first 3 rows or with 50% probability, assign to John Doe
+    assignTo = "John Doe";
+  } else {
+    // Randomly select from other assignees (excluding John Doe)
+    const otherAssignees = MOCK_ASSIGNEES.filter(name => name !== "John Doe");
+    assignTo = otherAssignees[Math.floor(Math.random() * otherAssignees.length)];
+  }
+
   return {
     "col-1": `TK-${1000 + rowIndex}`, // Ticket ID
     "col-2": formatDate(dateCreated), // Date Created
     "col-3": randomCustomer, // Customer Name
     "col-4": `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`, // Work Description
-    "col-5": MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)], // Assign To
+    "col-5": assignTo, // Assign To
     "col-6": randomParts, // Parts Used
     "col-7": randomStatus, // Status
     "col-8": totalHours, // Total Hours

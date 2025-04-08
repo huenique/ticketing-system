@@ -18,6 +18,7 @@ export interface Column {
 export interface Row {
   id: string;
   cells: Record<string, string>;
+  completed?: boolean; // Mark if a task/ticket is completed
 }
 
 export interface Table {
@@ -33,6 +34,7 @@ export interface Assignee {
   totalHours: string;
   estTime: string;
   priority: string; // Priority from 1 (highest) to 5 (lowest)
+  completed?: boolean; // Mark if the team member's task is done
 }
 
 export interface TimeEntry {

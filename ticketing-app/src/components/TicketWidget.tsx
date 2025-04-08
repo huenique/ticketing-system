@@ -31,6 +31,7 @@ interface TicketWidgetProps {
   newAssignee?: unknown;
   setNewAssignee?: (assignee: Assignee) => void;
   isEditMode?: boolean;
+  markAssigneeCompleted?: (id: string, completed: boolean) => void;
 }
 
 function TicketWidget({
@@ -58,6 +59,7 @@ function TicketWidget({
   newAssignee,
   setNewAssignee,
   isEditMode = true,
+  markAssigneeCompleted,
 }: TicketWidgetProps & {
   newAssignee: Assignee;
   setNewAssignee: (assignee: Assignee) => void;
@@ -338,7 +340,7 @@ function TicketWidget({
                             return priorityA - priorityB;
                           })
                           .map((assignee) => (
-                          <tr key={assignee.id}>
+                          <tr key={assignee.id} className={assignee.completed ? "opacity-60 bg-neutral-50" : ""}>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <input
                                 type="text"
@@ -351,7 +353,7 @@ function TicketWidget({
                                     e.target.value,
                                   )
                                 }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                               />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -366,7 +368,7 @@ function TicketWidget({
                                     e.target.value,
                                   )
                                 }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                               />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -380,7 +382,7 @@ function TicketWidget({
                                     e.target.value,
                                   )
                                 }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                               >
                                 <option value="1">1 - Highest</option>
                                 <option value="2">2 - High</option>
@@ -401,7 +403,7 @@ function TicketWidget({
                                     e.target.value,
                                   )
                                 }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                 step="0.1"
                                 min="0"
                               />
@@ -418,7 +420,7 @@ function TicketWidget({
                                     e.target.value,
                                   )
                                 }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                                className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                 step="0.1"
                                 min="0"
                               />
@@ -443,6 +445,30 @@ function TicketWidget({
                                         strokeLinejoin="round"
                                         strokeWidth={2}
                                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                                {markAssigneeCompleted && (
+                                  <button
+                                    onClick={() => 
+                                      markAssigneeCompleted && markAssigneeCompleted(assignee.id, !assignee.completed)
+                                    }
+                                    className={`${assignee.completed ? "text-green-600 hover:text-green-800" : "text-gray-500 hover:text-gray-700"}`}
+                                    title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
                                       />
                                     </svg>
                                   </button>

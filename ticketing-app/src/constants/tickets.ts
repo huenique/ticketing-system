@@ -59,7 +59,7 @@ export const MOCK_CUSTOMERS = [
 ];
 
 export const MOCK_ASSIGNEES = [
-  "David Clark",
+  "John Doe",
   "Sarah Lewis",
   "Thomas Walker",
   "Jennifer Hall",
