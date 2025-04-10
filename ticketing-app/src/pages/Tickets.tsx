@@ -111,7 +111,7 @@ function Tickets() {
     }
   }, [activeTab, tables, createNewTable]);
 
-  // Mark task as done (used in Task tab)
+  // Mark task as done (general status update function)
   const markTaskAsDone = (tabId: string, rowId: string, completed: boolean) => {
     // Create a new tables object with the updated row
     const updatedTables = { ...tables };
@@ -137,23 +137,6 @@ function Tickets() {
 
       // Save to localStorage
       localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-
-      // If this is the Tasks tab, also update the corresponding team member in the All Tickets tab
-      const currentTabData = tabs.find((tab) => tab.id === tabId);
-      if (currentTabData?.title === "Tasks") {
-        // Find the All Tickets tab
-        const allTicketsTab = tabs.find((tab) => tab.title === "All Tickets");
-        if (allTicketsTab) {
-          // Get the ticket ID and assignee name from the row
-          const taskRow = updatedTables[tabId].rows.find(
-            (row: any) => row.id === rowId,
-          );
-          if (taskRow) {
-            const ticketId = taskRow.cells["col-1"];
-            const assigneeName = taskRow.cells["col-2"]; // Assuming assignee name is in col-2
-          }
-        }
-      }
     }
   };
 

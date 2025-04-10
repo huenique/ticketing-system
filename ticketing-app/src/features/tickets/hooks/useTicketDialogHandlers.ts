@@ -178,47 +178,39 @@ export default function useTicketDialogHandlers(
 
     // Find the assignee that was updated
     const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
+    
+    // If we're working with a current ticket, update its status in the All Tickets tab
     if (updatedAssignee && currentTicket) {
       const ticketId = currentTicket.cells["col-1"];
+      
+      // Update the ticket in the current tab
+      const updatedTables = { ...tables };
+      if (updatedTables[activeTab]) {
+        // Find the row that matches this ticket
+        const updatedRows = updatedTables[activeTab].rows.map((row: Row) => {
+          if (row.cells["col-1"] === ticketId) {
+            return {
+              ...row,
+              completed: isCompleted,
+              cells: {
+                ...row.cells,
+                "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column if it exists
+              },
+            };
+          }
+          return row;
+        });
 
-      // Find the Tasks tab
-      const tasksTab = tabs.find((tab) => tab.title === "Tasks");
-      if (tasksTab && tables[tasksTab.id]) {
-        // Find the corresponding task in the Tasks tab
-        const updatedTables = { ...tables };
-        const taskTable = updatedTables[tasksTab.id];
+        updatedTables[activeTab] = {
+          ...updatedTables[activeTab],
+          rows: updatedRows,
+        };
 
-        if (taskTable && taskTable.rows) {
-          // Look for the task that matches this ticket and assignee
-          const updatedRows = taskTable.rows.map((row: Row) => {
-            // Check if this row corresponds to our ticket and assignee
-            if (
-              row.cells["col-1"] === ticketId &&
-              row.cells["col-2"] === updatedAssignee.name
-            ) {
-              return {
-                ...row,
-                completed: isCompleted,
-                cells: {
-                  ...row.cells,
-                  "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column
-                },
-              };
-            }
-            return row;
-          });
+        // Update the global tables state
+        useTablesStore.getState().setTables(updatedTables);
 
-          updatedTables[tasksTab.id] = {
-            ...taskTable,
-            rows: updatedRows,
-          };
-
-          // Update the global tables state
-          useTablesStore.getState().setTables(updatedTables);
-
-          // Save to localStorage
-          localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-        }
+        // Save to localStorage
+        localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
       }
     }
   };
@@ -271,18 +263,12 @@ export default function useTicketDialogHandlers(
     // Open dialog
     setViewDialogOpen(true);
 
-    // --- Check if this ticket has a completed status in the Tasks tab ---
+    // Check if this ticket has a completed status stored in its data
     let assigneeCompletedStatus = false;
-    // Find the Tasks tab
-    const tasksTab = tabs.find((tab) => tab.title === "Tasks");
-    if (tasksTab && tables[tasksTab.id]) {
-      // Find the corresponding task in the Tasks tab based on ticket ID
-      const correspondingTask = tables[tasksTab.id]?.rows.find(
-        (row: Row) => row.cells["col-1"] === ticketId,
-      );
-      if (correspondingTask) {
-        assigneeCompletedStatus = !!correspondingTask.completed;
-      }
+    if (ticket.completed !== undefined) {
+      assigneeCompletedStatus = !!ticket.completed;
+    } else if (ticket.cells["col-6"] === "Completed") {
+      assigneeCompletedStatus = true;
     }
 
     // --- Added code to populate assignees from the ticket row ---
@@ -297,7 +283,7 @@ export default function useTicketDialogHandlers(
       totalHours: ticket.cells["col-7"] || "0", // Total Hours from col-7
       estTime: ticket.cells["col-8"] || "0", // Est Time from col-8
       priority: "3", // Default to medium priority
-      completed: assigneeCompletedStatus, // Set completed status based on task status
+      completed: assigneeCompletedStatus, // Set completed status based on the ticket's status
     };
 
     // Set the assignees state for the dialog with only the assignee from the row
@@ -434,59 +420,27 @@ export default function useTicketDialogHandlers(
 
   // Handle saving ticket changes
   const handleSaveTicketChanges = () => {
-    // Save ticket details using the tablesStore function
+    if (!currentTicket) return;
+
+    // Close the dialog
+    setViewDialogOpen(false);
+
+    // Find the corresponding tab
+    const currentTabData = tabs.find((tab) => tab.id === activeTab);
+    if (!currentTabData) return;
+
+    // Get the current status of the assignees
+    const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
+
+    // Call saveTicketChanges from tablesStore
     useTablesStore.getState().saveTicketChanges(
-      currentTicket, 
-      ticketForm, 
-      setViewDialogOpen, 
-      activeTab
+      currentTicket,
+      ticketForm,
+      setViewDialogOpen,
+      activeTab,
+      hasCompletedAssignees // Pass the completion status to be saved
     );
-
-    // Now sync the completed status between tabs if needed
-    if (currentTicket) {
-      const ticketId = currentTicket.cells["col-1"];
-      const assigneeName = currentTicket.cells["col-5"]; // Assuming assignee name is in col-5
-
-      // Find any completed status from assignees
-      const completedAssignee = assignees.find(
-        (a) => a.name === assigneeName && a.completed,
-      );
-
-      // If we have a completed assignee, sync this to the Tasks tab
-      if (completedAssignee) {
-        // Find the Tasks tab
-        const tasksTab = tabs.find((tab) => tab.title === "Tasks");
-        if (tasksTab && tables[tasksTab.id]) {
-          // Update the Tasks tab with the completed status
-          const updatedTables = { ...tables };
-          const taskTable = updatedTables[tasksTab.id];
-
-          if (taskTable && taskTable.rows) {
-            const updatedRows = taskTable.rows.map((row: Row) => {
-              if (row.cells["col-1"] === ticketId) {
-                return {
-                  ...row,
-                  completed: !!completedAssignee.completed,
-                };
-              }
-              return row;
-            });
-
-            updatedTables[tasksTab.id] = {
-              ...taskTable,
-              rows: updatedRows,
-            };
-
-            // Update the global tables state
-            useTablesStore.getState().setTables(updatedTables);
-
-            // Save to localStorage
-            localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-          }
-        }
-      }
-    }
-
+    
     // Save widget layouts to localStorage
     if (currentTicket && widgets.length > 0) {
       // Create a complete widget state object that includes both widget data and layout
@@ -496,7 +450,6 @@ export default function useTicketDialogHandlers(
       };
 
       // Find current tab to determine if it has Engineering preset
-      const currentTabData = tabs.find((tab) => tab.id === activeTab);
       const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
 
       // Use the appropriate storage key based on tab type

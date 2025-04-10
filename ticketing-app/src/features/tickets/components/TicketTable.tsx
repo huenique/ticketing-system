@@ -174,224 +174,59 @@ const TicketTable: React.FC<TicketTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {(() => {
-              // For Tasks tab, sort rows so current user's tasks appear first
-              if (activeTabData.title === "Tasks" && currentUser) {
-                const sortedRows = [...table.rows];
-
-                // Force these to display as "John Doe"
-                sortedRows.forEach((row) => {
-                  if (["TK-1004", "TK-1005"].includes(row.cells["col-1"])) {
-                    row.cells["col-2"] = "John Doe";
-                  }
-                });
-
-                // Sort based on current user's name
-                sortedRows.sort((a, b) => {
-                  const aIsAssignedToUser = a.cells["col-2"] === currentUser.name;
-                  const bIsAssignedToUser = b.cells["col-2"] === currentUser.name;
-
-                  if (aIsAssignedToUser && !bIsAssignedToUser) return -1;
-                  if (!aIsAssignedToUser && bIsAssignedToUser) return 1;
-                  return 0;
-                });
-
-                return sortedRows.map((row) => {
-                  // Override rows TK-1004 and TK-1005 to display John Doe
-                  if (["TK-1004", "TK-1005"].includes(row.cells["col-1"])) {
-                    row.cells["col-2"] = "John Doe";
-                    row.cells["col-6"] = "Completed";
-                    row.completed = true;
-                  }
-
-                  const isAssignedToUser =
-                    row.cells["col-2"] === currentUser.name &&
-                    !["TK-1004", "TK-1005"].includes(row.cells["col-1"]);
-
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`border-b hover:bg-neutral-50 ${!isAssignedToUser ? "opacity-50 pointer-events-none" : ""} ${row.completed ? "opacity-60 bg-neutral-50" : ""}`}
-                    >
-                      {table.columns.map((column: Column) => (
-                        <td key={`${row.id}-${column.id}`} className="px-4 py-3">
-                          {column.id === "col-11" ||
-                          column.title === "Actions" ||
-                          column.title === "Action" ||
-                          row.cells[column.id] === "action_buttons" ? (
-                            <div className="flex space-x-2">
-                              <button
-                                className={`rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200 ${!isAssignedToUser ? "opacity-50 cursor-not-allowed" : ""}`}
-                                title="View Ticket"
-                                onClick={() => {
-                                  // Check if we're in the Tasks tab
-                                  const currentTabData = tabs.find(
-                                    (tab) => tab.id === activeTab,
-                                  );
-                                  if (currentTabData?.title === "Tasks") {
-                                    // Find the All Tickets tab
-                                    const allTicketsTab = tabs.find(
-                                      (tab) => tab.title === "All Tickets",
-                                    );
-                                    if (allTicketsTab) {
-                                      // Get the ticket ID from the row
-                                      const ticketId = row.cells["col-1"];
-
-                                      // Find the corresponding ticket in the All Tickets tab
-                                      const allTicketsTable =
-                                        tables[allTicketsTab.id];
-                                      if (allTicketsTable) {
-                                        const correspondingTicket =
-                                          allTicketsTable.rows.find(
-                                            (ticketRow: Row) =>
-                                              ticketRow.cells["col-1"] === ticketId,
-                                          );
-
-                                        if (correspondingTicket) {
-                                          // Open the ticket dialog
-                                          handleInitializeTicketDialog(
-                                            correspondingTicket,
-                                          );
-                                        }
-                                      }
-                                    }
-                                  } else {
-                                    // Regular behavior for other tabs
-                                    handleInitializeTicketDialog(row);
-                                  }
-                                }}
-                                disabled={!isAssignedToUser}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                  />
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                  />
-                                </svg>
-                              </button>
-
-                              {/* Mark as Done button - only show in Tasks tab */}
-                              {activeTabData.title === "Tasks" && (
-                                <button
-                                  className={`rounded p-1 ${
-                                    row.completed
-                                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                  } 
-                                    ${!isAssignedToUser ? "opacity-50 cursor-not-allowed" : ""}`}
-                                  title={
-                                    row.completed
-                                      ? "Mark as Not Done"
-                                      : "Mark as Done"
-                                  }
-                                  onClick={() =>
-                                    markTaskAsDone(
-                                      activeTab,
-                                      row.id,
-                                      !row.completed,
-                                    )
-                                  }
-                                  disabled={!isAssignedToUser}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          ) : column.title === "Status" ? (
-                            <div
-                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                row.completed
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {row.completed ? "Completed" : "In Progress"}
-                            </div>
-                          ) : (
-                            row.cells[column.id] || ""
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                });
-              } else {
-                // For non-Tasks tabs, render rows normally
-                return table.rows.map((row: Row) => (
-                  <tr
-                    key={row.id}
-                    className={`border-b hover:bg-neutral-50 ${row.completed ? "opacity-60 bg-neutral-50" : ""}`}
-                  >
-                    {table.columns.map((column: Column) => (
-                      <td key={`${row.id}-${column.id}`} className="px-4 py-3">
-                        {column.id === "col-11" ||
-                        column.title === "Actions" ||
-                        column.title === "Action" ||
-                        row.cells[column.id] === "action_buttons" ? (
-                          <div className="flex space-x-2">
-                            <button
-                              className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
-                              title="View Ticket"
-                              onClick={() => handleInitializeTicketDialog(row)}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          row.cells[column.id] || ""
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ));
-              }
-            })()}
+            {table.rows.map((row: Row) => (
+              <tr key={row.id} className="border-b hover:bg-neutral-50">
+                {table.columns.map((column: Column) => (
+                  <td key={`${row.id}-${column.id}`} className="px-4 py-3">
+                    {column.id === "col-11" ||
+                    column.title === "Actions" ||
+                    column.title === "Action" ||
+                    row.cells[column.id] === "action_buttons" ? (
+                      <div className="flex space-x-2">
+                        <button
+                          className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
+                          title="View Ticket"
+                          onClick={() => handleInitializeTicketDialog(row)}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : column.title === "Status" ? (
+                      <div
+                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                          row.completed
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {row.completed ? "Completed" : "In Progress"}
+                      </div>
+                    ) : (
+                      row.cells[column.id] || ""
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
             {table.rows.length === 0 && (
               <tr>
                 <td

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { PRESET_TABLES } from "../constants/tickets";
-import { Row, Tab, Table, TicketForm } from "../types/tickets";
+import { Row, Table, TicketForm } from "../types/tickets";
 import { generateMockRowData } from "../utils/ticketUtils";
 import { persist } from "./middleware";
 import useTabsStore from "./tabsStore";
@@ -28,6 +28,7 @@ interface TablesState {
     ticketForm: TicketForm,
     setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
     tabId: string,
+    isCompleted?: boolean
   ) => void;
 }
 
@@ -207,75 +208,6 @@ const useTablesStore = create<TablesState>()(
             : tab,
         );
 
-        // For Engineering preset, also create a Tasks tab
-        if (presetKey === "Engineering") {
-          // Find if a "Tasks" tab already exists
-          const existingTasksTab = tabsStore.tabs.find((tab) => tab.title === "Tasks");
-
-          if (!existingTasksTab) {
-            // Create a new Tasks tab
-            const tasksTabId = `tab-${updatedTabs.length + 1}`;
-            const tasksTab: Tab = {
-              id: tasksTabId,
-              title: "Tasks",
-              content: "tasks",
-              appliedPreset: presetKey,
-            };
-
-            updatedTabs.push(tasksTab);
-
-            // Create a table specifically for the Tasks tab
-            const tasksTable: Table = {
-              columns: [
-                { id: "col-1", title: "Ticket ID", width: "120px" },
-                { id: "col-2", title: "Name", width: "150px" },
-                { id: "col-3", title: "Work Description", width: "200px" },
-                { id: "col-4", title: "Total Hours", width: "100px" },
-                { id: "col-5", title: "Est. Time", width: "100px" },
-                { id: "col-6", title: "Status", width: "100px" },
-                { id: "col-7", title: "Action", width: "100px" },
-              ],
-              rows: [],
-            };
-
-            // Generate task rows based on the ticket rows
-            const taskRows: Row[] = mockRows.map((ticketRow, index) => {
-              // Assign 2-3 tasks to the current user
-              const shouldAssignToCurrentUser = index < 3 && currentUser;
-              const assigneeName = shouldAssignToCurrentUser
-                ? currentUserName
-                : ticketRow.cells["col-5"] || `Team Member ${index + 1}`;
-
-              return {
-                id: `task-row-${index + 1}`,
-                cells: {
-                  "col-1": ticketRow.cells["col-1"], // Ticket ID
-                  "col-2": assigneeName, // Name from current user or default
-                  "col-3": ticketRow.cells["col-4"] || "", // Work Description
-                  "col-4": ticketRow.cells["col-8"] || "0", // Total Hours
-                  "col-5": (parseFloat(ticketRow.cells["col-8"] || "0") * 1.5).toFixed(
-                    1,
-                  ), // Est. Time as 1.5x Total Hours
-                  "col-6": "In Progress", // Status - default to In Progress
-                  "col-7": "action_buttons", // Action button
-                },
-                completed: false, // Initialize as not completed
-              };
-            });
-
-            // Add the tasks table to state
-            set((state) => ({
-              tables: {
-                ...state.tables,
-                [tasksTabId]: {
-                  ...tasksTable,
-                  rows: taskRows,
-                },
-              },
-            }));
-          }
-        }
-
         tabsStore.setTabs(updatedTabs);
       },
 
@@ -308,7 +240,13 @@ const useTablesStore = create<TablesState>()(
         }));
       },
 
-      saveTicketChanges: (currentTicket, ticketForm, setViewDialogOpen, tabId) => {
+      saveTicketChanges: (
+        currentTicket, 
+        ticketForm, 
+        setViewDialogOpen, 
+        tabId,
+        isCompleted = false
+      ) => {
         if (!currentTicket) return;
 
         const { tables } = get();
@@ -326,9 +264,15 @@ const useTablesStore = create<TablesState>()(
             if (ticketForm.billableHours)
               updatedCells["col-9"] = ticketForm.billableHours;
             if (ticketForm.totalHours) updatedCells["col-8"] = ticketForm.totalHours;
+            
+            // Update status column if it exists based on completion
+            if (isCompleted) {
+              updatedCells["col-6"] = "Completed";
+            }
 
             return {
               ...row,
+              completed: isCompleted,
               cells: updatedCells,
             };
           }
