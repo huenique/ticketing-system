@@ -49,6 +49,11 @@ const TicketTable: React.FC<TicketTableProps> = ({
   const table = tables[activeTab];
   if (!table) return null;
 
+  // Filter rows based on the tab's status if it exists and is not 'all'
+  const filteredRows = activeTabData.status && activeTabData.status !== 'all'
+    ? table.rows.filter((row: Row) => row.cells && row.cells["col-7"] === activeTabData.status)
+    : table.rows;
+
   return (
     <div className="p-4">
       <div className="rounded-lg border overflow-x-auto relative">
@@ -174,7 +179,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row: Row) => (
+            {filteredRows.map((row: Row) => (
               <tr key={row.id} className="border-b hover:bg-neutral-50">
                 {table.columns.map((column: Column) => (
                   <td key={`${row.id}-${column.id}`} className="px-4 py-3">
@@ -213,12 +218,14 @@ const TicketTable: React.FC<TicketTableProps> = ({
                     ) : column.title === "Status" ? (
                       <div
                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                          row.completed
+                          row.cells[column.id] === "Completed" || row.cells[column.id] === "Done"
                             ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : row.cells[column.id] === "In Progress"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {row.completed ? "Completed" : "In Progress"}
+                        {row.cells[column.id] || (row.completed ? "Completed" : "In Progress")}
                       </div>
                     ) : (
                       row.cells[column.id] || ""
@@ -227,7 +234,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
                 ))}
               </tr>
             ))}
-            {table.rows.length === 0 && (
+            {filteredRows.length === 0 && (
               <tr>
                 <td
                   colSpan={table.columns.length}

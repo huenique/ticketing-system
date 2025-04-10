@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { WIDGET_TYPES } from "../constants/tickets";
 import { Row, Widget } from "../types/tickets";
 import { persist } from "./middleware";
+import { useSettingsStore } from "./settingsStore";
 
 interface WidgetsState {
   widgets: Widget[];
@@ -139,7 +140,7 @@ const useWidgetsStore = create<WidgetsState>()(
               title: "Status",
               field: "status",
               fieldType: "select",
-              options: ["New", "In Progress", "Pending", "Completed", "Cancelled"],
+              options: useSettingsStore.getState().statusOptions,
               collapsed: false,
             };
             break;

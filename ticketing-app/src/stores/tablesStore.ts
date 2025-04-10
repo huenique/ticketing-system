@@ -108,6 +108,11 @@ const useTablesStore = create<TablesState>()(
         const table = tables[tabId];
         if (!table) return;
 
+        // Get tab info to check if it has status info
+        const tabsStore = useTabsStore.getState();
+        const tabInfo = tabsStore.tabs.find(tab => tab.id === tabId);
+        const tabStatus = tabInfo?.status;
+
         const newRowId = `row-${table.rows.length + 1}`;
         const rowIndex = table.rows.length + 1;
 
@@ -133,6 +138,11 @@ const useTablesStore = create<TablesState>()(
               cells[column.id] = "";
             }
           });
+          
+          // If the tab has a status, use it for the 'Status' column
+          if (tabStatus && cells["col-7"]) {
+            cells["col-7"] = tabStatus;
+          }
         } else {
           // Simple table, just set Ticket ID and action buttons
           table.columns.forEach((column) => {
@@ -140,6 +150,8 @@ const useTablesStore = create<TablesState>()(
               cells[column.id] = `TK-${1000 + rowIndex}`;
             } else if (column.id === "col-11" || column.title === "Actions") {
               cells[column.id] = "action_buttons";
+            } else if (column.id === "col-7" && tabStatus) {
+              cells[column.id] = tabStatus;
             } else {
               cells[column.id] = "";
             }
@@ -148,6 +160,8 @@ const useTablesStore = create<TablesState>()(
 
         const newRow: Row = {
           id: newRowId,
+          // Set completed state based on status
+          completed: tabStatus === "Completed" || tabStatus === "Done",
           cells,
         };
 
@@ -172,6 +186,11 @@ const useTablesStore = create<TablesState>()(
         const currentUser = useUserStore.getState().currentUser;
         const currentUserName = currentUser?.name || "John Doe";
 
+        // Get tab info to check if it has status info
+        const tabsStore = useTabsStore.getState();
+        const tabInfo = tabsStore.tabs.find(tab => tab.id === tabId);
+        const tabStatus = tabInfo?.status;
+
         // Create a few mock rows
         const mockRows: Row[] = [];
         for (let i = 0; i < 5; i++) {
@@ -181,9 +200,20 @@ const useTablesStore = create<TablesState>()(
           if (presetKey === "Engineering" && i < 3) {
             rowData["col-5"] = currentUserName; // Assign first 3 tickets to current user
           }
+          
+          // If the tab has a status, use it for the 'Status' column
+          if (tabStatus) {
+            rowData["col-7"] = tabStatus;
+            
+            // Set completed state based on status
+            if (tabStatus === "Completed" || tabStatus === "Done") {
+              rowData["completed"] = "true";
+            }
+          }
 
           mockRows.push({
             id: `row-${i + 1}`,
+            completed: rowData["completed"] === "true",
             cells: rowData,
           });
         }
@@ -201,10 +231,9 @@ const useTablesStore = create<TablesState>()(
         }));
 
         // Update the tabs store to mark this tab with the applied preset
-        const tabsStore = useTabsStore.getState();
         const updatedTabs = tabsStore.tabs.map((tab) =>
           tab.id === tabId
-            ? { ...tab, appliedPreset: presetKey, title: "All Tickets" }
+            ? { ...tab, appliedPreset: presetKey }
             : tab,
         );
 
@@ -267,7 +296,7 @@ const useTablesStore = create<TablesState>()(
             
             // Update status column if it exists based on completion
             if (isCompleted) {
-              updatedCells["col-6"] = "Completed";
+              updatedCells["col-7"] = "Completed";
             }
 
             return {

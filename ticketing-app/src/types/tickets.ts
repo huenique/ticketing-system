@@ -48,7 +48,12 @@ export interface Widget {
   title: string;
   collapsed?: boolean;
   fieldType?: string;
+  field?: string;
+  value?: string;
+  width?: number;
+  height?: number;
   data?: never;
+  options?: string[];
 }
 
 export interface Column {

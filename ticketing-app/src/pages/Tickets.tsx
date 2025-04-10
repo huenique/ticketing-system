@@ -20,6 +20,11 @@ import useTablesStore from "../stores/tablesStore";
 import useTabsStore from "../stores/tabsStore";
 import useUserStore from "../stores/userStore";
 import useWidgetsStore from "../stores/widgetsStore";
+import { useSettingsStore } from "../stores/settingsStore";
+
+import { PRESET_TABLES } from "@/constants/tickets";
+import { Row, Table } from "@/types/tickets";
+import { generateMockRowData } from "@/utils/ticketUtils";
 
 function Tickets() {
   // ===== Zustand Stores =====
@@ -53,6 +58,9 @@ function Tickets() {
     applyPreset,
     removeColumn,
   } = useTablesStore();
+
+  // Settings Store
+  const { statusOptions } = useSettingsStore();
 
   // Columns Store
   const {
@@ -111,6 +119,146 @@ function Tickets() {
     }
   }, [activeTab, tables, createNewTable]);
 
+  // Enhanced applyEngineeringPreset function that creates tabs based on statusOptions
+  const applyEngineeringPreset = () => {
+    // Clear existing tabs and tables
+    const tabsStore = useTabsStore.getState();
+    const tablesStore = useTablesStore.getState();
+    
+    // First create an "All Tickets" tab
+    const allTicketsTab = {
+      id: 'tab-all-tickets',
+      title: 'All Tickets',
+      status: 'all', // Special status to indicate this shows all tickets
+    };
+    
+    // Use all default status options to create tabs
+    const statusTabs = statusOptions.map((status, index) => ({
+      id: `tab-${index + 1}`,
+      title: status,
+      status: status, // Add status attribute to track which status this tab represents
+    }));
+    
+    // Combine All Tickets tab with status tabs
+    const newTabs = [allTicketsTab, ...statusTabs];
+    
+    // Reset all tabs first
+    tabsStore.setTabs([]);
+    
+    // Set the new tabs
+    tabsStore.setTabs(newTabs);
+    
+    // Set active tab to the All Tickets tab
+    tabsStore.setActiveTab(allTicketsTab.id);
+    
+    // First, create tickets for each status (one ticket per status)
+    createTicketsForAllStatuses(allTicketsTab.id);
+    
+    // Apply Engineering preset to all the other tabs (they will filter data from "All Tickets")
+    statusTabs.forEach(tab => {
+      // Create table for each status tab
+      createFilteredTable(tab.id, tab.status);
+    });
+  };
+  
+  // Helper function to create a table with tickets for all statuses
+  const createTicketsForAllStatuses = (tabId: string) => {
+    const tablesStore = useTablesStore.getState();
+    const presetTable = PRESET_TABLES["Engineering"];
+    
+    if (!presetTable) return;
+    
+    // Get current user
+    const currentUser = useUserStore.getState().currentUser;
+    const currentUserName = currentUser?.name || "John Doe";
+    
+    // Create a ticket for each status (except "Awaiting Customer Response" and "Declined")
+    const mockRows: Row[] = [];
+    
+    // Create tickets for the required statuses
+    const requiredStatuses = ["New", "Awaiting Parts", "Open", "In Progress", "Completed"];
+    const emptyTabStatuses = ["Awaiting Customer Response", "Declined"];
+    
+    for (let i = 0; i < requiredStatuses.length; i++) {
+      // Generate basic row data
+      const rowData = generateMockRowData(i + 1);
+      
+      // Set the specific status for this ticket
+      rowData["col-7"] = requiredStatuses[i];
+      
+      // Set all tickets to be assigned to the current user
+      rowData["col-5"] = currentUserName;
+      
+      // If status is "Completed", mark it as completed
+      const completed = requiredStatuses[i] === "Completed";
+      
+      mockRows.push({
+        id: `row-${i + 1}`,
+        completed: completed,
+        cells: rowData,
+      });
+    }
+    
+    // Update table with new rows
+    tablesStore.setTables({
+      ...tablesStore.tables,
+      [tabId]: {
+        columns: [...presetTable.columns],
+        rows: mockRows,
+      },
+    });
+    
+    // Mark this tab with the applied preset
+    const tabsStore = useTabsStore.getState();
+    const updatedTabs = tabsStore.tabs.map((tab) =>
+      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab
+    );
+    tabsStore.setTabs(updatedTabs);
+  };
+  
+  // Helper function to create filtered tables based on the All Tickets tab
+  const createFilteredTable = (tabId: string, status: string) => {
+    const tablesStore = useTablesStore.getState();
+    const allTicketsTable = tablesStore.tables["tab-all-tickets"];
+    const presetTable = PRESET_TABLES["Engineering"];
+    
+    if (!presetTable) return;
+    
+    // For "Awaiting Customer Response" and "Declined" tabs, create empty tables
+    const emptyTabStatuses = ["Awaiting Customer Response", "Declined"];
+    if (emptyTabStatuses.includes(status)) {
+      // Create an empty table for these status tabs
+      tablesStore.setTables({
+        ...tablesStore.tables,
+        [tabId]: {
+          columns: [...presetTable.columns],
+          rows: [], // Empty rows array
+        },
+      });
+    } else if (allTicketsTable) {
+      // For other status tabs, filter rows from All Tickets
+      const filteredRows = allTicketsTable.rows.filter((row) => 
+        row.cells["col-7"] === status
+      );
+      
+      // Update table with filtered rows
+      tablesStore.setTables({
+        ...tablesStore.tables,
+        [tabId]: {
+          columns: [...presetTable.columns],
+          rows: filteredRows,
+        },
+      });
+    }
+    
+    // Mark this tab with the applied preset
+    const tabsStore = useTabsStore.getState();
+    const updatedTabs = tabsStore.tabs.map((tab) =>
+      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab
+    );
+    tabsStore.setTabs(updatedTabs);
+  };
+
   // Mark task as done (general status update function)
   const markTaskAsDone = (tabId: string, rowId: string, completed: boolean) => {
     // Create a new tables object with the updated row
@@ -125,7 +273,7 @@ function Tickets() {
             completed: completed,
             cells: {
               ...row.cells,
-              "col-6": completed ? "Completed" : "In Progress", // Update Status column
+              "col-7": completed ? "Completed" : "In Progress", // Update Status column
             },
           };
         }
@@ -213,7 +361,7 @@ function Tickets() {
                     Table Presets
                   </div>
                   <button
-                    onClick={() => applyPreset("Engineering", activeTab)}
+                    onClick={() => applyEngineeringPreset()}
                     className="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-neutral-100"
                   >
                     Engineering

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
+import StatusWidget from "./widgets/StatusWidget";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -108,6 +109,18 @@ function TicketWidget({
     if (widget.fieldType) {
       switch (widget.fieldType) {
         case "select":
+          // Check if this is a status field to use our StatusWidget
+          if (widget.field === "status") {
+            return (
+              <div className="h-full flex items-center">
+                <StatusWidget
+                  value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
+                  onChange={(value) => handleFieldChange(widget.field || "", value)}
+                />
+              </div>
+            );
+          }
+          // Use default select for non-status fields
           return (
             <div className="h-full flex items-center">
               <select
@@ -754,24 +767,10 @@ function TicketWidget({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="h-[38px]">
-                <select
-                  id="status"
+                <StatusWidget
                   value={ticketForm.status}
-                  onChange={(e) =>
-                    setTicketForm({ ...ticketForm, status: e.target.value })
-                  }
-                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                >
-                  <option value="New">New</option>
-                  <option value="Awaiting Customer Response">
-                    Awaiting Customer Response
-                  </option>
-                  <option value="Awaiting Parts">Awaiting Parts</option>
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Declined">Declined</option>
-                </select>
+                  onChange={(value) => setTicketForm({ ...ticketForm, status: value })}
+                />
               </div>
 
               <div>
