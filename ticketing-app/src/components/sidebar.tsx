@@ -1,4 +1,4 @@
-import { LogOut, LucideIcon, Settings, Ticket, Users } from "lucide-react";
+import { LogOut, LucideIcon, Settings, Ticket, User, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ function Sidebar({ className }: SidebarProps) {
   const { currentUser } = useUserStore();
   const navItems = [
     { title: "Tickets", icon: Ticket, href: "/tickets" },
-    { title: "Users", icon: Users, href: "/users" },
+    { title: "Users", icon: User, href: "/users" },
     { title: "Customers", icon: Users, href: "/customers" },
     { title: "Settings", icon: Settings, href: "/settings" },
   ];
