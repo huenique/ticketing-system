@@ -6,6 +6,7 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Users from "./pages/Users";
+import Customers from "./pages/Customers";
 
 function App() {
   return (
@@ -24,6 +25,14 @@ function App() {
         element={
           <DashboardLayout>
             <Users />
+          </DashboardLayout>
+        }
+      />
+      <Route
+        path="/customers"
+        element={
+          <DashboardLayout>
+            <Customers />
           </DashboardLayout>
         }
       />
