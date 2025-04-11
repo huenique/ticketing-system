@@ -4,6 +4,7 @@ import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
+import useUserStore from "../stores/userStore";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -68,6 +69,7 @@ function TicketWidget({
   // State for title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
+  const { currentUser } = useUserStore();
 
   // Function to handle remove click with extra measures to prevent drag
   const handleRemoveClick = (e: React.MouseEvent) => {
@@ -204,7 +206,7 @@ function TicketWidget({
             return (
               <div className="overflow-auto">
                 <div className="mb-3 flex justify-end items-center">
-                  {setShowAssigneeForm && (
+                  {currentUser?.role !== "user" && setShowAssigneeForm && (
                     <button
                       onClick={() => setShowAssigneeForm(!showAssigneeForm)}
                       className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
@@ -215,6 +217,7 @@ function TicketWidget({
                 </div>
 
                 {showAssigneeForm &&
+                  currentUser?.role !== "user" &&
                   setNewAssignee &&
                   newAssignee &&
                   handleAddAssignee && (
@@ -854,130 +857,136 @@ function TicketWidget({
         return (
           <div>
             {/* Form to add a new assignee */}
-            {showAssigneeForm && (
-              <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newAssignee.name}
-                      onChange={(e) =>
-                        setNewAssignee({ ...newAssignee, name: e.target.value })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    />
+            {showAssigneeForm &&
+              currentUser?.role !== "user" &&
+              setNewAssignee &&
+              newAssignee &&
+              handleAddAssignee && (
+                <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newAssignee.name}
+                        onChange={(e) =>
+                          setNewAssignee({ ...newAssignee, name: e.target.value })
+                        }
+                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Work Description
+                      </label>
+                      <input
+                        type="text"
+                        value={newAssignee.workDescription}
+                        onChange={(e) =>
+                          setNewAssignee({
+                            ...newAssignee,
+                            workDescription: e.target.value,
+                          })
+                        }
+                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Priority
+                      </label>
+                      <select
+                        value={newAssignee.priority || "3"}
+                        onChange={(e) =>
+                          setNewAssignee({
+                            ...newAssignee,
+                            priority: e.target.value,
+                          })
+                        }
+                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                      >
+                        <option value="1">1 - Highest</option>
+                        <option value="2">2 - High</option>
+                        <option value="3">3 - Medium</option>
+                        <option value="4">4 - Low</option>
+                        <option value="5">5 - Lowest</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Total Hours
+                      </label>
+                      <input
+                        type="number"
+                        value={newAssignee.totalHours}
+                        onChange={(e) =>
+                          setNewAssignee({ ...newAssignee, totalHours: e.target.value })
+                        }
+                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                        step="0.1"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700">
+                        Est. Time
+                      </label>
+                      <input
+                        type="number"
+                        value={newAssignee.estTime}
+                        onChange={(e) =>
+                          setNewAssignee({ ...newAssignee, estTime: e.target.value })
+                        }
+                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                        step="0.1"
+                        min="0"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">
-                      Work Description
-                    </label>
-                    <input
-                      type="text"
-                      value={newAssignee.workDescription}
-                      onChange={(e) =>
-                        setNewAssignee({
-                          ...newAssignee,
-                          workDescription: e.target.value,
-                        })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">
-                      Priority
-                    </label>
-                    <select
-                      value={newAssignee.priority || "3"}
-                      onChange={(e) =>
-                        setNewAssignee({
-                          ...newAssignee,
-                          priority: e.target.value,
-                        })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  <div className="mt-4 flex justify-end space-x-2">
+                    <button
+                      onClick={() => setShowAssigneeForm(false)}
+                      className="px-3 py-1.5 border border-neutral-300 rounded-md text-sm text-neutral-700 hover:bg-neutral-50"
                     >
-                      <option value="1">1 - Highest</option>
-                      <option value="2">2 - High</option>
-                      <option value="3">3 - Medium</option>
-                      <option value="4">4 - Low</option>
-                      <option value="5">5 - Lowest</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">
-                      Total Hours
-                    </label>
-                    <input
-                      type="number"
-                      value={newAssignee.totalHours}
-                      onChange={(e) =>
-                        setNewAssignee({ ...newAssignee, totalHours: e.target.value })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                      step="0.1"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">
-                      Est. Time
-                    </label>
-                    <input
-                      type="number"
-                      value={newAssignee.estTime}
-                      onChange={(e) =>
-                        setNewAssignee({ ...newAssignee, estTime: e.target.value })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                      step="0.1"
-                      min="0"
-                    />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddAssignee}
+                      className="px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
+                    >
+                      Add
+                    </button>
                   </div>
                 </div>
-                <div className="mt-4 flex justify-end space-x-2">
-                  <button
-                    onClick={() => setShowAssigneeForm(false)}
-                    className="px-3 py-1.5 border border-neutral-300 rounded-md text-sm text-neutral-700 hover:bg-neutral-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddAssignee}
-                    className="px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
 
             <div className="flex justify-between mb-3">
               <div></div>
-              <button
-                onClick={() => setShowAssigneeForm(true)}
-                className="flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
-                title="Add assignee"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              {currentUser?.role !== "user" && (
+                <button
+                  onClick={() => setShowAssigneeForm(true)}
+                  className="flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+                  title="Add assignee"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add Team Member
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Team Member
+                </button>
+              )}
             </div>
 
             {/* Assignees table */}

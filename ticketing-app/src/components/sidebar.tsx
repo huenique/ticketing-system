@@ -37,13 +37,24 @@ interface SidebarProps {
 }
 
 function Sidebar({ className }: SidebarProps) {
-  const { currentUser } = useUserStore();
-  const navItems = [
+  const { currentUser, hasPermission } = useUserStore();
+  
+  // Base navigation items for all users
+  const baseNavItems = [
     { title: "Tickets", icon: Ticket, href: "/tickets" },
+  ];
+  
+  // Admin-only items
+  const adminNavItems = [
     { title: "Users", icon: User, href: "/users" },
     { title: "Customers", icon: Users, href: "/customers" },
     { title: "Settings", icon: Settings, href: "/settings" },
   ];
+  
+  // Combine navigation items based on user permissions
+  const navItems = hasPermission("admin") 
+    ? [...baseNavItems, ...adminNavItems] 
+    : baseNavItems;
 
   return (
     <div
@@ -85,7 +96,7 @@ function Sidebar({ className }: SidebarProps) {
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm truncate">{currentUser.name}</div>
               <div className="text-xs text-neutral-500 truncate">
-                {currentUser.role}
+                <span className="capitalize">{currentUser.role}</span>
               </div>
             </div>
           </div>

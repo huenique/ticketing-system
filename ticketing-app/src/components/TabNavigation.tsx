@@ -1,6 +1,16 @@
 import React from "react";
 
-import { Tab } from "../types/tickets";
+import useUserStore from "../stores/userStore";
+
+// Define the Tab type directly in this file
+type Tab = {
+  id: string;
+  title: string;
+  content?: string;
+  status?: string;
+  isDragging?: boolean;
+  appliedPreset?: string;
+};
 
 interface TabNavigationProps {
   tabs: Tab[];
@@ -40,6 +50,8 @@ function TabNavigation({
   onRenameKeyDown,
   onRenameBlur,
 }: TabNavigationProps) {
+  const { currentUser } = useUserStore();
+  
   return (
     <div className="flex items-center border-b bg-neutral-50">
       <div className="flex flex-1 items-center space-x-1 overflow-x-auto overflow-y-visible px-2 no-scrollbar">
@@ -83,27 +95,29 @@ function TabNavigation({
             </button>
           </div>
         ))}
-        {/* Add new tab button inline with tabs */}
-        <div
-          onClick={onAddTabClick}
-          className="flex h-9 cursor-pointer items-center px-3 border-l border-neutral-200 text-neutral-500 hover:bg-neutral-100"
-          title="Add new tab"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {/* Add new tab button inline with tabs - hide for user role */}
+        {currentUser?.role !== "user" && (
+          <div
+            onClick={onAddTabClick}
+            className="flex h-9 cursor-pointer items-center px-3 border-l border-neutral-200 text-neutral-500 hover:bg-neutral-100"
+            title="Add new tab"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-        </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </div>
+        )}
       </div>
     </div>
   );

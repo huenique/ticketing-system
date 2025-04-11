@@ -318,73 +318,75 @@ function Tickets() {
           <h1 className="text-3xl font-bold">Tickets</h1>
           <p className="text-neutral-500">Manage your support tickets</p>
         </div>
-        <div className="flex space-x-2">
-          {/* Add new Ticket button with plus icon */}
-          <button
-            onClick={() => (activeTab && tables[activeTab] ? addRow(activeTab) : null)}
-            className="rounded-md bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 flex items-center"
-            disabled={!activeTab || !tables[activeTab]}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 mr-1"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Ticket
-          </button>
-
-          {/* Presets dropdown */}
-          <div className="relative">
+        {currentUser?.role !== "user" && (
+          <div className="flex space-x-2">
+            {/* Add new Ticket button with plus icon */}
             <button
-              onClick={() => {
-                const tablesStore = useTablesStore.getState();
-                tablesStore.setShowPresetsMenu(!tablesStore.showPresetsMenu);
-              }}
-              className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              onClick={() => (activeTab && tables[activeTab] ? addRow(activeTab) : null)}
+              className="rounded-md bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 flex items-center"
+              disabled={!activeTab || !tables[activeTab]}
             >
-              Presets
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Ticket
             </button>
 
-            {showPresetsMenu && (
-              <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-neutral-200 bg-white shadow-lg">
-                <div className="p-2">
-                  <div className="mb-2 border-b border-neutral-200 pb-1 pt-1 text-sm font-medium">
-                    Table Presets
+            {/* Presets dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  const tablesStore = useTablesStore.getState();
+                  tablesStore.setShowPresetsMenu(!tablesStore.showPresetsMenu);
+                }}
+                className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Presets
+              </button>
+
+              {showPresetsMenu && (
+                <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-neutral-200 bg-white shadow-lg">
+                  <div className="p-2">
+                    <div className="mb-2 border-b border-neutral-200 pb-1 pt-1 text-sm font-medium">
+                      Table Presets
+                    </div>
+                    <button
+                      onClick={() => applyEngineeringPreset()}
+                      className="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-neutral-100"
+                    >
+                      Engineering
+                    </button>
                   </div>
-                  <button
-                    onClick={() => applyEngineeringPreset()}
-                    className="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-neutral-100"
-                  >
-                    Engineering
-                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            <button
+              onClick={saveTabs}
+              className="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+            >
+              {tabsSaved ? "✓ Tabs Saved!" : "Save Tabs"}
+            </button>
+
+            <button
+              onClick={resetTabs}
+              className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Reset Tabs
+            </button>
           </div>
-
-          <button
-            onClick={saveTabs}
-            className="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
-          >
-            {tabsSaved ? "✓ Tabs Saved!" : "Save Tabs"}
-          </button>
-
-          <button
-            onClick={resetTabs}
-            className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-          >
-            Reset Tabs
-          </button>
-        </div>
+        )}
       </div>
 
       <div className="rounded-lg border bg-white shadow-sm">

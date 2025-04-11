@@ -5,6 +5,7 @@ import { WIDGET_TYPES } from "../../../constants/tickets";
 import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry, Widget } from "../../../types/tickets";
 import { saveToLS } from "../../../utils/ticketUtils";
 import { generateResponsiveLayouts } from "../utils/layoutUtils";
+import useUserStore from "@/stores/userStore";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -95,6 +96,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 }) => {
   if (!viewDialogOpen || !currentTicket) return null;
 
+  const { currentUser } = useUserStore();
+
   const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
     console.log("Layout changed:", currentLayout.length, "items in current layout");
 
@@ -166,23 +169,25 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             </h2>
           </div>
           <div className="flex items-center space-x-3">
-            {/* Add Edit Layout toggle button */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-neutral-600">Edit Layout</span>
-              <button
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-blue-600" : "bg-neutral-200"}`}
-                onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isEditLayoutMode ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
+            {/* Only show Edit Layout toggle if not a user role */}
+            {currentUser?.role !== "user" && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-neutral-600">Edit Layout</span>
+                <button
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-blue-600" : "bg-neutral-200"}`}
+                  onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isEditLayoutMode ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {/* Add Reset Layout button */}
-            {isEditLayoutMode && (
+            {isEditLayoutMode && currentUser?.role !== "user" && (
               <button
                 onClick={() => {
                   // Find current tab to determine if it has Engineering preset
@@ -257,7 +262,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             )}
 
             {/* Add widget button */}
-            {isEditLayoutMode && (
+            {isEditLayoutMode && currentUser?.role !== "user" && (
               <div className="relative">
                 <button
                   className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100 flex items-center"

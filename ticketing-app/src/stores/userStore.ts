@@ -1,34 +1,70 @@
 import { create } from "zustand";
-
 import { persist } from "./middleware";
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-}
+import { AuthUser, LoginCredentials, UserRole } from "@/types/auth";
+import { authService } from "@/utils/auth";
 
 interface UserState {
-  currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
+  currentUser: AuthUser | null;
+  isLoading: boolean;
+  error: string | null;
+  setCurrentUser: (user: AuthUser | null) => void;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => void;
+  hasPermission: (requiredRole: UserRole) => boolean;
 }
 
 const useUserStore = create<UserState>()(
   persist(
-    (set) => ({
-      currentUser: {
-        id: "user-1",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        role: "Engineer",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
-      },
+    (set, get) => ({
+      currentUser: null,
+      isLoading: false,
+      error: null,
+      
       setCurrentUser: (user) => set({ currentUser: user }),
+      
+      login: async (credentials) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { user, token } = await authService.login(credentials);
+          // Store token and user in localStorage
+          localStorage.setItem("auth-token", token);
+          localStorage.setItem("auth-user", JSON.stringify(user));
+          
+          set({ currentUser: user, isLoading: false });
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false });
+          throw error;
+        }
+      },
+      
+      logout: () => {
+        authService.logout();
+        set({ currentUser: null });
+      },
+      
+      checkAuth: () => {
+        const user = authService.getCurrentUser();
+        if (user) {
+          set({ currentUser: user });
+        }
+      },
+      
+      hasPermission: (requiredRole) => {
+        const { currentUser } = get();
+        if (!currentUser) return false;
+        
+        if (requiredRole === 'admin') {
+          return currentUser.role === 'admin';
+        }
+        
+        // All users (including admins) have basic user permissions
+        return true;
+      }
     }),
     {
       name: "user-storage",
+      partialize: (state) => ({ currentUser: state.currentUser }),
     },
   ),
 );
