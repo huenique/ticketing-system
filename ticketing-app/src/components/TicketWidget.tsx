@@ -451,84 +451,132 @@ function TicketWidget({
                                 />
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex justify-end space-x-2">
-                                  {handleAddTimeEntry && (
-                                    <button
-                                      onClick={() => handleAddTimeEntry(assignee.id)}
-                                      className="text-blue-600 hover:text-blue-800"
-                                      title="Add Time Entry"
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                  {markAssigneeCompleted && (
-                                    <button
-                                      onClick={() =>
-                                        markAssigneeCompleted &&
-                                        markAssigneeCompleted(
-                                          assignee.id,
-                                          !assignee.completed,
-                                        )
-                                      }
-                                      className={`${assignee.completed ? "text-green-600 hover:text-green-800" : "text-gray-500 hover:text-gray-700"}`}
-                                      title={
-                                        assignee.completed
-                                          ? "Mark as Not Done"
-                                          : "Mark as Done"
-                                      }
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M5 13l4 4L19 7"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                  {handleRemoveAssignee && (
-                                    <button
-                                      onClick={() => handleRemoveAssignee(assignee.id)}
-                                      className="text-red-600 hover:text-red-800"
-                                      title="Remove Assignee"
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
+                                {/* Show buttons based on user and role validation */}
+                                {currentUser && (
+                                  <>
+                                    {/* Admin can see all actions regardless of assignee */}
+                                    {currentUser.role === "admin" && (
+                                      <>
+                                        {handleAddTimeEntry && (
+                                          <button
+                                            onClick={() => handleAddTimeEntry(assignee.id)}
+                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                            title="Add time entry"
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                          </button>
+                                        )}
+                                        {markAssigneeCompleted && (
+                                          <button
+                                            onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                            className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                            title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M5 13l4 4L19 7"
+                                              />
+                                            </svg>
+                                          </button>
+                                        )}
+                                        {handleRemoveAssignee && (
+                                          <button
+                                            onClick={() => handleRemoveAssignee(assignee.id)}
+                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                                            title="Remove assignee"
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M6 18L18 6M6 6l12 12"
+                                              />
+                                            </svg>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Regular user can only see time entry and mark as done for their own entries */}
+                                    {currentUser.role === "user" && assignee.name === currentUser.name && (
+                                      <>
+                                        {handleAddTimeEntry && (
+                                          <button
+                                            onClick={() => handleAddTimeEntry(assignee.id)}
+                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                            title="Add time entry"
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                          </button>
+                                        )}
+                                        {markAssigneeCompleted && (
+                                          <button
+                                            onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                            className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                            title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M5 13l4 4L19 7"
+                                              />
+                                            </svg>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -1105,46 +1153,132 @@ function TicketWidget({
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => handleAddTimeEntry(assignee.id)}
-                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                          title="Add time entry"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleRemoveAssignee(assignee.id)}
-                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                          title="Remove assignee"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
+                        {/* Show buttons based on user and role validation */}
+                        {currentUser && (
+                          <>
+                            {/* Admin can see all actions regardless of assignee */}
+                            {currentUser.role === "admin" && (
+                              <>
+                                {handleAddTimeEntry && (
+                                  <button
+                                    onClick={() => handleAddTimeEntry(assignee.id)}
+                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                    title="Add time entry"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                                {markAssigneeCompleted && (
+                                  <button
+                                    onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                    title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                                {handleRemoveAssignee && (
+                                  <button
+                                    onClick={() => handleRemoveAssignee(assignee.id)}
+                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                                    title="Remove assignee"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                            {/* Regular user can only see time entry and mark as done for their own entries */}
+                            {currentUser.role === "user" && assignee.name === currentUser.name && (
+                              <>
+                                {handleAddTimeEntry && (
+                                  <button
+                                    onClick={() => handleAddTimeEntry(assignee.id)}
+                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                    title="Add time entry"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                                {markAssigneeCompleted && (
+                                  <button
+                                    onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                    title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1248,26 +1382,28 @@ function TicketWidget({
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => handleRemoveTimeEntry(entry.id)}
-                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                          title="Remove time entry"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                        {handleRemoveTimeEntry && (
+                          <button
+                            onClick={() => handleRemoveTimeEntry(entry.id)}
+                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                            title="Remove time entry"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
