@@ -270,6 +270,7 @@ export function useTickets() {
           workDescription: "Primary technician",
           totalHours: "4.5",
           estTime: "8",
+          priority: "High",
         },
       ];
 

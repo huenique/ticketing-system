@@ -56,7 +56,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
 
   return (
     <div className="p-4">
-      <div className="rounded-lg border overflow-x-auto relative">
+      <div className="rounded-lg border relative">
         <table className="w-full">
           <thead className="bg-neutral-50 text-sm text-neutral-600">
             <tr className="relative">

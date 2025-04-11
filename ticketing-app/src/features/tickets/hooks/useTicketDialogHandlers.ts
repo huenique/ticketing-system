@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WIDGET_TYPES } from "../../../constants/tickets";
+import { WIDGET_TYPES, PRESET_TABLES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
 import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry } from "../../../types/tickets";
 import { getFromLS, saveToLS } from "../../../utils/ticketUtils";
@@ -422,9 +422,6 @@ export default function useTicketDialogHandlers(
   const handleSaveTicketChanges = () => {
     if (!currentTicket) return;
 
-    // Close the dialog
-    setViewDialogOpen(false);
-
     // Find the corresponding tab
     const currentTabData = tabs.find((tab) => tab.id === activeTab);
     if (!currentTabData) return;
@@ -440,6 +437,14 @@ export default function useTicketDialogHandlers(
       activeTab,
       hasCompletedAssignees // Pass the completion status to be saved
     );
+    
+    // If the ticket's status was changed, refresh all status-based tabs
+    const allTicketsTab = 'tab-all-tickets';
+    const tablesStore = useTablesStore.getState();
+    const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
+    
+    // Refresh all status tabs to maintain consistency
+    refreshStatusTabs(allTicketsRows);
     
     // Save widget layouts to localStorage
     if (currentTicket && widgets.length > 0) {
@@ -475,8 +480,44 @@ export default function useTicketDialogHandlers(
       }
     }
 
+    // Close the dialog
+    setViewDialogOpen(false);
+    
     // Reset the current ticket preset
     setCurrentTicketPreset(undefined);
+  };
+  
+  // Function to refresh all status-based tabs based on updated All Tickets data
+  const refreshStatusTabs = (allTicketsRows: any[]) => {
+    // Get a reference to the tables store
+    const tablesStore = useTablesStore.getState();
+    const currentTables = tablesStore.tables;
+    const updatedTables = { ...currentTables };
+    
+    // Loop through all tabs
+    tabs.forEach(tab => {
+      // Skip the All Tickets tab
+      if (tab.id === 'tab-all-tickets' || !tab.status) return;
+      
+      // Get the preset table structure
+      const presetTable = PRESET_TABLES["Engineering"];
+      if (!presetTable) return;
+      
+      // Filter rows for this tab based on its status
+      const filteredRows = allTicketsRows.filter((row) => 
+        row.cells["col-7"] === tab.status
+      );
+      
+      // Update this tab's table with filtered rows
+      updatedTables[tab.id] = {
+        ...updatedTables[tab.id],
+        columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
+        rows: filteredRows,
+      };
+    });
+    
+    // Update all tables at once
+    tablesStore.setTables(updatedTables);
   };
 
   return {

@@ -18,6 +18,15 @@ export interface Assignee {
   completed?: boolean;
 }
 
+export interface Tab {
+  id: string;
+  title: string;
+  content?: string;
+  status?: string;
+  isDragging?: boolean;
+  appliedPreset?: string;
+}
+
 export interface TimeEntry {
   id: string;
   assigneeId: string;
@@ -54,6 +63,7 @@ export interface Widget {
   height?: number;
   data?: never;
   options?: string[];
+  isCollapsed?: boolean;
 }
 
 export interface Column {

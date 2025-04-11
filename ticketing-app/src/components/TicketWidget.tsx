@@ -117,7 +117,15 @@ function TicketWidget({
               <div className="h-full flex items-center">
                 <StatusWidget
                   value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
-                  onChange={(value) => handleFieldChange(widget.field || "", value)}
+                  onChange={(value) => {
+                    // Call handleFieldChange to update the form state
+                    handleFieldChange(widget.field || "", value);
+                    
+                    // Also update the ticketForm state directly to ensure it's saved
+                    if (setTicketForm) {
+                      setTicketForm({ ...ticketForm, status: value });
+                    }
+                  }}
                 />
               </div>
             );
@@ -772,7 +780,13 @@ function TicketWidget({
               <div className="h-[38px]">
                 <StatusWidget
                   value={ticketForm.status}
-                  onChange={(value) => setTicketForm({ ...ticketForm, status: value })}
+                  onChange={(value) => {
+                    // Update the form state
+                    setTicketForm({ ...ticketForm, status: value });
+                    
+                    // Call handleFieldChange to ensure the status is updated in the widget
+                    handleFieldChange("status", value);
+                  }}
                 />
               </div>
 

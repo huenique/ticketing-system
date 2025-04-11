@@ -8,7 +8,8 @@ import { useEffect } from "react";
 // Components
 import TabNavigation from "../components/TabNavigation";
 import TicketDialog from "../features/tickets/components/TicketDialog";
-import TicketTable from "../features/tickets/components/TicketTable";
+import { DataTable } from "../features/tickets/components/data-table";
+import { columns } from "../features/tickets/components/columns";
 
 // Utils and Hooks
 import { getGridStyles, getScrollbarStyles, getSavedTabsData } from "../utils/ticketUtils";
@@ -62,20 +63,6 @@ function Tickets() {
   // Settings Store
   const { statusOptions } = useSettingsStore();
 
-  // Columns Store
-  const {
-    editingColumn,
-    editingColumnTitle,
-    setEditingColumnTitle,
-    handleColumnDoubleClick,
-    saveColumnName,
-    handleColumnRenameKeyDown,
-    handleColumnDragStart,
-    handleColumnDragEnd,
-    handleColumnDragOver,
-    handleColumnDrop,
-  } = useColumnsStore();
-
   // Widgets Store
   const {
     widgets,
@@ -86,7 +73,6 @@ function Tickets() {
     addWidget,
     removeWidget,
     onLayoutChange,
-    handleFieldChange,
   } = useWidgetsStore();
 
   // User Store
@@ -125,11 +111,11 @@ function Tickets() {
     const tabsStore = useTabsStore.getState();
     const tablesStore = useTablesStore.getState();
     
-    // First create an "All Tickets" tab
+    // First create an "All Tickets" tab - with no specific status filter
     const allTicketsTab = {
       id: 'tab-all-tickets',
       title: 'All Tickets',
-      status: 'all', // Special status to indicate this shows all tickets
+      // No status property - this tab will show everything
     };
     
     // Use all default status options to create tabs
@@ -306,6 +292,90 @@ function Tickets() {
     setWidgets(updatedWidgets);
   };
 
+  // Custom handleFieldChange to handle ticket status updates
+  const handleFieldChange = (field: string, value: string) => {
+    // First, update the widget value in the widgets store
+    useWidgetsStore.getState().handleFieldChange(field, value);
+    
+    // If this is a status change and we have a current ticket, update it in all tables
+    if (field === "status" && ticketDialogHandlers.currentTicket) {
+      const currentTicket = ticketDialogHandlers.currentTicket;
+      const updatedTables = { ...tables };
+      
+      // First update the ticket in the All Tickets tab (or current tab if not using tabs with status)
+      const allTicketsTab = 'tab-all-tickets';
+      if (updatedTables[allTicketsTab]) {
+        // Find and update the row in the All Tickets tab
+        updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map((row: any) => {
+          if (row.id === currentTicket.id) {
+            return {
+              ...row,
+              cells: {
+                ...row.cells,
+                "col-7": value, // Update Status column
+              },
+            };
+          }
+          return row;
+        });
+      }
+      
+      // Also update the row in the current tab if it's not the All Tickets tab
+      if (activeTab !== allTicketsTab && updatedTables[activeTab]) {
+        updatedTables[activeTab].rows = updatedTables[activeTab].rows.map((row: any) => {
+          if (row.id === currentTicket.id) {
+            return {
+              ...row,
+              cells: {
+                ...row.cells,
+                "col-7": value, // Update Status column
+              },
+            };
+          }
+          return row;
+        });
+      }
+      
+      // Update the global tables state
+      useTablesStore.getState().setTables(updatedTables);
+      
+      // Refresh all status-based tabs with updated data
+      refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
+    }
+  };
+  
+  // Function to refresh all status-based tabs based on updated All Tickets data
+  const refreshStatusTabs = (allTicketsRows: any[]) => {
+    // Get a reference to the tables store
+    const tablesStore = useTablesStore.getState();
+    const currentTables = tablesStore.tables;
+    const updatedTables = { ...currentTables };
+    const presetTable = PRESET_TABLES["Engineering"];
+    
+    if (!presetTable) return;
+    
+    // Loop through all tabs
+    tabs.forEach(tab => {
+      // Skip the All Tickets tab
+      if (tab.id === 'tab-all-tickets' || !tab.status) return;
+      
+      // Filter rows for this tab based on its status
+      const filteredRows = allTicketsRows.filter((row) => 
+        row.cells["col-7"] === tab.status
+      );
+      
+      // Update this tab's table with filtered rows
+      updatedTables[tab.id] = {
+        ...updatedTables[tab.id],
+        columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
+        rows: filteredRows,
+      };
+    });
+    
+    // Update all tables at once
+    tablesStore.setTables(updatedTables);
+  };
+
   // ===== Component Render =====
   return (
     <div className="space-y-4">
@@ -409,27 +479,17 @@ function Tickets() {
           onRenameBlur={useTabsStore.getState().saveTabName}
         />
 
-        {/* Tab content - using TicketTable */}
-        <TicketTable
-          activeTab={activeTab}
-          tabs={tabs}
-          tables={tables}
-          currentUser={currentUser}
-          editingColumn={editingColumn}
-          editingColumnTitle={editingColumnTitle}
-          handleColumnDoubleClick={handleColumnDoubleClick}
-          handleColumnDragStart={handleColumnDragStart}
-          handleColumnDragEnd={handleColumnDragEnd}
-          handleColumnDragOver={handleColumnDragOver}
-          handleColumnDrop={handleColumnDrop}
-          setEditingColumnTitle={setEditingColumnTitle}
-          saveColumnName={saveColumnName}
-          handleColumnRenameKeyDown={handleColumnRenameKeyDown}
-          removeColumn={removeColumn}
-          addColumn={addColumn}
-          markTaskAsDone={markTaskAsDone}
-          handleInitializeTicketDialog={ticketDialogHandlers.handleInitializeTicketDialog}
-        />
+        {/* Tab content - using DataTable instead of TicketTable */}
+        <div className="p-4">
+          {activeTab && tables[activeTab] && (
+            <DataTable
+              columns={columns}
+              data={tables[activeTab].rows || []}
+              onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
+              statusFilter={tabs.find(tab => tab.id === activeTab)?.status}
+            />
+          )}
+        </div>
       </div>
 
       {/* Render TicketDialog component when dialog is open */}
