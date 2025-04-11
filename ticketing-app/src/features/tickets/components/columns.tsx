@@ -56,11 +56,11 @@ export const columns: ColumnDef<Row>[] = [
     },
   },
   {
-    accessorKey: "cells.col-6",
+    accessorKey: "cells.col-3",
     header: "Customer Name",
   },
   {
-    accessorKey: "cells.col-3",
+    accessorKey: "cells.col-4",
     header: "Work Description",
   },
   {
@@ -68,7 +68,7 @@ export const columns: ColumnDef<Row>[] = [
     header: "Assign To",
   },
   {
-    accessorKey: "cells.col-8",
+    accessorKey: "cells.col-6",
     header: "Parts Used",
   },
   {
@@ -126,18 +126,26 @@ export const columns: ColumnDef<Row>[] = [
     },
   },
   {
-    accessorKey: "cells.col-9",
+    accessorKey: "cells.col-8",
     header: "Total Hours",
+    cell: ({ row }) => {
+      // Return the hours as-is without date formatting
+      return row.original.cells["col-8"] || "0";
+    },
+  },
+  {
+    accessorKey: "cells.col-9",
+    header: "Billable Hours",
+    cell: ({ row }) => {
+      // Return the hours as-is without date formatting
+      return row.original.cells["col-9"] || "0";
+    },
   },
   {
     accessorKey: "cells.col-10",
-    header: "Billable Hours",
-  },
-  {
-    accessorKey: "cells.col-12",
     header: "Last Modified",
     cell: ({ row }) => {
-      const date = row.original.cells["col-12"] || row.original.cells["col-2"];
+      const date = row.original.cells["col-10"];
       if (!date) return "";
       return (
         <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ const mockUsers = [
   {
     id: "admin-1",
     username: "admin",
-    name: "Admin User",
+    name: "Michael Johnson",
     email: "admin@example.com",
     role: "admin" as const,
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",

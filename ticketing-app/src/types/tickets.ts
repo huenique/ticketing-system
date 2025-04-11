@@ -125,7 +125,7 @@ export function generateMockRowData(rowIndex: number): Record<string, string> {
     "col-1": `TK-${1000 + rowIndex}`, // Ticket ID
     "col-2": formatDate(dateCreated), // Date Created
     "col-3": randomCustomer, // Customer Name
-    "col-4": `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`, // Work Description
+    "col-4": `Lorem ipsum dolor sit amet...`, // Work Description
     "col-5": assignTo, // Assign To
     "col-6": randomParts, // Parts Used
     "col-7": randomStatus, // Status

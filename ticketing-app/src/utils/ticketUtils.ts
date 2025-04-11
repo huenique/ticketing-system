@@ -29,24 +29,18 @@ export function generateMockRowData(rowIndex: number): Record<string, string> {
 
   // Generate random hours
   const totalHours = (Math.random() * 10 + 1).toFixed(1);
-  const billableHours = (Math.random() * parseFloat(totalHours)).toFixed(1);
+  // Make billable hours 70-100% of total hours for more realistic values
+  const billablePercentage = Math.random() * 0.3 + 0.7; // 70-100%
+  const billableHours = (parseFloat(totalHours) * billablePercentage).toFixed(1);
 
-  // For Assign To column, make "John Doe" appear more frequently (50% chance)
-  let assignTo;
-  if (rowIndex <= 3 || Math.random() < 0.5) {
-    // For first 3 rows or with 50% probability, assign to John Doe
-    assignTo = "John Doe";
-  } else {
-    // Randomly select from other assignees (excluding John Doe)
-    const otherAssignees = MOCK_ASSIGNEES.filter((name) => name !== "John Doe");
-    assignTo = otherAssignees[Math.floor(Math.random() * otherAssignees.length)];
-  }
+  // Randomly select an assignee from the list of mock assignees
+  const assignTo = MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)];
 
   return {
     "col-1": `TK-${1000 + rowIndex}`, // Ticket ID
     "col-2": formatDate(dateCreated), // Date Created
     "col-3": randomCustomer, // Customer Name
-    "col-4": `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`, // Work Description
+    "col-4": `Lorem ipsum dolor sit amet...`, // Work Description
     "col-5": assignTo, // Assign To
     "col-6": randomParts, // Parts Used
     "col-7": randomStatus, // Status

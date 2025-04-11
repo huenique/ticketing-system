@@ -26,6 +26,7 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { PRESET_TABLES } from "@/constants/tickets";
 import { Row, Table } from "@/types/tickets";
 import { generateMockRowData } from "@/utils/ticketUtils";
+import { MOCK_ASSIGNEES } from "@/constants/tickets";
 
 function Tickets() {
   // ===== Zustand Stores =====
@@ -172,8 +173,8 @@ function Tickets() {
       // Set the specific status for this ticket
       rowData["col-7"] = requiredStatuses[i];
       
-      // Set all tickets to be assigned to the current user
-      rowData["col-5"] = currentUserName;
+      // Use a random name from MOCK_ASSIGNEES for the "Assign To" column
+      rowData["col-5"] = MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)];
       
       // If status is "Completed", mark it as completed
       const completed = requiredStatuses[i] === "Completed";
