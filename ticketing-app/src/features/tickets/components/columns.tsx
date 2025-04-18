@@ -1,21 +1,24 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
-import { ArrowUpDown, Calendar } from "lucide-react"
-import { Row } from "@/types/tickets"
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, Calendar } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Row } from "@/types/tickets";
 
 // Helper function to format dates
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
   try {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   } catch (error) {
+    console.error("Invalid date format:", dateStr, error);
+
     return dateStr;
   }
 };
@@ -32,7 +35,7 @@ export const columns: ColumnDef<Row>[] = [
           Ticket ID
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -46,7 +49,7 @@ export const columns: ColumnDef<Row>[] = [
           Date Created
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
     cell: ({ row }) => {
       // Access the date directly from cells object to avoid accessor issues
@@ -77,13 +80,13 @@ export const columns: ColumnDef<Row>[] = [
     cell: ({ row }) => {
       // Access status directly from cells object for reliability
       const status = row.original.cells["col-7"];
-      
+
       if (!status) return "N/A";
-      
+
       let bgColor = "";
       let textColor = "";
-      
-      switch(status) {
+
+      switch (status) {
         case "New":
           bgColor = "bg-blue-100";
           textColor = "text-blue-800";
@@ -117,12 +120,14 @@ export const columns: ColumnDef<Row>[] = [
           bgColor = "bg-gray-100";
           textColor = "text-gray-800";
       }
-      
+
       return (
-        <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
+        <div
+          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
+        >
           {status}
         </div>
-      )
+      );
     },
   },
   {
@@ -155,4 +160,4 @@ export const columns: ColumnDef<Row>[] = [
       );
     },
   },
-] 
+];

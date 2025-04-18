@@ -1,15 +1,6 @@
-import { useState, useEffect } from "react";
-import { Edit, Trash2, Plus, UserPlus } from "lucide-react";
-import { format } from "date-fns";
+import { Edit, Plus, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -18,10 +9,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import useCustomersStore, { Customer, Contact } from "@/stores/customersStore";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import useCustomersStore, { Contact, Customer } from "@/stores/customersStore";
 
 function Customers() {
-  const { customers, updateCustomer, deleteCustomer, addCustomer, addContact, updateContact, deleteContact } = useCustomersStore();
+  const {
+    customers,
+    updateCustomer,
+    deleteCustomer,
+    addCustomer,
+    addContact,
+    updateContact,
+    deleteContact,
+  } = useCustomersStore();
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -29,9 +36,11 @@ function Customers() {
   const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
   const [isEditContactDialogOpen, setIsEditContactDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  
+
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({});
-  const [newCustomerData, setNewCustomerData] = useState<Omit<Customer, "id" | "lastModified" | "contacts">>({
+  const [newCustomerData, setNewCustomerData] = useState<
+    Omit<Customer, "id" | "lastModified" | "contacts">
+  >({
     name: "",
     address: "",
     primaryContact: "",
@@ -39,15 +48,17 @@ function Customers() {
     primaryEmail: "",
     abn: "",
   });
-  
-  const [newContactData, setNewContactData] = useState<Omit<Contact, "id" | "lastModified">>({
+
+  const [newContactData, setNewContactData] = useState<
+    Omit<Contact, "id" | "lastModified">
+  >({
     firstName: "",
     lastName: "",
     phone: "",
     email: "",
     position: "",
   });
-  
+
   const [editContactFormData, setEditContactFormData] = useState<Partial<Contact>>({});
 
   const handleEditClick = (customer: Customer) => {
@@ -68,17 +79,17 @@ function Customers() {
       deleteCustomer(customerId);
     }
   };
-  
+
   const handleViewContactsClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsContactsDialogOpen(true);
   };
-  
+
   const handleAddContactClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsAddContactDialogOpen(true);
   };
-  
+
   const handleEditContactClick = (contact: Contact) => {
     setSelectedContact(contact);
     setEditContactFormData({
@@ -90,20 +101,25 @@ function Customers() {
     });
     setIsEditContactDialogOpen(true);
   };
-  
+
   const handleDeleteContactClick = (contactId: string) => {
-    if (selectedCustomer && window.confirm("Are you sure you want to delete this contact?")) {
+    if (
+      selectedCustomer &&
+      window.confirm("Are you sure you want to delete this contact?")
+    ) {
       deleteContact(selectedCustomer.id, contactId);
-      
+
       // Get the updated customer to refresh the contacts list
-      const updatedCustomer = customers.find(c => c.id === selectedCustomer.id);
+      const updatedCustomer = customers.find((c) => c.id === selectedCustomer.id);
       if (updatedCustomer) {
         setSelectedCustomer(updatedCustomer);
       }
     }
   };
 
-  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleEditFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({
       ...prev,
@@ -111,23 +127,29 @@ function Customers() {
     }));
   };
 
-  const handleNewCustomerFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleNewCustomerFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setNewCustomerData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
-  
-  const handleNewContactFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+
+  const handleNewContactFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setNewContactData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
-  
-  const handleEditContactFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+
+  const handleEditContactFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setEditContactFormData((prev) => ({
       ...prev,
@@ -157,18 +179,18 @@ function Customers() {
       abn: "",
     });
   };
-  
+
   const handleSubmitNewContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer) {
       addContact(selectedCustomer.id, newContactData);
-      
+
       // Get the updated customer to refresh the contacts list
-      const updatedCustomer = customers.find(c => c.id === selectedCustomer.id);
+      const updatedCustomer = customers.find((c) => c.id === selectedCustomer.id);
       if (updatedCustomer) {
         setSelectedCustomer(updatedCustomer);
       }
-      
+
       setIsAddContactDialogOpen(false);
       setNewContactData({
         firstName: "",
@@ -179,18 +201,18 @@ function Customers() {
       });
     }
   };
-  
+
   const handleSubmitEditContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer && selectedContact) {
       updateContact(selectedCustomer.id, selectedContact.id, editContactFormData);
-      
+
       // Get the updated customer to refresh the contacts list
-      const updatedCustomer = customers.find(c => c.id === selectedCustomer.id);
+      const updatedCustomer = customers.find((c) => c.id === selectedCustomer.id);
       if (updatedCustomer) {
         setSelectedCustomer(updatedCustomer);
       }
-      
+
       setIsEditContactDialogOpen(false);
       setSelectedContact(null);
     }
@@ -199,20 +221,12 @@ function Customers() {
   // Add this effect to keep the selectedCustomer in sync with the store
   useEffect(() => {
     if (selectedCustomer) {
-      const updatedCustomer = customers.find(c => c.id === selectedCustomer.id);
+      const updatedCustomer = customers.find((c) => c.id === selectedCustomer.id);
       if (updatedCustomer) {
         setSelectedCustomer(updatedCustomer);
       }
     }
-  }, [customers, selectedCustomer?.id]);
-
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "MMM dd, yyyy HH:mm");
-    } catch (error) {
-      return "Invalid date";
-    }
-  };
+  }, [customers, selectedCustomer]);
 
   return (
     <div className="space-y-6">
@@ -302,7 +316,8 @@ function Customers() {
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">Edit Customer</DialogTitle>
             <DialogDescription>
-              Make changes to the customer information here. Click save when you're done.
+              Make changes to the customer information here. Click save when you're
+              done.
             </DialogDescription>
           </DialogHeader>
 
@@ -350,7 +365,10 @@ function Customers() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="primaryContactPhone" className="text-sm font-medium block">
+              <label
+                htmlFor="primaryContactPhone"
+                className="text-sm font-medium block"
+              >
                 Primary Contact #
               </label>
               <input
@@ -467,7 +485,10 @@ function Customers() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="newPrimaryContactPhone" className="text-sm font-medium block">
+              <label
+                htmlFor="newPrimaryContactPhone"
+                className="text-sm font-medium block"
+              >
                 Primary Contact #
               </label>
               <input
@@ -532,7 +553,10 @@ function Customers() {
 
       {/* View Contacts Dialog */}
       <Dialog open={isContactsDialogOpen} onOpenChange={setIsContactsDialogOpen}>
-        <DialogContent className="bg-white p-6 rounded-lg border shadow-md" style={{ maxWidth: "90vw", width: "700px" }}>  
+        <DialogContent
+          className="bg-white p-6 rounded-lg border shadow-md"
+          style={{ maxWidth: "90vw", width: "700px" }}
+        >
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">
               Contacts for {selectedCustomer?.name}
@@ -621,7 +645,7 @@ function Customers() {
                 required
               />
             </div>
-            
+
             <div className="space-y-1">
               <label htmlFor="contactLastName" className="text-sm font-medium block">
                 Last Name
@@ -707,13 +731,17 @@ function Customers() {
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">Edit Contact</DialogTitle>
             <DialogDescription>
-              Edit contact information for {selectedContact?.firstName} {selectedContact?.lastName}.
+              Edit contact information for {selectedContact?.firstName}{" "}
+              {selectedContact?.lastName}.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitEditContact} className="space-y-5">
             <div className="space-y-1">
-              <label htmlFor="editContactFirstName" className="text-sm font-medium block">
+              <label
+                htmlFor="editContactFirstName"
+                className="text-sm font-medium block"
+              >
                 First Name
               </label>
               <input
@@ -726,9 +754,12 @@ function Customers() {
                 required
               />
             </div>
-            
+
             <div className="space-y-1">
-              <label htmlFor="editContactLastName" className="text-sm font-medium block">
+              <label
+                htmlFor="editContactLastName"
+                className="text-sm font-medium block"
+              >
                 Last Name
               </label>
               <input
@@ -743,7 +774,10 @@ function Customers() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="editContactPosition" className="text-sm font-medium block">
+              <label
+                htmlFor="editContactPosition"
+                className="text-sm font-medium block"
+              >
                 Position
               </label>
               <input
@@ -809,4 +843,4 @@ function Customers() {
   );
 }
 
-export default Customers; 
+export default Customers;

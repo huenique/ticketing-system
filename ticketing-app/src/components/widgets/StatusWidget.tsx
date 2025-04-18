@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface StatusWidgetProps {
@@ -7,7 +8,11 @@ interface StatusWidgetProps {
   readOnly?: boolean;
 }
 
-export default function StatusWidget({ value = "", onChange, readOnly = false }: StatusWidgetProps) {
+export default function StatusWidget({
+  value = "",
+  onChange,
+  readOnly = false,
+}: StatusWidgetProps) {
   const { statusOptions } = useSettingsStore();
   const [currentValue, setCurrentValue] = useState(value);
 
@@ -26,7 +31,11 @@ export default function StatusWidget({ value = "", onChange, readOnly = false }:
 
   // If the current value isn't in the options, default to the first option
   useEffect(() => {
-    if (currentValue && !statusOptions.includes(currentValue) && statusOptions.length > 0) {
+    if (
+      currentValue &&
+      !statusOptions.includes(currentValue) &&
+      statusOptions.length > 0
+    ) {
       setCurrentValue(statusOptions[0]);
       if (onChange) {
         onChange(statusOptions[0]);
@@ -52,7 +61,7 @@ export default function StatusWidget({ value = "", onChange, readOnly = false }:
       {statusOptions.length === 0 && (
         <option value="">No status options available</option>
       )}
-      
+
       {statusOptions.map((option) => (
         <option key={option} value={option}>
           {option}
@@ -60,4 +69,4 @@ export default function StatusWidget({ value = "", onChange, readOnly = false }:
       ))}
     </select>
   );
-} 
+}

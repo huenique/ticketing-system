@@ -1,15 +1,16 @@
 // Layout/Grid utilities for Tickets
-import { Layout, Layouts } from "react-grid-layout";
+import { Layouts } from "react-grid-layout";
+
 import { WIDGET_TYPES } from "../../../constants/tickets";
-import { LayoutStorage, Widget } from "../../../types/tickets";
+import { Row, Tab, Widget } from "../../../types/tickets";
 import { getFromLS } from "../../../utils/ticketUtils";
 
 // Generate responsive layouts for widgets similar to bootstrap style
 export const generateResponsiveLayouts = (
   widgets: Widget[],
   activeTab: string,
-  tabs: any[],
-  currentTicket: any
+  tabs: Tab[],
+  currentTicket: Row,
 ) => {
   // Check if this tab has the Engineering preset applied
   const currentTabData = tabs.find((tab) => tab.id === activeTab);
@@ -24,9 +25,7 @@ export const generateResponsiveLayouts = (
   }
 
   // Get saved layout state from appropriate storage location
-  const storageKey = hasEngineeringPreset
-    ? engineeringLayoutKey
-    : tabSpecificLayoutKey;
+  const storageKey = hasEngineeringPreset ? engineeringLayoutKey : tabSpecificLayoutKey;
   const savedState = getFromLS(storageKey) as
     | { widgets?: Widget[]; layouts?: Layouts }
     | undefined;
@@ -319,4 +318,4 @@ export const generateResponsiveLayouts = (
       [key: string]: { i: string; x: number; y: number; w: number; h: number }[];
     },
   );
-}; 
+};

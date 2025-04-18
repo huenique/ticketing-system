@@ -21,40 +21,38 @@ const mockUsers = [
 ];
 
 // Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const authService = {
   // Login function - returns a promise to simulate API call
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     // Simulate network delay
     await delay(500);
-    
-    const user = mockUsers.find(
-      u => {
-        if (u.username === credentials.username) {
-          // For admin, password is the same as username
-          if (u.role === 'admin') {
-            return credentials.password === u.username;
-          }
-          // For John Doe, specific password
-          if (u.username === "John Doe") {
-            return credentials.password === "p@55w0rd";
-          }
+
+    const user = mockUsers.find((u) => {
+      if (u.username === credentials.username) {
+        // For admin, password is the same as username
+        if (u.role === "admin") {
+          return credentials.password === u.username;
         }
-        return false;
+        // For John Doe, specific password
+        if (u.username === "John Doe") {
+          return credentials.password === "p@55w0rd";
+        }
       }
-    );
-    
+      return false;
+    });
+
     if (!user) {
       throw new Error("Invalid credentials");
     }
 
     // Generate a fake token
     const token = `mock-jwt-token-${Math.random().toString(36).substring(2)}`;
-    
+
     return {
       user,
-      token
+      token,
     };
   },
 
@@ -67,10 +65,12 @@ export const authService = {
   getCurrentUser: (): AuthUser | null => {
     const userJson = localStorage.getItem("auth-user");
     if (!userJson) return null;
-    
+
     try {
       return JSON.parse(userJson);
     } catch (e) {
+      console.error("Failed to parse user data from localStorage", e);
+
       return null;
     }
   },
@@ -79,5 +79,5 @@ export const authService = {
   logout: (): void => {
     localStorage.removeItem("auth-token");
     localStorage.removeItem("auth-user");
-  }
-}; 
+  },
+};

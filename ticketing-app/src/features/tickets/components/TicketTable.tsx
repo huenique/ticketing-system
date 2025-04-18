@@ -1,12 +1,13 @@
 import React, { Fragment } from "react";
-import { Column, Row } from "../../../types/tickets";
+
+import { Column, Row, Tab } from "../../../types/tickets";
 
 interface TicketTableProps {
   activeTab: string;
-  tabs: any[];
-  tables: any;
-  currentUser: any;
-  editingColumn: any;
+  tabs: Tab[];
+  tables: Record<string, { columns: Column[]; rows: Row[] }>;
+  currentUser: unknown;
+  editingColumn: { tabId: string; columnId: string } | null;
   editingColumnTitle: string;
   handleColumnDoubleClick: (tabId: string, columnId: string) => void;
   handleColumnDragStart: (e: React.DragEvent, tabId: string, columnId: string) => void;
@@ -26,7 +27,6 @@ const TicketTable: React.FC<TicketTableProps> = ({
   activeTab,
   tabs,
   tables,
-  currentUser,
   editingColumn,
   editingColumnTitle,
   handleColumnDoubleClick,
@@ -39,7 +39,6 @@ const TicketTable: React.FC<TicketTableProps> = ({
   handleColumnRenameKeyDown,
   removeColumn,
   addColumn,
-  markTaskAsDone,
   handleInitializeTicketDialog,
 }) => {
   const activeTabData = tabs.find((tab) => tab.id === activeTab);
@@ -50,9 +49,12 @@ const TicketTable: React.FC<TicketTableProps> = ({
   if (!table) return null;
 
   // Filter rows based on the tab's status if it exists and is not 'all'
-  const filteredRows = activeTabData.status && activeTabData.status !== 'all'
-    ? table.rows.filter((row: Row) => row.cells && row.cells["col-7"] === activeTabData.status)
-    : table.rows;
+  const filteredRows =
+    activeTabData.status && activeTabData.status !== "all"
+      ? table.rows.filter(
+          (row: Row) => row.cells && row.cells["col-7"] === activeTabData.status,
+        )
+      : table.rows;
 
   return (
     <div className="p-4">
@@ -65,19 +67,11 @@ const TicketTable: React.FC<TicketTableProps> = ({
                   <th
                     className={`group border-b px-4 py-2 text-left font-medium cursor-grab ${column.isDragging ? "opacity-50 bg-neutral-100" : ""}`}
                     style={{ width: column.width }}
-                    onDoubleClick={() =>
-                      handleColumnDoubleClick(activeTab, column.id)
-                    }
-                    draggable={
-                      !editingColumn || editingColumn.columnId !== column.id
-                    }
-                    onDragStart={(e) =>
-                      handleColumnDragStart(e, activeTab, column.id)
-                    }
+                    onDoubleClick={() => handleColumnDoubleClick(activeTab, column.id)}
+                    draggable={!editingColumn || editingColumn.columnId !== column.id}
+                    onDragStart={(e) => handleColumnDragStart(e, activeTab, column.id)}
                     onDragEnd={() => handleColumnDragEnd()}
-                    onDragOver={(e) =>
-                      handleColumnDragOver(e, activeTab, column.id)
-                    }
+                    onDragOver={(e) => handleColumnDragOver(e, activeTab, column.id)}
                     onDrop={(e) => handleColumnDrop(e, activeTab, column.id)}
                   >
                     {editingColumn &&
@@ -218,14 +212,16 @@ const TicketTable: React.FC<TicketTableProps> = ({
                     ) : column.title === "Status" ? (
                       <div
                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                          row.cells[column.id] === "Completed" || row.cells[column.id] === "Done"
+                          row.cells[column.id] === "Completed" ||
+                          row.cells[column.id] === "Done"
                             ? "bg-green-100 text-green-800"
                             : row.cells[column.id] === "In Progress"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-blue-100 text-blue-700"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {row.cells[column.id] || (row.completed ? "Completed" : "In Progress")}
+                        {row.cells[column.id] ||
+                          (row.completed ? "Completed" : "In Progress")}
                       </div>
                     ) : (
                       row.cells[column.id] || ""
@@ -251,4 +247,4 @@ const TicketTable: React.FC<TicketTableProps> = ({
   );
 };
 
-export default TicketTable; 
+export default TicketTable;

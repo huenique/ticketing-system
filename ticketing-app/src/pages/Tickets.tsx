@@ -5,28 +5,28 @@ import "react-resizable/css/styles.css";
 // React and Hooks
 import { useEffect } from "react";
 
+import { MOCK_ASSIGNEES, PRESET_TABLES } from "@/constants/tickets";
+import { Row } from "@/types/tickets";
+import { generateMockRowData } from "@/utils/ticketUtils";
+
 // Components
 import TabNavigation from "../components/TabNavigation";
-import TicketDialog from "../features/tickets/components/TicketDialog";
-import { DataTable } from "../features/tickets/components/data-table";
 import { columns } from "../features/tickets/components/columns";
-
-// Utils and Hooks
-import { getGridStyles, getScrollbarStyles, getSavedTabsData } from "../utils/ticketUtils";
+import { DataTable } from "../features/tickets/components/data-table";
+import TicketDialog from "../features/tickets/components/TicketDialog";
 import useTicketDialogHandlers from "../features/tickets/hooks/useTicketDialogHandlers";
-
 // Zustand Stores
-import useColumnsStore from "../stores/columnsStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import useTablesStore from "../stores/tablesStore";
 import useTabsStore from "../stores/tabsStore";
 import useUserStore from "../stores/userStore";
 import useWidgetsStore from "../stores/widgetsStore";
-import { useSettingsStore } from "../stores/settingsStore";
-
-import { PRESET_TABLES } from "@/constants/tickets";
-import { Row, Table } from "@/types/tickets";
-import { generateMockRowData } from "@/utils/ticketUtils";
-import { MOCK_ASSIGNEES } from "@/constants/tickets";
+// Utils and Hooks
+import {
+  getGridStyles,
+  getSavedTabsData,
+  getScrollbarStyles,
+} from "../utils/ticketUtils";
 
 function Tickets() {
   // ===== Zustand Stores =====
@@ -55,10 +55,7 @@ function Tickets() {
     saveTabs,
     resetTabs,
     createNewTable,
-    addColumn,
     addRow,
-    applyPreset,
-    removeColumn,
   } = useTablesStore();
 
   // Settings Store
@@ -110,82 +107,83 @@ function Tickets() {
   const applyEngineeringPreset = () => {
     // Clear existing tabs and tables
     const tabsStore = useTabsStore.getState();
-    const tablesStore = useTablesStore.getState();
-    
+
     // First create an "All Tickets" tab - with no specific status filter
     const allTicketsTab = {
-      id: 'tab-all-tickets',
-      title: 'All Tickets',
+      id: "tab-all-tickets",
+      title: "All Tickets",
       // No status property - this tab will show everything
     };
-    
+
     // Use all default status options to create tabs
     const statusTabs = statusOptions.map((status, index) => ({
       id: `tab-${index + 1}`,
       title: status,
       status: status, // Add status attribute to track which status this tab represents
     }));
-    
+
     // Combine All Tickets tab with status tabs
     const newTabs = [allTicketsTab, ...statusTabs];
-    
+
     // Reset all tabs first
     tabsStore.setTabs([]);
-    
+
     // Set the new tabs
     tabsStore.setTabs(newTabs);
-    
+
     // Set active tab to the All Tickets tab
     tabsStore.setActiveTab(allTicketsTab.id);
-    
+
     // First, create tickets for each status (one ticket per status)
     createTicketsForAllStatuses(allTicketsTab.id);
-    
+
     // Apply Engineering preset to all the other tabs (they will filter data from "All Tickets")
-    statusTabs.forEach(tab => {
+    statusTabs.forEach((tab) => {
       // Create table for each status tab
       createFilteredTable(tab.id, tab.status);
     });
   };
-  
+
   // Helper function to create a table with tickets for all statuses
   const createTicketsForAllStatuses = (tabId: string) => {
     const tablesStore = useTablesStore.getState();
     const presetTable = PRESET_TABLES["Engineering"];
-    
+
     if (!presetTable) return;
-    
-    // Get current user
-    const currentUser = useUserStore.getState().currentUser;
-    const currentUserName = currentUser?.name || "John Doe";
-    
+
     // Create a ticket for each status (except "Awaiting Customer Response" and "Declined")
     const mockRows: Row[] = [];
-    
+
     // Create tickets for the required statuses
-    const requiredStatuses = ["New", "Awaiting Parts", "Open", "In Progress", "Completed"];
-    const emptyTabStatuses = ["Awaiting Customer Response", "Declined"];
-    
+    const requiredStatuses = [
+      "New",
+      "Awaiting Parts",
+      "Open",
+      "In Progress",
+      "Completed",
+    ];
+
     for (let i = 0; i < requiredStatuses.length; i++) {
       // Generate basic row data
       const rowData = generateMockRowData(i + 1);
-      
+
       // Set the specific status for this ticket
       rowData["col-7"] = requiredStatuses[i];
-      
+
       // Use a random name from MOCK_ASSIGNEES for the "Assign To" column
-      rowData["col-5"] = MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)];
-      
+      rowData["col-5"] =
+        MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)];
+
       // If status is "Completed", mark it as completed
       const completed = requiredStatuses[i] === "Completed";
-      
+
       mockRows.push({
         id: `row-${i + 1}`,
         completed: completed,
         cells: rowData,
       });
     }
-    
+
     // Update table with new rows
     tablesStore.setTables({
       ...tablesStore.tables,
@@ -194,23 +192,23 @@ function Tickets() {
         rows: mockRows,
       },
     });
-    
+
     // Mark this tab with the applied preset
     const tabsStore = useTabsStore.getState();
     const updatedTabs = tabsStore.tabs.map((tab) =>
-      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab
+      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab,
     );
     tabsStore.setTabs(updatedTabs);
   };
-  
+
   // Helper function to create filtered tables based on the All Tickets tab
   const createFilteredTable = (tabId: string, status: string) => {
     const tablesStore = useTablesStore.getState();
     const allTicketsTable = tablesStore.tables["tab-all-tickets"];
     const presetTable = PRESET_TABLES["Engineering"];
-    
+
     if (!presetTable) return;
-    
+
     // For "Awaiting Customer Response" and "Declined" tabs, create empty tables
     const emptyTabStatuses = ["Awaiting Customer Response", "Declined"];
     if (emptyTabStatuses.includes(status)) {
@@ -224,10 +222,10 @@ function Tickets() {
       });
     } else if (allTicketsTable) {
       // For other status tabs, filter rows from All Tickets
-      const filteredRows = allTicketsTable.rows.filter((row) => 
-        row.cells["col-7"] === status
+      const filteredRows = allTicketsTable.rows.filter(
+        (row) => row.cells["col-7"] === status,
       );
-      
+
       // Update table with filtered rows
       tablesStore.setTables({
         ...tablesStore.tables,
@@ -237,42 +235,13 @@ function Tickets() {
         },
       });
     }
-    
+
     // Mark this tab with the applied preset
     const tabsStore = useTabsStore.getState();
     const updatedTabs = tabsStore.tabs.map((tab) =>
-      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab
+      tab.id === tabId ? { ...tab, appliedPreset: "Engineering" } : tab,
     );
     tabsStore.setTabs(updatedTabs);
-  };
-
-  // Mark task as done (general status update function)
-  const markTaskAsDone = (tabId: string, rowId: string, completed: boolean) => {
-    // Create a new tables object with the updated row
-    const updatedTables = { ...tables };
-
-    if (updatedTables[tabId]) {
-      // Find and update the row
-      updatedTables[tabId].rows = updatedTables[tabId].rows.map((row: any) => {
-        if (row.id === rowId) {
-          return {
-            ...row,
-            completed: completed,
-            cells: {
-              ...row.cells,
-              "col-7": completed ? "Completed" : "In Progress", // Update Status column
-            },
-          };
-        }
-        return row;
-      });
-
-      // Update the global tables state
-      useTablesStore.getState().setTables(updatedTables);
-
-      // Save to localStorage
-      localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-    }
   };
 
   // Use custom hook for ticket dialog functionality
@@ -283,7 +252,7 @@ function Tickets() {
     widgets,
     setWidgets,
     setWidgetLayouts,
-    addWidget
+    addWidget,
   );
 
   const updateWidgetTitle = (widgetId: string, newTitle: string) => {
@@ -297,74 +266,78 @@ function Tickets() {
   const handleFieldChange = (field: string, value: string) => {
     // First, update the widget value in the widgets store
     useWidgetsStore.getState().handleFieldChange(field, value);
-    
+
     // If this is a status change and we have a current ticket, update it in all tables
     if (field === "status" && ticketDialogHandlers.currentTicket) {
       const currentTicket = ticketDialogHandlers.currentTicket;
       const updatedTables = { ...tables };
-      
+
       // First update the ticket in the All Tickets tab (or current tab if not using tabs with status)
-      const allTicketsTab = 'tab-all-tickets';
+      const allTicketsTab = "tab-all-tickets";
       if (updatedTables[allTicketsTab]) {
         // Find and update the row in the All Tickets tab
-        updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map((row: any) => {
-          if (row.id === currentTicket.id) {
-            return {
-              ...row,
-              cells: {
-                ...row.cells,
-                "col-7": value, // Update Status column
-              },
-            };
-          }
-          return row;
-        });
+        updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map(
+          (row: Row) => {
+            if (row.id === currentTicket.id) {
+              return {
+                ...row,
+                cells: {
+                  ...row.cells,
+                  "col-7": value, // Update Status column
+                },
+              };
+            }
+            return row;
+          },
+        );
       }
-      
+
       // Also update the row in the current tab if it's not the All Tickets tab
       if (activeTab !== allTicketsTab && updatedTables[activeTab]) {
-        updatedTables[activeTab].rows = updatedTables[activeTab].rows.map((row: any) => {
-          if (row.id === currentTicket.id) {
-            return {
-              ...row,
-              cells: {
-                ...row.cells,
-                "col-7": value, // Update Status column
-              },
-            };
-          }
-          return row;
-        });
+        updatedTables[activeTab].rows = updatedTables[activeTab].rows.map(
+          (row: Row) => {
+            if (row.id === currentTicket.id) {
+              return {
+                ...row,
+                cells: {
+                  ...row.cells,
+                  "col-7": value, // Update Status column
+                },
+              };
+            }
+            return row;
+          },
+        );
       }
-      
+
       // Update the global tables state
       useTablesStore.getState().setTables(updatedTables);
-      
+
       // Refresh all status-based tabs with updated data
       refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
     }
   };
-  
+
   // Function to refresh all status-based tabs based on updated All Tickets data
-  const refreshStatusTabs = (allTicketsRows: any[]) => {
+  const refreshStatusTabs = (allTicketsRows: Row[]) => {
     // Get a reference to the tables store
     const tablesStore = useTablesStore.getState();
     const currentTables = tablesStore.tables;
     const updatedTables = { ...currentTables };
     const presetTable = PRESET_TABLES["Engineering"];
-    
+
     if (!presetTable) return;
-    
+
     // Loop through all tabs
-    tabs.forEach(tab => {
+    tabs.forEach((tab) => {
       // Skip the All Tickets tab
-      if (tab.id === 'tab-all-tickets' || !tab.status) return;
-      
+      if (tab.id === "tab-all-tickets" || !tab.status) return;
+
       // Filter rows for this tab based on its status
-      const filteredRows = allTicketsRows.filter((row) => 
-        row.cells["col-7"] === tab.status
+      const filteredRows = allTicketsRows.filter(
+        (row) => row.cells["col-7"] === tab.status,
       );
-      
+
       // Update this tab's table with filtered rows
       updatedTables[tab.id] = {
         ...updatedTables[tab.id],
@@ -372,7 +345,7 @@ function Tickets() {
         rows: filteredRows,
       };
     });
-    
+
     // Update all tables at once
     tablesStore.setTables(updatedTables);
   };
@@ -393,7 +366,9 @@ function Tickets() {
           <div className="flex space-x-2">
             {/* Add new Ticket button with plus icon */}
             <button
-              onClick={() => (activeTab && tables[activeTab] ? addRow(activeTab) : null)}
+              onClick={() =>
+                activeTab && tables[activeTab] ? addRow(activeTab) : null
+              }
               className="rounded-md bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 flex items-center"
               disabled={!activeTab || !tables[activeTab]}
             >
@@ -487,7 +462,7 @@ function Tickets() {
               columns={columns}
               data={tables[activeTab].rows || []}
               onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
-              statusFilter={tabs.find(tab => tab.id === activeTab)?.status}
+              statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
             />
           )}
         </div>
@@ -540,4 +515,4 @@ function Tickets() {
   );
 }
 
-export default Tickets; 
+export default Tickets;

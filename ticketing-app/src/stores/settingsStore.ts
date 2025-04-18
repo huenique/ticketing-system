@@ -1,10 +1,11 @@
 import { create } from "zustand";
+
 import { persist } from "./middleware";
 
 interface SettingsState {
   // Status widget configuration
   statusOptions: string[];
-  
+
   // Actions
   setStatusOptions: (options: string[]) => void;
   addStatusOption: (option: string) => void;
@@ -14,17 +15,25 @@ interface SettingsState {
 }
 
 // Default status options
-const DEFAULT_STATUS_OPTIONS = ["New", "Awaiting Customer Response", "Awaiting Parts", "Open", "In Progress", "Completed", "Declined"];
+const DEFAULT_STATUS_OPTIONS = [
+  "New",
+  "Awaiting Customer Response",
+  "Awaiting Parts",
+  "Open",
+  "In Progress",
+  "Completed",
+  "Declined",
+];
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
       // State
       statusOptions: DEFAULT_STATUS_OPTIONS,
-      
+
       // Actions
       setStatusOptions: (options) => set({ statusOptions: options }),
-      
+
       addStatusOption: (option) => {
         const { statusOptions } = get();
         // Prevent duplicates
@@ -32,14 +41,14 @@ export const useSettingsStore = create<SettingsState>()(
           set({ statusOptions: [...statusOptions, option] });
         }
       },
-      
+
       removeStatusOption: (option) => {
         const { statusOptions } = get();
-        set({ 
-          statusOptions: statusOptions.filter((item) => item !== option) 
+        set({
+          statusOptions: statusOptions.filter((item) => item !== option),
         });
       },
-      
+
       reorderStatusOptions: (fromIndex, toIndex) => {
         const { statusOptions } = get();
         const newStatusOptions = [...statusOptions];
@@ -47,11 +56,11 @@ export const useSettingsStore = create<SettingsState>()(
         newStatusOptions.splice(toIndex, 0, movedItem);
         set({ statusOptions: newStatusOptions });
       },
-      
+
       resetStatusOptions: () => set({ statusOptions: DEFAULT_STATUS_OPTIONS }),
     }),
     {
       name: "settings-storage",
-    }
-  )
-); 
+    },
+  ),
+);

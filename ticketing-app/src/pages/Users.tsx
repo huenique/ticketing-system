@@ -1,16 +1,7 @@
-import { useState } from "react";
-import { Edit, Trash2, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { Edit, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import useUsersStore, { User } from "@/stores/usersStore";
 
 function Users() {
@@ -52,7 +51,9 @@ function Users() {
     }
   };
 
-  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleEditFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({
       ...prev,
@@ -60,7 +61,9 @@ function Users() {
     }));
   };
 
-  const handleNewUserFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleNewUserFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
     setNewUserData((prev) => ({
       ...prev,
@@ -94,6 +97,8 @@ function Users() {
     try {
       return format(new Date(dateString), "MMM dd, yyyy HH:mm");
     } catch (error) {
+      console.error("Error formatting date:", error);
+
       return "Invalid date";
     }
   };

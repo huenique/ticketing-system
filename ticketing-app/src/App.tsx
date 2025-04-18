@@ -2,19 +2,19 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { DashboardLayout } from "./components/dashboard-layout";
+import Customers from "./pages/Customers";
+import Login from "./pages/Login";
 import Logout from "./pages/Logout";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Users from "./pages/Users";
-import Customers from "./pages/Customers";
-import Login from "./pages/Login";
 import useUserStore from "./stores/userStore";
 
 // Protected route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { currentUser, checkAuth } = useUserStore();
-  
+
   useEffect(() => {
     // Check if user is authenticated on mount
     if (!currentUser) {
@@ -32,11 +32,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Admin route component
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { currentUser, hasPermission } = useUserStore();
-  
+
   if (!currentUser || !hasPermission("admin")) {
     return <Navigate to="/tickets" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -46,7 +46,7 @@ function App() {
       <Route path="/" element={<Navigate to="/tickets" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/logout" element={<Logout />} />
-      
+
       <Route
         path="/tickets"
         element={
@@ -57,7 +57,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/users"
         element={
@@ -70,7 +70,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/customers"
         element={
@@ -83,7 +83,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/settings"
         element={
@@ -94,7 +94,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

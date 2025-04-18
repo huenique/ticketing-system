@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'user';
+export type UserRole = "admin" | "user";
 
 export interface AuthUser {
   id: string;
@@ -17,4 +17,4 @@ export interface LoginCredentials {
 export interface AuthResponse {
   user: AuthUser;
   token: string;
-} 
+}

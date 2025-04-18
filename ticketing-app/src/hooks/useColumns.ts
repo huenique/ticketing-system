@@ -1,7 +1,7 @@
 import { useState } from "react";
 
+import { EditingColumn } from "@/stores/columnsStore";
 import { Tables } from "@/types/tables";
-import { EditingColumn } from "@/types/tickets";
 
 /**
  * Custom hook to manage column operations

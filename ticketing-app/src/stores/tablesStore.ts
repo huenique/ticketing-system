@@ -28,7 +28,7 @@ interface TablesState {
     ticketForm: TicketForm,
     setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
     tabId: string,
-    isCompleted?: boolean
+    isCompleted?: boolean,
   ) => void;
 }
 
@@ -110,7 +110,7 @@ const useTablesStore = create<TablesState>()(
 
         // Get tab info to check if it has status info
         const tabsStore = useTabsStore.getState();
-        const tabInfo = tabsStore.tabs.find(tab => tab.id === tabId);
+        const tabInfo = tabsStore.tabs.find((tab) => tab.id === tabId);
         const tabStatus = tabInfo?.status;
 
         const newRowId = `row-${table.rows.length + 1}`;
@@ -138,7 +138,7 @@ const useTablesStore = create<TablesState>()(
               cells[column.id] = "";
             }
           });
-          
+
           // If the tab has a status, use it for the 'Status' column
           if (tabStatus && cells["col-7"]) {
             cells["col-7"] = tabStatus;
@@ -188,7 +188,7 @@ const useTablesStore = create<TablesState>()(
 
         // Get tab info to check if it has status info
         const tabsStore = useTabsStore.getState();
-        const tabInfo = tabsStore.tabs.find(tab => tab.id === tabId);
+        const tabInfo = tabsStore.tabs.find((tab) => tab.id === tabId);
         const tabStatus = tabInfo?.status;
 
         // Create a few mock rows
@@ -200,11 +200,11 @@ const useTablesStore = create<TablesState>()(
           if (presetKey === "Engineering" && i < 3) {
             rowData["col-5"] = currentUserName; // Assign first 3 tickets to current user
           }
-          
+
           // If the tab has a status, use it for the 'Status' column
           if (tabStatus) {
             rowData["col-7"] = tabStatus;
-            
+
             // Set completed state based on status
             if (tabStatus === "Completed" || tabStatus === "Done") {
               rowData["completed"] = "true";
@@ -232,9 +232,7 @@ const useTablesStore = create<TablesState>()(
 
         // Update the tabs store to mark this tab with the applied preset
         const updatedTabs = tabsStore.tabs.map((tab) =>
-          tab.id === tabId
-            ? { ...tab, appliedPreset: presetKey }
-            : tab,
+          tab.id === tabId ? { ...tab, appliedPreset: presetKey } : tab,
         );
 
         tabsStore.setTabs(updatedTabs);
@@ -270,11 +268,11 @@ const useTablesStore = create<TablesState>()(
       },
 
       saveTicketChanges: (
-        currentTicket, 
-        ticketForm, 
-        setViewDialogOpen, 
+        currentTicket,
+        ticketForm,
+        setViewDialogOpen,
         tabId,
-        isCompleted = false
+        isCompleted = false,
       ) => {
         if (!currentTicket) return;
 
@@ -293,7 +291,7 @@ const useTablesStore = create<TablesState>()(
             if (ticketForm.billableHours)
               updatedCells["col-9"] = ticketForm.billableHours;
             if (ticketForm.totalHours) updatedCells["col-8"] = ticketForm.totalHours;
-            
+
             // Update status column if it exists based on completion
             if (isCompleted) {
               updatedCells["col-7"] = "Completed";

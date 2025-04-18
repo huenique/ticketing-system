@@ -1,7 +1,9 @@
 import { create } from "zustand";
-import { persist } from "./middleware";
+
 import { AuthUser, LoginCredentials, UserRole } from "@/types/auth";
 import { authService } from "@/utils/auth";
+
+import { persist } from "./middleware";
 
 interface UserState {
   currentUser: AuthUser | null;
@@ -20,9 +22,9 @@ const useUserStore = create<UserState>()(
       currentUser: null,
       isLoading: false,
       error: null,
-      
+
       setCurrentUser: (user) => set({ currentUser: user }),
-      
+
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
@@ -30,37 +32,37 @@ const useUserStore = create<UserState>()(
           // Store token and user in localStorage
           localStorage.setItem("auth-token", token);
           localStorage.setItem("auth-user", JSON.stringify(user));
-          
+
           set({ currentUser: user, isLoading: false });
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
           throw error;
         }
       },
-      
+
       logout: () => {
         authService.logout();
         set({ currentUser: null });
       },
-      
+
       checkAuth: () => {
         const user = authService.getCurrentUser();
         if (user) {
           set({ currentUser: user });
         }
       },
-      
+
       hasPermission: (requiredRole) => {
         const { currentUser } = get();
         if (!currentUser) return false;
-        
-        if (requiredRole === 'admin') {
-          return currentUser.role === 'admin';
+
+        if (requiredRole === "admin") {
+          return currentUser.role === "admin";
         }
-        
+
         // All users (including admins) have basic user permissions
         return true;
-      }
+      },
     }),
     {
       name: "user-storage",

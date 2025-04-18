@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import useTablesStore from "./tablesStore";
 
-interface EditingColumn {
+export interface EditingColumn {
   tabId: string;
   columnId: string;
 }

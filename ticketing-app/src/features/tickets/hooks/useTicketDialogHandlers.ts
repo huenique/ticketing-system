@@ -1,24 +1,37 @@
 import { useState } from "react";
-import { WIDGET_TYPES, PRESET_TABLES } from "../../../constants/tickets";
+import { Layouts } from "react-grid-layout";
+
+import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
-import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry } from "../../../types/tickets";
+import {
+  Assignee,
+  LayoutStorage,
+  Row,
+  Tab,
+  Table,
+  TicketForm,
+  TimeEntry,
+  Widget,
+} from "../../../types/tickets";
 import { getFromLS, saveToLS } from "../../../utils/ticketUtils";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
-  tabs: any[],
-  tables: any,
-  widgets: any[],
-  setWidgets: (widgets: any[]) => void,
-  setWidgetLayouts: (layouts: any) => void,
-  addWidget: (type: string, ticket: Row) => void
+  tabs: Tab[],
+  tables: Record<string, Table | null>,
+  widgets: Widget[],
+  setWidgets: (widgets: Widget[]) => void,
+  setWidgetLayouts: (layouts: Layouts) => void,
+  addWidget: (type: string, ticket: Row) => void,
 ) {
   // Ticket Dialog State
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [currentTicket, setCurrentTicket] = useState<Row | null>(null);
-  const [currentTicketPreset, setCurrentTicketPreset] = useState<string | undefined>(undefined);
+  const [currentTicketPreset, setCurrentTicketPreset] = useState<string | undefined>(
+    undefined,
+  );
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false);
-  
+
   // Ticket Form State
   const [ticketForm, setTicketForm] = useState<TicketForm>({
     status: "",
@@ -26,10 +39,10 @@ export default function useTicketDialogHandlers(
     billableHours: "",
     totalHours: "",
   });
-  
+
   // Attachments State
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  
+
   // Assignee State
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [assigneeTableTitle, setAssigneeTableTitle] = useState("Assigned Team Members");
@@ -42,7 +55,7 @@ export default function useTicketDialogHandlers(
     priority: "3",
   });
   const [showAssigneeForm, setShowAssigneeForm] = useState(false);
-  
+
   // Time Entries State
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
@@ -178,11 +191,11 @@ export default function useTicketDialogHandlers(
 
     // Find the assignee that was updated
     const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
-    
+
     // If we're working with a current ticket, update its status in the All Tickets tab
     if (updatedAssignee && currentTicket) {
       const ticketId = currentTicket.cells["col-1"];
-      
+
       // Update the ticket in the current tab
       const updatedTables = { ...tables };
       if (updatedTables[activeTab]) {
@@ -250,12 +263,12 @@ export default function useTicketDialogHandlers(
 
     // Get saved layouts from appropriate storage location
     const savedEngineeringState = getFromLS(engineeringLayoutKey) as {
-      widgets?: any[];
-      layouts?: any;
+      widgets?: Widget[];
+      layouts?: Layouts;
     };
     const savedTabSpecificState = getFromLS(tabSpecificLayoutKey) as {
-      widgets?: any[];
-      layouts?: any;
+      widgets?: Widget[];
+      layouts?: Layouts;
     };
 
     console.log("Loading saved widget layout state");
@@ -342,7 +355,7 @@ export default function useTicketDialogHandlers(
 
         // Reset widgets and layouts
         setWidgets([]);
-        setWidgetLayouts({});
+        setWidgetLayouts({} as Layouts);
 
         // Add default widgets after a short delay
         setTimeout(() => {
@@ -384,8 +397,8 @@ export default function useTicketDialogHandlers(
         // Check if there's an old-format layout saved with ticket ID
         const oldFormatKey = `tab-${activeTab}-${ticketId}`;
         const oldSavedState = getFromLS(oldFormatKey) as {
-          widgets?: any[];
-          layouts?: any;
+          widgets?: Widget[];
+          layouts?: Layouts;
         };
         const hasOldSavedWidgets =
           oldSavedState &&
@@ -405,7 +418,7 @@ export default function useTicketDialogHandlers(
           // Save in new format
           const completeState: LayoutStorage = {
             widgets: oldSavedState.widgets || [],
-            layouts: oldSavedState.layouts || {},
+            layouts: oldSavedState.layouts || ({} as Layouts),
           };
           saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
         } else {
@@ -435,17 +448,17 @@ export default function useTicketDialogHandlers(
       ticketForm,
       setViewDialogOpen,
       activeTab,
-      hasCompletedAssignees // Pass the completion status to be saved
+      hasCompletedAssignees, // Pass the completion status to be saved
     );
-    
+
     // If the ticket's status was changed, refresh all status-based tabs
-    const allTicketsTab = 'tab-all-tickets';
+    const allTicketsTab = "tab-all-tickets";
     const tablesStore = useTablesStore.getState();
     const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
-    
+
     // Refresh all status tabs to maintain consistency
     refreshStatusTabs(allTicketsRows);
-    
+
     // Save widget layouts to localStorage
     if (currentTicket && widgets.length > 0) {
       // Create a complete widget state object that includes both widget data and layout
@@ -462,11 +475,7 @@ export default function useTicketDialogHandlers(
       if (hasEngineeringPreset) {
         // For Engineering preset tabs, save to Engineering-specific key
         saveToLS<LayoutStorage>("engineering-layouts", completeState);
-        console.log(
-          "Saved Engineering widget layout with",
-          widgets.length,
-          "widgets"
-        );
+        console.log("Saved Engineering widget layout with", widgets.length, "widgets");
       } else {
         // For non-Engineering tabs, save to tab-specific key
         const tabSpecificLayoutKey = `tab-${activeTab}`;
@@ -482,32 +491,33 @@ export default function useTicketDialogHandlers(
 
     // Close the dialog
     setViewDialogOpen(false);
-    
+
     // Reset the current ticket preset
     setCurrentTicketPreset(undefined);
   };
-  
+
   // Function to refresh all status-based tabs based on updated All Tickets data
-  const refreshStatusTabs = (allTicketsRows: any[]) => {
+  const refreshStatusTabs = (allTicketsRows: Row[]) => {
     // Get a reference to the tables store
     const tablesStore = useTablesStore.getState();
     const currentTables = tablesStore.tables;
     const updatedTables = { ...currentTables };
-    
+
     // Loop through all tabs
-    tabs.forEach(tab => {
+    tabs.forEach((tab) => {
       // Skip the All Tickets tab
-      if (tab.id === 'tab-all-tickets' || !tab.status) return;
-      
+      if (tab.id === "tab-all-tickets" || !tab.status) return;
+
       // Get the preset table structure
       const presetTable = PRESET_TABLES["Engineering"];
       if (!presetTable) return;
-      
+
       // Filter rows for this tab based on its status
-      const filteredRows = allTicketsRows.filter((row) => 
-        row.cells["col-7"] === tab.status
+      const filteredRows = allTicketsRows.filter(
+        (row: { cells: { [x: string]: string | undefined } }) =>
+          row.cells["col-7"] === tab.status,
       );
-      
+
       // Update this tab's table with filtered rows
       updatedTables[tab.id] = {
         ...updatedTables[tab.id],
@@ -515,7 +525,7 @@ export default function useTicketDialogHandlers(
         rows: filteredRows,
       };
     });
-    
+
     // Update all tables at once
     tablesStore.setTables(updatedTables);
   };
@@ -537,7 +547,7 @@ export default function useTicketDialogHandlers(
     setAssignees,
     assigneeTableTitle,
     setAssigneeTableTitle,
-    newAssignee, 
+    newAssignee,
     setNewAssignee,
     showAssigneeForm,
     setShowAssigneeForm,
@@ -552,6 +562,6 @@ export default function useTicketDialogHandlers(
     handleRemoveTimeEntry,
     markAssigneeCompleted,
     handleInitializeTicketDialog,
-    handleSaveTicketChanges
+    handleSaveTicketChanges,
   };
-} 
+}

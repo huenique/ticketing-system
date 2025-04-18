@@ -1,11 +1,21 @@
 import React from "react";
 import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
+
+import useUserStore from "@/stores/userStore";
+
 import TicketWidget from "../../../components/TicketWidget";
 import { WIDGET_TYPES } from "../../../constants/tickets";
-import { Assignee, LayoutStorage, Row, TicketForm, TimeEntry, Widget } from "../../../types/tickets";
+import {
+  Assignee,
+  LayoutStorage,
+  Row,
+  Tab,
+  TicketForm,
+  TimeEntry,
+  Widget,
+} from "../../../types/tickets";
 import { saveToLS } from "../../../utils/ticketUtils";
 import { generateResponsiveLayouts } from "../utils/layoutUtils";
-import useUserStore from "@/stores/userStore";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -34,7 +44,7 @@ interface TicketDialogProps {
   widgetLayouts: Layouts;
   setWidgetLayouts: (layouts: Layouts) => void;
   activeTab: string;
-  tabs: any[];
+  tabs: Tab[];
   handleSaveTicketChanges: () => void;
   handleFieldChange: (field: string, value: string) => void;
   toggleWidgetCollapse: (widgetId: string) => void;
@@ -63,9 +73,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   uploadedImages,
   setUploadedImages,
   assignees,
-  setAssignees,
   timeEntries,
-  setTimeEntries,
   isEditLayoutMode,
   setIsEditLayoutMode,
   showAssigneeForm,
@@ -74,7 +82,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   setNewAssignee,
   widgets,
   setWidgets,
-  widgetLayouts,
   setWidgetLayouts,
   activeTab,
   tabs,
@@ -92,11 +99,11 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   handleRemoveTimeEntry,
   handleUpdateTimeEntry,
   handleImageUpload,
-  markAssigneeCompleted
+  markAssigneeCompleted,
 }) => {
-  if (!viewDialogOpen || !currentTicket) return null;
-
   const { currentUser } = useUserStore();
+
+  if (!viewDialogOpen || !currentTicket) return null;
 
   const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
     console.log("Layout changed:", currentLayout.length, "items in current layout");
@@ -244,14 +251,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
                       // Add tables as individual widgets
                       addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
-                      addWidget(
-                        WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE,
-                        currentTicket,
-                      );
-                      addWidget(
-                        WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY,
-                        currentTicket,
-                      );
+                      addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
+                      addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
                     }
                   }, 100);
                 }}
@@ -400,7 +401,12 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   <div className="w-full relative">
                     <ResponsiveGridLayout
                       className={`layout ${!isEditLayoutMode ? "non-editable" : ""}`}
-                      layouts={generateResponsiveLayouts(widgets, activeTab, tabs, currentTicket)}
+                      layouts={generateResponsiveLayouts(
+                        widgets,
+                        activeTab,
+                        tabs,
+                        currentTicket,
+                      )}
                       breakpoints={{
                         lg: 1200,
                         md: 996,
@@ -499,8 +505,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                                 if (dropdown) {
                                   dropdown.classList.toggle("hidden");
                                   // Position the dropdown below the button
-                                  const rect =
-                                    e.currentTarget.getBoundingClientRect();
+                                  const rect = e.currentTarget.getBoundingClientRect();
                                   dropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
                                   dropdown.style.left = `${rect.left + window.scrollX}px`;
                                 }
@@ -625,7 +630,12 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                     <div className="w-full relative p-4">
                       <ResponsiveGridLayout
                         className={`layout ${!isEditLayoutMode ? "non-editable" : ""}`}
-                        layouts={generateResponsiveLayouts(widgets, activeTab, tabs, currentTicket)}
+                        layouts={generateResponsiveLayouts(
+                          widgets,
+                          activeTab,
+                          tabs,
+                          currentTicket,
+                        )}
                         breakpoints={{
                           lg: 1200,
                           md: 996,
@@ -709,4 +719,4 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   );
 };
 
-export default TicketDialog; 
+export default TicketDialog;

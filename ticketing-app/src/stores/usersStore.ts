@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { persist } from "./middleware";
 
 export interface User {
@@ -84,7 +85,7 @@ const useUsersStore = create<UsersState>()(
           users: state.users.map((user) =>
             user.id === id
               ? { ...user, ...updatedUser, lastModified: new Date().toISOString() }
-              : user
+              : user,
           ),
         })),
       deleteUser: (id) =>
@@ -94,8 +95,8 @@ const useUsersStore = create<UsersState>()(
     }),
     {
       name: "users-storage",
-    }
-  )
+    },
+  ),
 );
 
-export default useUsersStore; 
+export default useUsersStore;

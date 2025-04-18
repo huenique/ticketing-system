@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { nanoid } from "nanoid";
+import { create } from "zustand";
 
 export type Contact = {
   id: string;
@@ -28,8 +28,15 @@ type CustomersStore = {
   addCustomer: (customer: Omit<Customer, "id" | "lastModified" | "contacts">) => void;
   updateCustomer: (id: string, updates: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
-  addContact: (customerId: string, contact: Omit<Contact, "id" | "lastModified">) => void;
-  updateContact: (customerId: string, contactId: string, updates: Partial<Contact>) => void;
+  addContact: (
+    customerId: string,
+    contact: Omit<Contact, "id" | "lastModified">,
+  ) => void;
+  updateContact: (
+    customerId: string,
+    contactId: string,
+    updates: Partial<Contact>,
+  ) => void;
   deleteContact: (customerId: string, contactId: string) => void;
 };
 
@@ -175,9 +182,7 @@ const useCustomersStore = create<CustomersStore>((set) => ({
         if (customer.id === customerId) {
           return {
             ...customer,
-            contacts: customer.contacts.filter(
-              (contact) => contact.id !== contactId
-            ),
+            contacts: customer.contacts.filter((contact) => contact.id !== contactId),
             lastModified: new Date().toISOString(),
           };
         }
@@ -187,4 +192,4 @@ const useCustomersStore = create<CustomersStore>((set) => ({
   },
 }));
 
-export default useCustomersStore; 
+export default useCustomersStore;

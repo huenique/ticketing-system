@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
 import {
   ColumnDef,
   ColumnFiltersState,
-  SortingState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  SortingState,
   useReactTable,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
+import { useEffect, useState } from "react";
 
 import {
   Table,
@@ -20,13 +20,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  onRowClick?: (row: TData) => void
-  statusFilter?: string
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  onRowClick?: (row: TData) => void;
+  statusFilter?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -35,9 +35,9 @@ export function DataTable<TData, TValue>({
   onRowClick,
   statusFilter,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
   // Apply status filter if provided
   useEffect(() => {
     if (statusFilter) {
@@ -46,12 +46,12 @@ export function DataTable<TData, TValue>({
           id: "cells.col-7",
           value: statusFilter,
         },
-      ])
+      ]);
     } else {
       // Clear status filter if none is selected
-      setColumnFilters([])
+      setColumnFilters([]);
     }
-  }, [statusFilter])
+  }, [statusFilter]);
 
   const table = useReactTable({
     data,
@@ -66,7 +66,7 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
     },
-  })
+  });
 
   return (
     <div>
@@ -82,10 +82,10 @@ export function DataTable<TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -117,5 +117,5 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
     </div>
-  )
-} 
+  );
+}

@@ -2,9 +2,9 @@ import React, { useState } from "react";
 
 import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
+import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
-import useUserStore from "../stores/userStore";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -116,11 +116,13 @@ function TicketWidget({
             return (
               <div className="h-full flex items-center">
                 <StatusWidget
-                  value={ticketForm[widget.field as keyof typeof ticketForm] || widget.value}
+                  value={
+                    ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                  }
                   onChange={(value) => {
                     // Call handleFieldChange to update the form state
                     handleFieldChange(widget.field || "", value);
-                    
+
                     // Also update the ticketForm state directly to ensure it's saved
                     if (setTicketForm) {
                       setTicketForm({ ...ticketForm, status: value });
@@ -274,9 +276,14 @@ function TicketWidget({
                             }
                             className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                           >
-                            {Array.from({ length: Math.max(1, assignees.length + 1) }, (_, i) => (
-                              <option key={i+1} value={String(i+1)}>{i+1}</option>
-                            ))}
+                            {Array.from(
+                              { length: Math.max(1, assignees.length + 1) },
+                              (_, i) => (
+                                <option key={i + 1} value={String(i + 1)}>
+                                  {i + 1}
+                                </option>
+                              ),
+                            )}
                           </select>
                         </div>
                         <div>
@@ -411,9 +418,14 @@ function TicketWidget({
                                   }
                                   className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                 >
-                                  {Array.from({ length: Math.max(1, assignees.length) }, (_, i) => (
-                                    <option key={i+1} value={String(i+1)}>{i+1}</option>
-                                  ))}
+                                  {Array.from(
+                                    { length: Math.max(1, assignees.length) },
+                                    (_, i) => (
+                                      <option key={i + 1} value={String(i + 1)}>
+                                        {i + 1}
+                                      </option>
+                                    ),
+                                  )}
                                 </select>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
@@ -459,7 +471,9 @@ function TicketWidget({
                                       <>
                                         {handleAddTimeEntry && (
                                           <button
-                                            onClick={() => handleAddTimeEntry(assignee.id)}
+                                            onClick={() =>
+                                              handleAddTimeEntry(assignee.id)
+                                            }
                                             className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                             title="Add time entry"
                                           >
@@ -481,9 +495,18 @@ function TicketWidget({
                                         )}
                                         {markAssigneeCompleted && (
                                           <button
-                                            onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                            onClick={() =>
+                                              markAssigneeCompleted(
+                                                assignee.id,
+                                                !assignee.completed,
+                                              )
+                                            }
                                             className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                            title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                            title={
+                                              assignee.completed
+                                                ? "Mark as Not Done"
+                                                : "Mark as Done"
+                                            }
                                           >
                                             <svg
                                               xmlns="http://www.w3.org/2000/svg"
@@ -503,7 +526,9 @@ function TicketWidget({
                                         )}
                                         {handleRemoveAssignee && (
                                           <button
-                                            onClick={() => handleRemoveAssignee(assignee.id)}
+                                            onClick={() =>
+                                              handleRemoveAssignee(assignee.id)
+                                            }
                                             className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                                             title="Remove assignee"
                                           >
@@ -527,54 +552,66 @@ function TicketWidget({
                                     )}
 
                                     {/* Regular user can only see time entry and mark as done for their own entries */}
-                                    {currentUser.role === "user" && assignee.name === currentUser.name && (
-                                      <>
-                                        {handleAddTimeEntry && (
-                                          <button
-                                            onClick={() => handleAddTimeEntry(assignee.id)}
-                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                            title="Add time entry"
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
+                                    {currentUser.role === "user" &&
+                                      assignee.name === currentUser.name && (
+                                        <>
+                                          {handleAddTimeEntry && (
+                                            <button
+                                              onClick={() =>
+                                                handleAddTimeEntry(assignee.id)
+                                              }
+                                              className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                              title="Add time entry"
                                             >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                              />
-                                            </svg>
-                                          </button>
-                                        )}
-                                        {markAssigneeCompleted && (
-                                          <button
-                                            onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
-                                            className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                            title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
+                                              <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                              </svg>
+                                            </button>
+                                          )}
+                                          {markAssigneeCompleted && (
+                                            <button
+                                              onClick={() =>
+                                                markAssigneeCompleted(
+                                                  assignee.id,
+                                                  !assignee.completed,
+                                                )
+                                              }
+                                              className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                              title={
+                                                assignee.completed
+                                                  ? "Mark as Not Done"
+                                                  : "Mark as Done"
+                                              }
                                             >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M5 13l4 4L19 7"
-                                              />
-                                            </svg>
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
+                                              <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M5 13l4 4L19 7"
+                                                />
+                                              </svg>
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
                                   </>
                                 )}
                               </td>
@@ -827,7 +864,7 @@ function TicketWidget({
                   onChange={(value) => {
                     // Update the form state
                     setTicketForm({ ...ticketForm, status: value });
-                    
+
                     // Call handleFieldChange to ensure the status is updated in the widget
                     handleFieldChange("status", value);
                   }}
@@ -965,9 +1002,14 @@ function TicketWidget({
                         }
                         className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                       >
-                        {Array.from({ length: Math.max(1, assignees.length + 1) }, (_, i) => (
-                          <option key={i+1} value={String(i+1)}>{i+1}</option>
-                        ))}
+                        {Array.from(
+                          { length: Math.max(1, assignees.length + 1) },
+                          (_, i) => (
+                            <option key={i + 1} value={String(i + 1)}>
+                              {i + 1}
+                            </option>
+                          ),
+                        )}
                       </select>
                     </div>
                     <div>
@@ -1119,9 +1161,14 @@ function TicketWidget({
                           }
                           className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                         >
-                          {Array.from({ length: Math.max(1, assignees.length) }, (_, i) => (
-                            <option key={i+1} value={String(i+1)}>{i+1}</option>
-                          ))}
+                          {Array.from(
+                            { length: Math.max(1, assignees.length) },
+                            (_, i) => (
+                              <option key={i + 1} value={String(i + 1)}>
+                                {i + 1}
+                              </option>
+                            ),
+                          )}
                         </select>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900">
@@ -1183,9 +1230,18 @@ function TicketWidget({
                                 )}
                                 {markAssigneeCompleted && (
                                   <button
-                                    onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
+                                    onClick={() =>
+                                      markAssigneeCompleted(
+                                        assignee.id,
+                                        !assignee.completed,
+                                      )
+                                    }
                                     className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                    title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
+                                    title={
+                                      assignee.completed
+                                        ? "Mark as Not Done"
+                                        : "Mark as Done"
+                                    }
                                   >
                                     <svg
                                       xmlns="http://www.w3.org/2000/svg"
@@ -1229,54 +1285,64 @@ function TicketWidget({
                             )}
 
                             {/* Regular user can only see time entry and mark as done for their own entries */}
-                            {currentUser.role === "user" && assignee.name === currentUser.name && (
-                              <>
-                                {handleAddTimeEntry && (
-                                  <button
-                                    onClick={() => handleAddTimeEntry(assignee.id)}
-                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                    title="Add time entry"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                            {currentUser.role === "user" &&
+                              assignee.name === currentUser.name && (
+                                <>
+                                  {handleAddTimeEntry && (
+                                    <button
+                                      onClick={() => handleAddTimeEntry(assignee.id)}
+                                      className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
+                                      title="Add time entry"
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                                {markAssigneeCompleted && (
-                                  <button
-                                    onClick={() => markAssigneeCompleted(assignee.id, !assignee.completed)}
-                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                    title={assignee.completed ? "Mark as Not Done" : "Mark as Done"}
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  {markAssigneeCompleted && (
+                                    <button
+                                      onClick={() =>
+                                        markAssigneeCompleted(
+                                          assignee.id,
+                                          !assignee.completed,
+                                        )
+                                      }
+                                      className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                      title={
+                                        assignee.completed
+                                          ? "Mark as Not Done"
+                                          : "Mark as Done"
+                                      }
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                              </>
-                            )}
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </>
+                              )}
                           </>
                         )}
                       </td>

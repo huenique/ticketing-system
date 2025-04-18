@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { useSettingsStore } from "../stores/settingsStore";
 
 // Define types for the props
@@ -13,7 +14,14 @@ interface StatusOptionProps {
 }
 
 // Simple status option component with up/down buttons
-const StatusOption = ({ option, index, moveOption, onRemove, isFirst, isLast }: StatusOptionProps) => {
+const StatusOption = ({
+  option,
+  index,
+  moveOption,
+  onRemove,
+  isFirst,
+  isLast,
+}: StatusOptionProps) => {
   return (
     <div className="flex items-center justify-between p-3 mb-2 bg-white rounded-md border border-neutral-200">
       <div className="flex items-center">
@@ -24,7 +32,7 @@ const StatusOption = ({ option, index, moveOption, onRemove, isFirst, isLast }: 
         <button
           onClick={() => !isFirst && moveOption(index, index - 1)}
           disabled={isFirst}
-          className={`${isFirst ? 'text-neutral-300' : 'text-neutral-500 hover:text-neutral-700'}`}
+          className={`${isFirst ? "text-neutral-300" : "text-neutral-500 hover:text-neutral-700"}`}
           title="Move up"
         >
           <svg
@@ -45,7 +53,7 @@ const StatusOption = ({ option, index, moveOption, onRemove, isFirst, isLast }: 
         <button
           onClick={() => !isLast && moveOption(index, index + 1)}
           disabled={isLast}
-          className={`${isLast ? 'text-neutral-300' : 'text-neutral-500 hover:text-neutral-700'}`}
+          className={`${isLast ? "text-neutral-300" : "text-neutral-500 hover:text-neutral-700"}`}
           title="Move down"
         >
           <svg
@@ -89,7 +97,13 @@ const StatusOption = ({ option, index, moveOption, onRemove, isFirst, isLast }: 
 };
 
 function Settings() {
-  const { statusOptions, addStatusOption, removeStatusOption, reorderStatusOptions, resetStatusOptions } = useSettingsStore();
+  const {
+    statusOptions,
+    addStatusOption,
+    removeStatusOption,
+    reorderStatusOptions,
+    resetStatusOptions,
+  } = useSettingsStore();
   const [newOption, setNewOption] = useState("");
 
   const handleAddOption = () => {
@@ -150,7 +164,7 @@ function Settings() {
               />
             ))}
           </div>
-          
+
           {statusOptions.length > 0 && (
             <div className="mt-4">
               <button

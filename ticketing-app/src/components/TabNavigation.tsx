@@ -51,7 +51,7 @@ function TabNavigation({
   onRenameBlur,
 }: TabNavigationProps) {
   const { currentUser } = useUserStore();
-  
+
   return (
     <div className="flex items-center border-b bg-neutral-50">
       <div className="flex flex-1 items-center space-x-1 overflow-x-auto overflow-y-visible px-2 no-scrollbar">
