@@ -1,0 +1,92 @@
+import { Client, Databases } from 'node-appwrite';
+
+const client = new Client()
+  .setEndpoint('https://fra.cloud.appwrite.io/v1')
+  .setProject('6806426c0035885d9c0d')
+  .setKey('standard_229ed839dc7fa23f90f7c9d96a7512dc3c6755bab59e14be1abb8d0ced5204426e8feaedb51eb0a76b6b7da88551810583a250d3b7b1b65a3db467e715c0e336f946f8cc46c1442062d5a3c2c39f796a46413ad28ea4423fbbaa388eeafd48e19cc64cbd695af8b5d7d814655d061178d017341a9405df7d6d82052255cc302f');
+
+const databases = new Databases(client);
+const dbId = '680642f9000b7eb93763';
+
+async function createCollections() {
+  // Create tickets collection
+  await databases.createCollection(
+    dbId, 
+    'tickets', 
+    'Tickets'
+  );
+
+  // Add attributes to tickets collection
+  await databases.createStringAttribute(dbId, 'tickets', 'status_id', 255, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'customer_id', 255, true);
+  await databases.createFloatAttribute(dbId, 'tickets', 'billable_hours', true);
+  await databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true);
+  await databases.createStringAttribute(dbId, 'tickets', 'description', 1000, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'assignee_ids', 255, true, undefined, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'attachments', 255, false, undefined, true);
+
+  // Create users collection
+  await databases.createCollection(
+    dbId, 
+    'users', 
+    'Users'
+  );
+
+  // Add attributes to users collection
+  await databases.createStringAttribute(dbId, 'users', 'first_name', 255, true);
+  await databases.createStringAttribute(dbId, 'users', 'last_name', 255, true);
+  await databases.createStringAttribute(dbId, 'users', 'username', 255, true);
+  await databases.createStringAttribute(dbId, 'users', 'user_type_id', 255, true);
+
+  // Create user_types collection
+  await databases.createCollection(
+    dbId, 
+    'user_types', 
+    'User Types'
+  );
+
+  // Add attributes to user_types collection
+  await databases.createStringAttribute(dbId, 'user_types', 'label', 255, true);
+
+  // Create statuses collection
+  await databases.createCollection(
+    dbId, 
+    'statuses', 
+    'Statuses'
+  );
+
+  // Add attributes to statuses collection
+  await databases.createStringAttribute(dbId, 'statuses', 'label', 255, true);
+
+  // Create customers collection
+  await databases.createCollection(
+    dbId, 
+    'customers', 
+    'Customers'
+  );
+
+  // Add attributes to customers collection
+  await databases.createStringAttribute(dbId, 'customers', 'name', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'address', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_contact_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_contact_number', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_email', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'abn', 255, false);
+
+  // Create customer_contacts collection
+  await databases.createCollection(
+    dbId, 
+    'customer_contacts', 
+    'Customer Contacts'
+  );
+
+  // Add attributes to customer_contacts collection
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'customer_id', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'first_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'last_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'position', 255, false);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'contact_number', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'email', 255, true);
+}
+
+createCollections().catch(console.error);

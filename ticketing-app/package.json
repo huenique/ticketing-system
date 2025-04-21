@@ -21,6 +21,7 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.485.0",
     "nanoid": "^5.1.5",
+    "node-appwrite": "^16.0.0",
     "prisma": "^6.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
