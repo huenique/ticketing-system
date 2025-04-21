@@ -1,30 +1,14 @@
 import { Client, Databases } from 'node-appwrite';
 
 const client = new Client()
-  .setEndpoint('https://fra.cloud.appwrite.io/v1')
-  .setProject('6806426c0035885d9c0d')
-  .setKey('standard_229ed839dc7fa23f90f7c9d96a7512dc3c6755bab59e14be1abb8d0ced5204426e8feaedb51eb0a76b6b7da88551810583a250d3b7b1b65a3db467e715c0e336f946f8cc46c1442062d5a3c2c39f796a46413ad28ea4423fbbaa388eeafd48e19cc64cbd695af8b5d7d814655d061178d017341a9405df7d6d82052255cc302f');
+  .setEndpoint('<ENDPOINT>')
+  .setProject('<PROJECT_ID>')
+  .setKey('<API_KEY>');
 
 const databases = new Databases(client);
-const dbId = '680642f9000b7eb93763';
+const dbId = '<DB_ID>';
 
 async function createCollections() {
-  // Create tickets collection
-  await databases.createCollection(
-    dbId, 
-    'tickets', 
-    'Tickets'
-  );
-
-  // Add attributes to tickets collection
-  await databases.createStringAttribute(dbId, 'tickets', 'status_id', 255, true);
-  await databases.createStringAttribute(dbId, 'tickets', 'customer_id', 255, true);
-  await databases.createFloatAttribute(dbId, 'tickets', 'billable_hours', true);
-  await databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true);
-  await databases.createStringAttribute(dbId, 'tickets', 'description', 1000, true);
-  await databases.createStringAttribute(dbId, 'tickets', 'assignee_ids', 255, true, undefined, true);
-  await databases.createStringAttribute(dbId, 'tickets', 'attachments', 255, false, undefined, true);
-
   // Create users collection
   await databases.createCollection(
     dbId, 
@@ -87,6 +71,40 @@ async function createCollections() {
   await databases.createStringAttribute(dbId, 'customer_contacts', 'position', 255, false);
   await databases.createStringAttribute(dbId, 'customer_contacts', 'contact_number', 255, true);
   await databases.createStringAttribute(dbId, 'customer_contacts', 'email', 255, true);
+
+  // Create tickets collection
+  await databases.createCollection(
+    dbId, 
+    'tickets', 
+    'Tickets'
+  );
+
+  // Add attributes to tickets collection
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'statuses',
+    'manyToOne' as any,
+    false,
+    'status_id',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'customers', 
+    'manyToOne' as any,
+    false,
+    'customer_id',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createFloatAttribute(dbId, 'tickets', 'billable_hours', true);
+  await databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true);
+  await databases.createStringAttribute(dbId, 'tickets', 'description', 1000, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'assignee_ids', 255, true, undefined, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'attachments', 255, false, undefined, true);
 }
 
 createCollections().catch(console.error);
