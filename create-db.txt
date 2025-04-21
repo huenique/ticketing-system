@@ -9,6 +9,16 @@ const databases = new Databases(client);
 const dbId = '<DB_ID>';
 
 async function createCollections() {
+  // Create user_types collection first
+  await databases.createCollection(
+    dbId, 
+    'user_types', 
+    'User Types'
+  );
+
+  // Add attributes to user_types collection
+  await databases.createStringAttribute(dbId, 'user_types', 'label', 255, true);
+
   // Create users collection
   await databases.createCollection(
     dbId, 
@@ -20,17 +30,17 @@ async function createCollections() {
   await databases.createStringAttribute(dbId, 'users', 'first_name', 255, true);
   await databases.createStringAttribute(dbId, 'users', 'last_name', 255, true);
   await databases.createStringAttribute(dbId, 'users', 'username', 255, true);
-  await databases.createStringAttribute(dbId, 'users', 'user_type_id', 255, true);
-
-  // Create user_types collection
-  await databases.createCollection(
-    dbId, 
-    'user_types', 
-    'User Types'
+  // Changed user_type_id to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'users',
+    'user_types',
+    'manyToOne' as any,
+    false,
+    'user_type_id',
+    undefined,
+    'cascade' as any
   );
-
-  // Add attributes to user_types collection
-  await databases.createStringAttribute(dbId, 'user_types', 'label', 255, true);
 
   // Create statuses collection
   await databases.createCollection(
@@ -65,7 +75,17 @@ async function createCollections() {
   );
 
   // Add attributes to customer_contacts collection
-  await databases.createStringAttribute(dbId, 'customer_contacts', 'customer_id', 255, true);
+  // Changed customer_id to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'customer_contacts',
+    'customers',
+    'manyToMany' as any,
+    false,
+    'customer_id',
+    undefined,
+    'cascade' as any
+  );
   await databases.createStringAttribute(dbId, 'customer_contacts', 'first_name', 255, true);
   await databases.createStringAttribute(dbId, 'customer_contacts', 'last_name', 255, true);
   await databases.createStringAttribute(dbId, 'customer_contacts', 'position', 255, false);
@@ -100,10 +120,20 @@ async function createCollections() {
     undefined,
     'cascade' as any
   );
+  // Changed assignee_ids to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'users',
+    'manyToMany' as any,
+    false,
+    'assignee_ids',
+    undefined,
+    'cascade' as any
+  );
   await databases.createFloatAttribute(dbId, 'tickets', 'billable_hours', true);
   await databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true);
   await databases.createStringAttribute(dbId, 'tickets', 'description', 1000, true);
-  await databases.createStringAttribute(dbId, 'tickets', 'assignee_ids', 255, true, undefined, true);
   await databases.createStringAttribute(dbId, 'tickets', 'attachments', 255, false, undefined, true);
 }
 
