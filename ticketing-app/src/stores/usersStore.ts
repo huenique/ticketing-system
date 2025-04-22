@@ -7,9 +7,8 @@ export interface User {
   firstName: string;
   lastName: string;
   username: string;
-  userType: string;
-  totalTickets: number;
-  lastModified: string;
+  userTypeId: string;
+  lastModified?: string;
 }
 
 interface UsersState {
@@ -28,8 +27,7 @@ const useUsersStore = create<UsersState>()(
           firstName: "John",
           lastName: "Doe",
           username: "johndoe",
-          userType: "Admin",
-          totalTickets: 15,
+          userTypeId: "admin",
           lastModified: new Date().toISOString(),
         },
         {
@@ -37,8 +35,7 @@ const useUsersStore = create<UsersState>()(
           firstName: "Jane",
           lastName: "Smith",
           username: "janesmith",
-          userType: "Support",
-          totalTickets: 8,
+          userTypeId: "support",
           lastModified: new Date(Date.now() - 86400000).toISOString(),
         },
         {
@@ -46,8 +43,7 @@ const useUsersStore = create<UsersState>()(
           firstName: "Robert",
           lastName: "Johnson",
           username: "rjohnson",
-          userType: "Developer",
-          totalTickets: 12,
+          userTypeId: "developer",
           lastModified: new Date(Date.now() - 172800000).toISOString(),
         },
         {
@@ -55,8 +51,7 @@ const useUsersStore = create<UsersState>()(
           firstName: "Emily",
           lastName: "Davis",
           username: "emilyd",
-          userType: "Customer",
-          totalTickets: 4,
+          userTypeId: "customer",
           lastModified: new Date(Date.now() - 259200000).toISOString(),
         },
         {
@@ -64,8 +59,7 @@ const useUsersStore = create<UsersState>()(
           firstName: "Michael",
           lastName: "Wilson",
           username: "mwilson",
-          userType: "Manager",
-          totalTickets: 7,
+          userTypeId: "manager",
           lastModified: new Date(Date.now() - 345600000).toISOString(),
         },
       ],

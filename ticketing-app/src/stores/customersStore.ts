@@ -3,24 +3,25 @@ import { create } from "zustand";
 
 export type Contact = {
   id: string;
+  customerId: string;
   firstName: string;
   lastName: string;
-  phone: string;
-  email: string;
   position: string;
-  lastModified: string;
+  contactNumber: string;
+  email: string;
+  lastModified?: string;
 };
 
 export type Customer = {
   id: string;
   name: string;
   address: string;
-  primaryContact: string;
-  primaryContactPhone: string;
+  primaryContactName: string;
+  primaryContactNumber: string;
   primaryEmail: string;
   abn: string;
   contacts: Contact[];
-  lastModified: string;
+  lastModified?: string;
 };
 
 type CustomersStore = {
@@ -46,8 +47,8 @@ const useCustomersStore = create<CustomersStore>((set) => ({
       id: "CUS-001",
       name: "Acme Corporation",
       address: "123 Business St, Sydney NSW 2000",
-      primaryContact: "John Smith",
-      primaryContactPhone: "0412 345 678",
+      primaryContactName: "John Smith",
+      primaryContactNumber: "0412 345 678",
       primaryEmail: "john@acme.com",
       abn: "12345678901",
       contacts: [
@@ -55,18 +56,20 @@ const useCustomersStore = create<CustomersStore>((set) => ({
           id: "CON-001",
           firstName: "John",
           lastName: "Smith",
-          phone: "0412 345 678",
+          contactNumber: "0412 345 678",
           email: "john@acme.com",
           position: "CEO",
+          customerId: "CUS-001",
           lastModified: new Date().toISOString(),
         },
         {
           id: "CON-002",
           firstName: "Jane",
           lastName: "Doe",
-          phone: "0423 456 789",
+          contactNumber: "0423 456 789",
           email: "jane@acme.com",
           position: "CTO",
+          customerId: "CUS-001",
           lastModified: new Date().toISOString(),
         },
       ],
@@ -76,8 +79,8 @@ const useCustomersStore = create<CustomersStore>((set) => ({
       id: "CUS-002",
       name: "Tech Solutions Ltd",
       address: "456 Technology Ave, Melbourne VIC 3000",
-      primaryContact: "Sarah Johnson",
-      primaryContactPhone: "0434 567 890",
+      primaryContactName: "Sarah Johnson",
+      primaryContactNumber: "0434 567 890",
       primaryEmail: "sarah@techsolutions.com",
       abn: "23456789012",
       contacts: [
@@ -85,9 +88,10 @@ const useCustomersStore = create<CustomersStore>((set) => ({
           id: "CON-003",
           firstName: "Sarah",
           lastName: "Johnson",
-          phone: "0434 567 890",
+          contactNumber: "0434 567 890",
           email: "sarah@techsolutions.com",
           position: "Manager",
+          customerId: "CUS-002",
           lastModified: new Date().toISOString(),
         },
       ],

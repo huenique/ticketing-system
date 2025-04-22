@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useSettingsStore } from "../stores/settingsStore";
 
@@ -99,12 +99,20 @@ const StatusOption = ({
 function Settings() {
   const {
     statusOptions,
+    statusesLoading,
+    statusesError,
+    fetchStatusOptions,
     addStatusOption,
     removeStatusOption,
     reorderStatusOptions,
     resetStatusOptions,
   } = useSettingsStore();
   const [newOption, setNewOption] = useState("");
+
+  // Fetch statuses when component mounts
+  useEffect(() => {
+    fetchStatusOptions();
+  }, [fetchStatusOptions]);
 
   const handleAddOption = () => {
     if (newOption.trim()) {
@@ -150,20 +158,36 @@ function Settings() {
             </button>
           </div>
 
-          <div>
-            {statusOptions.map((option, index) => (
-              <StatusOption
-                key={`${option}-${index}`}
-                id={option}
-                index={index}
-                option={option}
-                moveOption={reorderStatusOptions}
-                onRemove={removeStatusOption}
-                isFirst={index === 0}
-                isLast={index === statusOptions.length - 1}
-              />
-            ))}
-          </div>
+          {statusesLoading ? (
+            <div className="text-center py-4">
+              <p className="text-neutral-500">Loading status options...</p>
+            </div>
+          ) : statusesError ? (
+            <div className="text-center py-4">
+              <p className="text-red-500">Error loading status options. Using default values.</p>
+              <button
+                onClick={fetchStatusOptions}
+                className="mt-2 text-blue-500 hover:text-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div>
+              {statusOptions.map((option, index) => (
+                <StatusOption
+                  key={`${option}-${index}`}
+                  id={option}
+                  index={index}
+                  option={option}
+                  moveOption={reorderStatusOptions}
+                  onRemove={removeStatusOption}
+                  isFirst={index === 0}
+                  isLast={index === statusOptions.length - 1}
+                />
+              ))}
+            </div>
+          )}
 
           {statusOptions.length > 0 && (
             <div className="mt-4">

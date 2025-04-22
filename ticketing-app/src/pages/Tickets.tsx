@@ -3,11 +3,12 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 // React and Hooks
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { MOCK_ASSIGNEES, PRESET_TABLES } from "@/constants/tickets";
-import { Row } from "@/types/tickets";
-import { generateMockRowData } from "@/utils/ticketUtils";
+import { PRESET_TABLES } from "@/constants/tickets";
+import { Row, Ticket } from "@/types/tickets";
+import { convertTicketToRow } from "@/utils/ticketUtils";
+import { ticketsService } from "@/services/ticketsService";
 
 // Components
 import TabNavigation from "../components/TabNavigation";
@@ -29,6 +30,10 @@ import {
 } from "../utils/ticketUtils";
 
 function Tickets() {
+  // State for Appwrite data loading
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState<Error | null>(null);
+
   // ===== Zustand Stores =====
   // Tabs Store
   const {
@@ -59,7 +64,7 @@ function Tickets() {
   } = useTablesStore();
 
   // Settings Store
-  const { statusOptions } = useSettingsStore();
+  const { statusOptions, fetchStatusOptions } = useSettingsStore();
 
   // Widgets Store
   const {
@@ -103,93 +108,82 @@ function Tickets() {
     }
   }, [activeTab, tables, createNewTable]);
 
-  // Enhanced applyEngineeringPreset function that creates tabs based on statusOptions
-  const applyEngineeringPreset = () => {
-    // Clear existing tabs and tables
-    const tabsStore = useTabsStore.getState();
+  // Fetch status options from Appwrite when component mounts
+  useEffect(() => {
+    fetchStatusOptions();
+  }, [fetchStatusOptions]);
 
-    // First create an "All Tickets" tab - with no specific status filter
-    const allTicketsTab = {
-      id: "tab-all-tickets",
-      title: "All Tickets",
-      // No status property - this tab will show everything
-    };
+  // Enhanced applyEngineeringPreset function that creates tabs based on statusOptions and uses real data
+  const applyEngineeringPreset = async () => {
+    try {
+      // Start loading
+      setTicketsLoading(true);
+      setTicketsError(null);
+      
+      // Fetch tickets with relationships from Appwrite
+      const ticketsWithRelationships = await ticketsService.getTicketsWithRelationships();
+      
+      // Clear existing tabs and tables
+      const tabsStore = useTabsStore.getState();
 
-    // Use all default status options to create tabs
-    const statusTabs = statusOptions.map((status, index) => ({
-      id: `tab-${index + 1}`,
-      title: status,
-      status: status, // Add status attribute to track which status this tab represents
-    }));
+      // First create an "All Tickets" tab - with no specific status filter
+      const allTicketsTab = {
+        id: "tab-all-tickets",
+        title: "All Tickets",
+        // No status property - this tab will show everything
+      };
 
-    // Combine All Tickets tab with status tabs
-    const newTabs = [allTicketsTab, ...statusTabs];
+      // Use all status options to create tabs
+      const statusTabs = statusOptions.map((status, index) => ({
+        id: `tab-${index + 1}`,
+        title: status,
+        status: status, // Add status attribute to track which status this tab represents
+      }));
 
-    // Reset all tabs first
-    tabsStore.setTabs([]);
+      // Combine All Tickets tab with status tabs
+      const newTabs = [allTicketsTab, ...statusTabs];
 
-    // Set the new tabs
-    tabsStore.setTabs(newTabs);
+      // Reset all tabs first
+      tabsStore.setTabs([]);
 
-    // Set active tab to the All Tickets tab
-    tabsStore.setActiveTab(allTicketsTab.id);
+      // Set the new tabs
+      tabsStore.setTabs(newTabs);
 
-    // First, create tickets for each status (one ticket per status)
-    createTicketsForAllStatuses(allTicketsTab.id);
+      // Set active tab to the All Tickets tab
+      tabsStore.setActiveTab(allTicketsTab.id);
 
-    // Apply Engineering preset to all the other tabs (they will filter data from "All Tickets")
-    statusTabs.forEach((tab) => {
-      // Create table for each status tab
-      createFilteredTable(tab.id, tab.status);
-    });
+      // Convert tickets to rows
+      const allTicketRows = ticketsWithRelationships.map(ticket => convertTicketToRow(ticket));
+      
+      // Create All Tickets tab with all tickets
+      createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
+
+      // Then create filtered tables for each status tab
+      statusTabs.forEach((tab) => {
+        createFilteredTable(tab.id, tab.status, allTicketRows);
+      });
+      
+      setTicketsLoading(false);
+    } catch (error) {
+      console.error("Error applying Engineering preset with real data:", error);
+      setTicketsError(error instanceof Error ? error : new Error("Failed to load tickets"));
+      setTicketsLoading(false);
+    }
   };
 
-  // Helper function to create a table with tickets for all statuses
-  const createTicketsForAllStatuses = (tabId: string) => {
+  // Helper function to create a table with all tickets
+  const createTicketsTableForAllTickets = (tabId: string, ticketRows: Row[]) => {
     const tablesStore = useTablesStore.getState();
     const presetTable = PRESET_TABLES["Engineering"];
 
     if (!presetTable) return;
-
-    // Create a ticket for each status (except "Awaiting Customer Response" and "Declined")
-    const mockRows: Row[] = [];
-
-    // Create tickets for the required statuses
-    const requiredStatuses = [
-      "New",
-      "Awaiting Parts",
-      "Open",
-      "In Progress",
-      "Completed",
-    ];
-
-    for (let i = 0; i < requiredStatuses.length; i++) {
-      // Generate basic row data
-      const rowData = generateMockRowData(i + 1);
-
-      // Set the specific status for this ticket
-      rowData["col-7"] = requiredStatuses[i];
-
-      // Use a random name from MOCK_ASSIGNEES for the "Assign To" column
-      rowData["col-5"] =
-        MOCK_ASSIGNEES[Math.floor(Math.random() * MOCK_ASSIGNEES.length)];
-
-      // If status is "Completed", mark it as completed
-      const completed = requiredStatuses[i] === "Completed";
-
-      mockRows.push({
-        id: `row-${i + 1}`,
-        completed: completed,
-        cells: rowData,
-      });
-    }
 
     // Update table with new rows
     tablesStore.setTables({
       ...tablesStore.tables,
       [tabId]: {
         columns: [...presetTable.columns],
-        rows: mockRows,
+        rows: ticketRows,
       },
     });
 
@@ -202,39 +196,25 @@ function Tickets() {
   };
 
   // Helper function to create filtered tables based on the All Tickets tab
-  const createFilteredTable = (tabId: string, status: string) => {
+  const createFilteredTable = (tabId: string, status: string, allTicketRows: Row[]) => {
     const tablesStore = useTablesStore.getState();
-    const allTicketsTable = tablesStore.tables["tab-all-tickets"];
     const presetTable = PRESET_TABLES["Engineering"];
 
     if (!presetTable) return;
 
-    // For "Awaiting Customer Response" and "Declined" tabs, create empty tables
-    const emptyTabStatuses = ["Awaiting Customer Response", "Declined"];
-    if (emptyTabStatuses.includes(status)) {
-      // Create an empty table for these status tabs
-      tablesStore.setTables({
-        ...tablesStore.tables,
-        [tabId]: {
-          columns: [...presetTable.columns],
-          rows: [], // Empty rows array
-        },
-      });
-    } else if (allTicketsTable) {
-      // For other status tabs, filter rows from All Tickets
-      const filteredRows = allTicketsTable.rows.filter(
-        (row) => row.cells["col-7"] === status,
-      );
+    // Filter rows by the status
+    const filteredRows = allTicketRows.filter(
+      (row) => row.cells["col-7"] === status,
+    );
 
-      // Update table with filtered rows
-      tablesStore.setTables({
-        ...tablesStore.tables,
-        [tabId]: {
-          columns: [...presetTable.columns],
-          rows: filteredRows,
-        },
-      });
-    }
+    // Update table with filtered rows
+    tablesStore.setTables({
+      ...tablesStore.tables,
+      [tabId]: {
+        columns: [...presetTable.columns],
+        rows: filteredRows,
+      },
+    });
 
     // Mark this tab with the applied preset
     const tabsStore = useTabsStore.getState();
@@ -244,16 +224,64 @@ function Tickets() {
     tabsStore.setTabs(updatedTabs);
   };
 
-  // Use custom hook for ticket dialog functionality
-  const ticketDialogHandlers = useTicketDialogHandlers(
-    activeTab,
-    tabs,
-    tables,
-    widgets,
-    setWidgets,
-    setWidgetLayouts,
-    addWidget,
-  );
+  // Real-time ticket creation - create ticket in Appwrite and update UI
+  const handleCreateTicket = async (ticketData: Partial<Ticket>) => {
+    try {
+      // Prepare ticket data with defaults for required fields
+      const newTicketData: Omit<Ticket, 'id'> = {
+        status_id: ticketData.status_id || "", // Default to empty, should be set by caller
+        customer_id: ticketData.customer_id || "", // Default to empty, should be set by caller
+        description: ticketData.description || "",
+        billable_hours: ticketData.billable_hours || 0,
+        total_hours: ticketData.total_hours || 0,
+        assignee_ids: ticketData.assignee_ids || [],
+        attachments: ticketData.attachments || []
+      };
+      
+      // Create the ticket in Appwrite
+      const createdTicket = await ticketsService.createTicket(newTicketData);
+      
+      // Fetch the complete ticket with relationships
+      const ticketWithRelationships = await ticketsService.getTicketWithRelationships(createdTicket.id);
+      
+      // Convert to row format
+      const newRow = convertTicketToRow(ticketWithRelationships);
+      
+      // Update the All Tickets tab
+      const allTicketsTabId = "tab-all-tickets";
+      if (tables[allTicketsTabId]) {
+        const tablesStore = useTablesStore.getState();
+        tablesStore.setTables({
+          ...tables,
+          [allTicketsTabId]: {
+            ...tables[allTicketsTabId],
+            rows: [...tables[allTicketsTabId].rows, newRow]
+          }
+        });
+      }
+      
+      // Also update the current status tab if applicable
+      const statusTabs = tabs.filter(tab => tab.status === ticketWithRelationships.status?.label);
+      if (statusTabs.length > 0) {
+        const statusTabId = statusTabs[0].id;
+        if (tables[statusTabId]) {
+          const tablesStore = useTablesStore.getState();
+          tablesStore.setTables({
+            ...tables,
+            [statusTabId]: {
+              ...tables[statusTabId],
+              rows: [...tables[statusTabId].rows, newRow]
+            }
+          });
+        }
+      }
+      
+      return newRow;
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      throw error;
+    }
+  };
 
   const updateWidgetTitle = (widgetId: string, newTitle: string) => {
     const updatedWidgets = widgets.map((widget) =>
@@ -350,125 +378,117 @@ function Tickets() {
     tablesStore.setTables(updatedTables);
   };
 
-  // ===== Component Render =====
+  // ===== Ticket Dialog Handlers =====
+  const ticketDialogHandlers = useTicketDialogHandlers(
+    activeTab,
+    tabs,
+    tables,
+    widgets,
+    setWidgets,
+    setWidgetLayouts,
+    addWidget,
+  );
+
+  // Get the current table based on active tab
+  const currentTable = tables[activeTab];
+
+  // Inject a refresh function to reload data from Appwrite
+  const refreshTicketsData = async () => {
+    try {
+      setTicketsLoading(true);
+      
+      // Fetch fresh data
+      const ticketsWithRelationships = await ticketsService.getTicketsWithRelationships();
+      
+      // Convert to rows
+      const allTicketRows = ticketsWithRelationships.map(ticket => convertTicketToRow(ticket));
+      
+      // Update All Tickets tab
+      createTicketsTableForAllTickets("tab-all-tickets", allTicketRows);
+      
+      // Update status tabs
+      tabs.forEach(tab => {
+        if (tab.status) {
+          createFilteredTable(tab.id, tab.status, allTicketRows);
+        }
+      });
+      
+      setTicketsLoading(false);
+    } catch (error) {
+      console.error("Error refreshing tickets data:", error);
+      setTicketsError(error instanceof Error ? error : new Error("Failed to refresh tickets"));
+      setTicketsLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Add the style tags for scrollbar hiding and grid layout */}
-      <style dangerouslySetInnerHTML={{ __html: getScrollbarStyles() }} />
-      <style dangerouslySetInnerHTML={{ __html: getGridStyles() }} />
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Tickets</h1>
-          <p className="text-neutral-500">Manage your support tickets</p>
+    <div className="p-8 max-w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Tickets</h1>
+        <div className="flex space-x-2">
+          <button
+            onClick={applyEngineeringPreset}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            Apply Engineering Preset
+          </button>
+          <button
+            onClick={resetTabs}
+            className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
+          >
+            Reset
+          </button>
+          <button
+            onClick={refreshTicketsData}
+            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+            disabled={ticketsLoading}
+          >
+            {ticketsLoading ? "Loading..." : "Refresh Data"}
+          </button>
         </div>
-        {currentUser?.role !== "user" && (
-          <div className="flex space-x-2">
-            {/* Add new Ticket button with plus icon */}
-            <button
-              onClick={() =>
-                activeTab && tables[activeTab] ? addRow(activeTab) : null
-              }
-              className="rounded-md bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 flex items-center"
-              disabled={!activeTab || !tables[activeTab]}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 mr-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Ticket
-            </button>
+      </div>
 
-            {/* Presets dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  const tablesStore = useTablesStore.getState();
-                  tablesStore.setShowPresetsMenu(!tablesStore.showPresetsMenu);
-                }}
-                className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-              >
-                Presets
-              </button>
+      {ticketsError && (
+        <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">
+          Error loading tickets: {ticketsError.message}
+        </div>
+      )}
 
-              {showPresetsMenu && (
-                <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-neutral-200 bg-white shadow-lg">
-                  <div className="p-2">
-                    <div className="mb-2 border-b border-neutral-200 pb-1 pt-1 text-sm font-medium">
-                      Table Presets
-                    </div>
-                    <button
-                      onClick={() => applyEngineeringPreset()}
-                      className="block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-neutral-100"
-                    >
-                      Engineering
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+      <TabNavigation
+        tabs={tabs}
+        activeTab={activeTab}
+        editingTab={editingTab}
+        editingTitle={editingTitle}
+        onTabClick={useTabsStore.getState().setActiveTab}
+        onAddTabClick={addTab}
+        onCloseTabClick={(id, e) => closeTab(id, e)}
+        onDoubleClick={handleDoubleClick}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onEditingTitleChange={(e) => setEditingTitle(e.target.value)}
+        onRenameKeyDown={handleRenameKeyDown}
+        onRenameBlur={useTabsStore.getState().saveTabName}
+      />
 
-            <button
-              onClick={saveTabs}
-              className="rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
-            >
-              {tabsSaved ? "✓ Tabs Saved!" : "Save Tabs"}
-            </button>
-
-            <button
-              onClick={resetTabs}
-              className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-            >
-              Reset Tabs
-            </button>
+      <div className="mt-6">
+        {/* Only render if we have a table for the active tab */}
+        {currentTable ? (
+          <DataTable
+            columns={columns}
+            data={currentTable.rows}
+            onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
+            statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
+          />
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-neutral-500">No table for this tab yet</p>
           </div>
         )}
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm">
-        {/* Tab bar - using the TabNavigation component */}
-        <TabNavigation
-          tabs={tabs}
-          activeTab={activeTab}
-          editingTab={editingTab}
-          editingTitle={editingTitle}
-          onTabClick={useTabsStore.getState().setActiveTab}
-          onAddTabClick={addTab}
-          onCloseTabClick={(id, e) => closeTab(id, e)}
-          onDoubleClick={handleDoubleClick}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onEditingTitleChange={(e) => setEditingTitle(e.target.value)}
-          onRenameKeyDown={handleRenameKeyDown}
-          onRenameBlur={useTabsStore.getState().saveTabName}
-        />
-
-        {/* Tab content - using DataTable instead of TicketTable */}
-        <div className="p-4">
-          {activeTab && tables[activeTab] && (
-            <DataTable
-              columns={columns}
-              data={tables[activeTab].rows || []}
-              onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
-              statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Render TicketDialog component when dialog is open */}
+      {/* Ticket Dialog */}
       <TicketDialog
         viewDialogOpen={ticketDialogHandlers.viewDialogOpen}
         setViewDialogOpen={ticketDialogHandlers.setViewDialogOpen}

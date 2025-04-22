@@ -34,10 +34,12 @@ export default function useTicketDialogHandlers(
 
   // Ticket Form State
   const [ticketForm, setTicketForm] = useState<TicketForm>({
-    status: "",
+    status_id: "",
+    customer_id: "",
     description: "",
-    billableHours: "",
-    totalHours: "",
+    billable_hours: 0,
+    total_hours: 0,
+    assignee_ids: []
   });
 
   // Attachments State
@@ -241,10 +243,12 @@ export default function useTicketDialogHandlers(
 
     // Reset form data based on ticket
     setTicketForm({
-      status: ticket.cells["col-7"] || "New",
+      status_id: ticket.cells["col-7"] || "New",
+      customer_id: "",
       description: ticket.cells["col-4"] || "",
-      billableHours: ticket.cells["col-9"] || "0.0",
-      totalHours: ticket.cells["col-8"] || "0.0",
+      billable_hours: parseFloat(ticket.cells["col-9"] || "0"),
+      total_hours: parseFloat(ticket.cells["col-8"] || "0"),
+      assignee_ids: []
     });
 
     // Reset uploaded images
@@ -432,68 +436,79 @@ export default function useTicketDialogHandlers(
   };
 
   // Handle saving ticket changes
-  const handleSaveTicketChanges = () => {
+  const handleSaveTicketChanges = async () => {
     if (!currentTicket) return;
 
-    // Find the corresponding tab
-    const currentTabData = tabs.find((tab) => tab.id === activeTab);
-    if (!currentTabData) return;
+    try {
+      // Find the corresponding tab
+      const currentTabData = tabs.find((tab) => tab.id === activeTab);
+      if (!currentTabData) return;
 
-    // Get the current status of the assignees
-    const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
+      // Get the current status of the assignees
+      const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
 
-    // Call saveTicketChanges from tablesStore
-    useTablesStore.getState().saveTicketChanges(
-      currentTicket,
-      ticketForm,
-      setViewDialogOpen,
-      activeTab,
-      hasCompletedAssignees, // Pass the completion status to be saved
-    );
+      // Extract the real ticket ID (not the display ID)
+      const ticketId = currentTicket.id;
 
-    // If the ticket's status was changed, refresh all status-based tabs
-    const allTicketsTab = "tab-all-tickets";
-    const tablesStore = useTablesStore.getState();
-    const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
+      // In a production app, we would find the real status ID from the status label
+      // For now, assume we're using the status label directly, but in a real app 
+      // you would need to fetch statuses and find the matching ID
+      
+      // Call saveTicketChanges from tablesStore
+      useTablesStore.getState().saveTicketChanges(
+        currentTicket,
+        ticketForm,
+        setViewDialogOpen,
+        activeTab,
+        hasCompletedAssignees, // Pass the completion status to be saved
+      );
 
-    // Refresh all status tabs to maintain consistency
-    refreshStatusTabs(allTicketsRows);
+      // If the ticket's status was changed, refresh all status-based tabs
+      const allTicketsTab = "tab-all-tickets";
+      const tablesStore = useTablesStore.getState();
+      const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
 
-    // Save widget layouts to localStorage
-    if (currentTicket && widgets.length > 0) {
-      // Create a complete widget state object that includes both widget data and layout
-      const completeState = {
-        widgets: widgets,
-        layouts: {},
-      };
+      // Refresh all status tabs to maintain consistency
+      refreshStatusTabs(allTicketsRows);
 
-      // Find current tab to determine if it has Engineering preset
-      const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+      // Save widget layouts to localStorage
+      if (currentTicket && widgets.length > 0) {
+        // Create a complete widget state object that includes both widget data and layout
+        const completeState = {
+          widgets: widgets,
+          layouts: {},
+        };
 
-      // Use the appropriate storage key based on tab type
-      const ticketId = currentTicket.cells["col-1"];
-      if (hasEngineeringPreset) {
-        // For Engineering preset tabs, save to Engineering-specific key
-        saveToLS<LayoutStorage>("engineering-layouts", completeState);
-        console.log("Saved Engineering widget layout with", widgets.length, "widgets");
-      } else {
-        // For non-Engineering tabs, save to tab-specific key
-        const tabSpecificLayoutKey = `tab-${activeTab}`;
-        saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
-        console.log(
-          "Saved tab-specific layout for tab",
-          activeTab,
-          "and ticket:",
-          ticketId,
-        );
+        // Find current tab to determine if it has Engineering preset
+        const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+
+        // Use the appropriate storage key based on tab type
+        const ticketIdDisplay = currentTicket.cells["col-1"];
+        if (hasEngineeringPreset) {
+          // For Engineering preset tabs, save to Engineering-specific key
+          saveToLS<LayoutStorage>("engineering-layouts", completeState);
+          console.log("Saved Engineering widget layout with", widgets.length, "widgets");
+        } else {
+          // For non-Engineering tabs, save to tab-specific key
+          const tabSpecificLayoutKey = `tab-${activeTab}`;
+          saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
+          console.log(
+            "Saved tab-specific layout for tab",
+            activeTab,
+            "and ticket:",
+            ticketIdDisplay,
+          );
+        }
       }
+
+      // Close the dialog
+      setViewDialogOpen(false);
+
+      // Reset the current ticket preset
+      setCurrentTicketPreset(undefined);
+    } catch (error) {
+      console.error("Error saving ticket changes:", error);
     }
-
-    // Close the dialog
-    setViewDialogOpen(false);
-
-    // Reset the current ticket preset
-    setCurrentTicketPreset(undefined);
   };
 
   // Function to refresh all status-based tabs based on updated All Tickets data

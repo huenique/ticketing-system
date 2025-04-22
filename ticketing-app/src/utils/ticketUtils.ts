@@ -4,6 +4,9 @@ import {
   MOCK_PARTS,
   MOCK_STATUSES,
 } from "../constants/tickets";
+import { Layouts } from "react-grid-layout";
+
+import { Customer, Row, Status, Ticket, User } from "@/types/tickets";
 
 /**
  * Generate mock data for a table row
@@ -282,4 +285,61 @@ export function getScrollbarStyles(): string {
       scrollbar-width: none;  /* Firefox */
     }
   `;
+}
+
+/**
+ * Convert an Appwrite Ticket with relationships to a Row for display
+ */
+export function convertTicketToRow(
+  ticket: any // Use 'any' temporarily to handle the unexpected response structure
+): Row {
+  // Format timestamps if they exist
+  const dateCreated = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  
+  // Handle the case where relationship fields are already expanded objects
+  const status = typeof ticket.status_id === 'object' ? ticket.status_id : ticket.status;
+  const customer = typeof ticket.customer_id === 'object' ? ticket.customer_id : ticket.customer;
+  
+  // Handle assignees - could be expanded objects in assignee_ids or separate assignees field
+  let assigneesList = ticket.assignees || [];
+  if (Array.isArray(ticket.assignee_ids) && ticket.assignee_ids.length > 0) {
+    // If assignee_ids contains objects (expanded relation), use those
+    if (typeof ticket.assignee_ids[0] === 'object') {
+      assigneesList = ticket.assignee_ids;
+    }
+  }
+  
+  // Format assignee names
+  let assigneeNames = "";
+  if (assigneesList && assigneesList.length > 0) {
+    assigneeNames = assigneesList
+      .map((user: any) => user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '')
+      .filter((name: string) => name !== '')
+      .join(", ");
+  }
+
+  // Use $id for Appwrite's document ID if available
+  const documentId = ticket.$id || ticket.id || `generated-${Date.now()}`;
+  
+  return {
+    id: documentId,
+    completed: status?.label === "Completed" || status?.label === "Done",
+    cells: {
+      "col-1": `TK-${documentId.substring(0, 8)}`, // Ticket ID (shortened for display)
+      "col-2": dateCreated, // Date Created
+      "col-3": customer?.name || "", // Customer Name
+      "col-4": ticket.description || "", // Work Description
+      "col-5": assigneeNames, // Assign To
+      "col-6": ticket.attachments ? (Array.isArray(ticket.attachments) ? ticket.attachments.join(", ") : ticket.attachments) : "", // Parts Used or attachments
+      "col-7": status?.label || "", // Status
+      "col-8": ticket.total_hours?.toString() || "0", // Total Hours
+      "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
+      "col-10": dateCreated, // Last Modified (reuse date created for now)
+      "col-11": "action_buttons", // Actions
+    }
+  };
 }

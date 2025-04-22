@@ -31,27 +31,6 @@ interface TabsState {
   handleRenameKeyDown: (e: React.KeyboardEvent) => void;
 }
 
-// Helper function to initialize tabs from localStorage or defaults
-// const getInitialTabs = (): { tabs: Tab[]; activeTab: string } => {
-//   try {
-//     const storedTabs = localStorage.getItem("ticket-tabs");
-//     const storedActiveTab = localStorage.getItem("ticket-active-tab");
-
-//     return {
-//       tabs: storedTabs
-//         ? JSON.parse(storedTabs)
-//         : [{ id: "tab-1", title: "All Tickets", content: "all" }],
-//       activeTab: storedActiveTab || "tab-1",
-//     };
-//   } catch (error) {
-//     console.error("Error loading tabs from localStorage:", error);
-//     return {
-//       tabs: [{ id: "tab-1", title: "All Tickets", content: "all" }],
-//       activeTab: "tab-1",
-//     };
-//   }
-// };
-
 const useTabsStore = create<TabsState>()(
   persist(
     (set, get) => ({

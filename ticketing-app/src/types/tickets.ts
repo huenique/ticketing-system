@@ -7,6 +7,44 @@ import {
   MOCK_STATUSES,
 } from "../constants/tickets";
 
+// Define interfaces based on Appwrite schema
+export interface Ticket {
+  id: string;
+  status_id: string;  // Relationship field to statuses collection
+  customer_id: string; // Relationship field to customers collection
+  billable_hours: number;
+  total_hours: number;
+  description: string;
+  assignee_ids: string[]; // Relationship field to users collection
+  attachments?: string[];
+}
+
+// Customer interface based on Appwrite schema
+export interface Customer {
+  id: string;
+  name: string;
+  address: string;
+  primary_contact_name: string;
+  primary_contact_number: string;
+  primary_email: string;
+  abn?: string;
+}
+
+// User interface based on Appwrite schema
+export interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  user_type_id: string;
+}
+
+// Status interface (already defined in ticketsService.ts)
+export interface Status {
+  id: string;
+  label: string;
+}
+
 // Define missing type interfaces
 export interface Assignee {
   id: string;
@@ -39,10 +77,12 @@ export interface TimeEntry {
 }
 
 export interface TicketForm {
-  status: string;
+  status_id: string;
+  customer_id: string;
   description: string;
-  billableHours: string;
-  totalHours: string;
+  billable_hours: number;
+  total_hours: number;
+  assignee_ids: string[];
 }
 
 export interface Row {
