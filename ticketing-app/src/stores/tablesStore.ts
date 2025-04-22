@@ -289,8 +289,8 @@ const useTablesStore = create<TablesState>()(
             if (ticketForm.status) updatedCells["col-7"] = ticketForm.status;
             if (ticketForm.description) updatedCells["col-4"] = ticketForm.description;
             if (ticketForm.billableHours)
-              updatedCells["col-9"] = ticketForm.billableHours;
-            if (ticketForm.totalHours) updatedCells["col-8"] = ticketForm.totalHours;
+              updatedCells["col-9"] = String(ticketForm.billableHours);
+            if (ticketForm.totalHours) updatedCells["col-8"] = String(ticketForm.totalHours);
 
             // Update status column if it exists based on completion
             if (isCompleted) {

@@ -34,12 +34,12 @@ export default function useTicketDialogHandlers(
 
   // Ticket Form State
   const [ticketForm, setTicketForm] = useState<TicketForm>({
-    status_id: "",
-    customer_id: "",
+    status: "",
+    customerId: "",
     description: "",
-    billable_hours: 0,
-    total_hours: 0,
-    assignee_ids: []
+    billableHours: 0,
+    totalHours: 0,
+    assigneeIds: []
   });
 
   // Attachments State
@@ -243,12 +243,12 @@ export default function useTicketDialogHandlers(
 
     // Reset form data based on ticket
     setTicketForm({
-      status_id: ticket.cells["col-7"] || "New",
-      customer_id: "",
+      status: ticket.cells["col-7"] || "New",
+      customerId: "",
       description: ticket.cells["col-4"] || "",
-      billable_hours: parseFloat(ticket.cells["col-9"] || "0"),
-      total_hours: parseFloat(ticket.cells["col-8"] || "0"),
-      assignee_ids: []
+      billableHours: parseFloat(ticket.cells["col-9"] || "0"),
+      totalHours: parseFloat(ticket.cells["col-8"] || "0"),
+      assigneeIds: []
     });
 
     // Reset uploaded images
@@ -296,7 +296,7 @@ export default function useTicketDialogHandlers(
         "-",
       ), // Create a unique ID
       name: ticket.cells["col-5"] || "N/A", // Assignee Name from col-5
-      workDescription: ticket.cells["col-6"] || "", // Work Description from col-6
+      workDescription: ticket.cells["col-4"] || "", // Work Description from col-4
       totalHours: ticket.cells["col-7"] || "0", // Total Hours from col-7
       estTime: ticket.cells["col-8"] || "0", // Est Time from col-8
       priority: "3", // Default to medium priority

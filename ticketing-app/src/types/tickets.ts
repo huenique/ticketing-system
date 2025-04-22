@@ -77,12 +77,12 @@ export interface TimeEntry {
 }
 
 export interface TicketForm {
-  status_id: string;
-  customer_id: string;
+  status: string;
+  customerId: string;
   description: string;
-  billable_hours: number;
-  total_hours: number;
-  assignee_ids: string[];
+  billableHours: number;
+  totalHours: number;
+  assigneeIds: string[];
 }
 
 export interface Row {

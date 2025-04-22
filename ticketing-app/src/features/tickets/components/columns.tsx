@@ -1,10 +1,13 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, Calendar } from "lucide-react";
+import { ArrowUpDown, Calendar, FileText, Image, Paperclip } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Row } from "@/types/tickets";
+import { storageService } from "@/services/storageService";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Helper function to format dates
 const formatDate = (dateStr: string) => {
@@ -21,6 +24,93 @@ const formatDate = (dateStr: string) => {
 
     return dateStr;
   }
+};
+
+// File attachment component with info fetching
+const FileAttachment = ({ fileId }: { fileId: string }) => {
+  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFileInfo = async () => {
+      try {
+        setLoading(true);
+        const info = await storageService.getFileDetails(fileId);
+        setFileInfo(info);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching file info:", err);
+        setError("Failed to load file info");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFileInfo();
+  }, [fileId]);
+
+  if (loading) {
+    return (
+      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">
+        <Paperclip className="w-3 h-3 mr-1" />
+        Loading...
+      </span>
+    );
+  }
+
+  if (error || !fileInfo) {
+    return (
+      <a
+        href={storageService.getFileDownloadURL(fileId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+      >
+        <FileText className="w-3 h-3 mr-1" />
+        {fileId.substring(0, 6)}
+      </a>
+    );
+  }
+
+  const isImage = fileInfo.mimeType && storageService.isImageFile(fileInfo.mimeType);
+  const fileName = fileInfo.name || `File-${fileId.substring(0, 6)}`;
+  const fileSize = fileInfo.sizeOriginal 
+    ? `${(fileInfo.sizeOriginal / 1024).toFixed(1)} KB` 
+    : '';
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <a
+            href={storageService.getFileDownloadURL(fileId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            {isImage ? (
+              <Image className="w-3 h-3 mr-1" />
+            ) : (
+              <FileText className="w-3 h-3 mr-1" />
+            )}
+            {fileName.length > 15 ? fileName.substring(0, 12) + '...' : fileName}
+          </a>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{fileName}</p>
+          {fileSize && <p className="text-xs text-gray-500">{fileSize}</p>}
+          {isImage && (
+            <img 
+              src={storageService.getFilePreview(fileId, 200, 200)} 
+              alt={fileName}
+              className="mt-2 max-w-[200px] max-h-[200px] rounded"
+            />
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 export const columns: ColumnDef<Row>[] = [
@@ -73,6 +163,21 @@ export const columns: ColumnDef<Row>[] = [
   {
     accessorKey: "cells.col-6",
     header: "Parts Used",
+    cell: ({ row }) => {
+      const attachments = row.original.cells["col-6"];
+      if (!attachments) return "-";
+
+      // Split attachments string into an array of file IDs
+      const fileIds = attachments.split(", ");
+
+      return (
+        <div className="flex flex-wrap gap-2">
+          {fileIds.map((fileId, index) => (
+            <FileAttachment key={index} fileId={fileId} />
+          ))}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "cells.col-7",

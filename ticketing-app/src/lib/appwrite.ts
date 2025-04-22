@@ -19,7 +19,7 @@ const getHeaders = () => ({
 /**
  * Generic fetch function for Appwrite API
  */
-async function appwriteFetch<T>(
+export async function appwriteFetch<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   body?: object

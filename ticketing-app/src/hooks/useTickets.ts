@@ -28,6 +28,42 @@ interface UseTicketsReturn {
   createTicket: (ticketData: Omit<Ticket, "id">) => Promise<Ticket>;
   updateTicket: (id: string, ticketData: Partial<Ticket>) => Promise<Ticket>;
   deleteTicket: (id: string) => Promise<void>;
+  tabs: Tab[];
+  setTabs: (tabs: Tab[]) => void;
+  activeTab: string;
+  setActiveTab: (tabId: string) => void;
+  tables: Record<string, Table | null>;
+  setTables: (tables: Record<string, Table | null>) => void;
+  tabsSaved: boolean;
+  showPresetsMenu: boolean;
+  setShowPresetsMenu: (show: boolean) => void;
+  saveTabs: () => void;
+  resetTabs: () => void;
+  createNewTable: (tabId: string) => void;
+  addColumn: (tabId: string) => void;
+  addRow: (tabId: string) => void;
+  applyPreset: (presetKey: string, tabId: string) => void;
+  removeColumn: (tabId: string, columnId: string) => void;
+  initializeTicketDialog: (
+    ticket: Row,
+    setCurrentTicket: React.Dispatch<React.SetStateAction<Row | null>>,
+    setTicketForm: React.Dispatch<React.SetStateAction<TicketForm>>,
+    setUploadedImages: React.Dispatch<React.SetStateAction<string[]>>,
+    setAssignees: React.Dispatch<React.SetStateAction<Assignee[]>>,
+    setTimeEntries: React.Dispatch<React.SetStateAction<TimeEntry[]>>,
+    setAssigneeTableTitle: React.Dispatch<React.SetStateAction<string>>,
+    setWidgets: React.Dispatch<React.SetStateAction<Widget[]>>,
+    setWidgetLayouts: React.Dispatch<React.SetStateAction<Layouts>>,
+    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    currentTabs: Tab[],
+    currentActiveTab: string,
+  ) => void;
+  saveTicketChanges: (
+    currentTicket: Row | null,
+    ticketForm: TicketForm,
+    setViewDialogOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    tabId: string,
+  ) => void;
 }
 
 /**
@@ -338,10 +374,12 @@ export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTi
     // Reset ticket form data
     setTicketForm({
       status: ticket.cells["col-7"] || "New",
+      customerId: "",
       description: ticket.cells["col-4"] || "",
       billableHours: ticket.cells["col-9"] || "0.0",
       totalHours: ticket.cells["col-8"] || "0.0",
-    });
+      assigneeIds: []
+    } as any);
 
     // Reset uploaded images
     setUploadedImages([]);
@@ -549,8 +587,8 @@ export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTi
         ...currentTicket.cells,
         "col-7": ticketForm.status,
         "col-4": ticketForm.description,
-        "col-9": ticketForm.billableHours,
-        "col-8": ticketForm.totalHours,
+        "col-9": String(ticketForm.billableHours),
+        "col-8": String(ticketForm.totalHours),
       },
     };
 

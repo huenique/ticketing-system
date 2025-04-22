@@ -322,6 +322,16 @@ export function convertTicketToRow(
       .join(", ");
   }
 
+  // Handle attachments - ensure it's an array of file IDs as strings
+  let attachmentsStr = "";
+  if (ticket.attachments) {
+    const attachmentsArray = Array.isArray(ticket.attachments) 
+      ? ticket.attachments 
+      : [ticket.attachments];
+    
+    attachmentsStr = attachmentsArray.join(", ");
+  }
+
   // Use $id for Appwrite's document ID if available
   const documentId = ticket.$id || ticket.id || `generated-${Date.now()}`;
   
@@ -334,7 +344,7 @@ export function convertTicketToRow(
       "col-3": customer?.name || "", // Customer Name
       "col-4": ticket.description || "", // Work Description
       "col-5": assigneeNames, // Assign To
-      "col-6": ticket.attachments ? (Array.isArray(ticket.attachments) ? ticket.attachments.join(", ") : ticket.attachments) : "", // Parts Used or attachments
+      "col-6": attachmentsStr, // Parts Used or attachments
       "col-7": status?.label || "", // Status
       "col-8": ticket.total_hours?.toString() || "0", // Total Hours
       "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
