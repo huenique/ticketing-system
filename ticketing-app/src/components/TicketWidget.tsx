@@ -5,6 +5,8 @@ import { cn } from "../lib/utils";
 import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -138,7 +140,9 @@ function TicketWidget({
               <select
                 id={widget.field}
                 value={
-                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                  typeof ticketForm[widget.field as keyof typeof ticketForm] === 'undefined'
+                    ? (widget.value as string) || ''
+                    : String(ticketForm[widget.field as keyof typeof ticketForm] || '')
                 }
                 onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
@@ -185,7 +189,9 @@ function TicketWidget({
                 type="number"
                 id={widget.field}
                 value={
-                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                  typeof ticketForm[widget.field as keyof typeof ticketForm] === 'undefined'
+                    ? (widget.value as string) || ''
+                    : String(ticketForm[widget.field as keyof typeof ticketForm] || '')
                 }
                 onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
                 className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
@@ -198,13 +204,10 @@ function TicketWidget({
         case "textarea":
           return (
             <div className="h-full flex flex-col">
-              <textarea
+              <Textarea
                 id={widget.field}
-                value={
-                  ticketForm[widget.field as keyof typeof ticketForm] || widget.value
-                }
+                value={(typeof widget.value === 'string' ? widget.value : String(widget.value || '')) as string}
                 onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-                className="block w-full h-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm resize-none"
               />
             </div>
           );

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Edit, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import {
   Dialog,
@@ -21,33 +21,57 @@ import {
 import useUsersStore, { User } from "@/stores/usersStore";
 
 function Users() {
-  const { users, updateUser, deleteUser, addUser } = useUsersStore();
+  const { users, userTypes, loading, error, fetchUsers, fetchUserTypes, updateUser, deleteUser, addUser } = useUsersStore();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
-  const [newUserData, setNewUserData] = useState<Omit<User, "id" | "lastModified">>({
-    firstName: "",
-    lastName: "",
+  
+  // Define a simpler type for the new user form data
+  type NewUserFormData = {
+    first_name: string;
+    last_name: string;
+    username: string;
+    user_type_id: string; // Just store the ID as a string in the form
+  };
+  
+  const [newUserData, setNewUserData] = useState<NewUserFormData>({
+    first_name: "",
+    last_name: "",
     username: "",
-    userType: "Support",
-    totalTickets: 0,
+    user_type_id: "", // Just the ID string
   });
+
+  // Fetch users and user types when component mounts
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load user types first
+        await fetchUserTypes();
+        // Then load users
+        await fetchUsers();
+      } catch (err) {
+        console.error("Error loading data:", err);
+      }
+    };
+    
+    loadData();
+  }, [fetchUsers, fetchUserTypes]);
 
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
     setEditFormData({
-      firstName: user.firstName,
-      lastName: user.lastName,
+      first_name: user.first_name,
+      last_name: user.last_name,
       username: user.username,
-      userType: user.userType,
+      user_type_id: user.user_type_id, // This will be the actual user_type_id object
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleDeleteClick = (userId: string) => {
+  const handleDeleteClick = async (userId: string) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
-      deleteUser(userId);
+      await deleteUser(userId);
     }
   };
 
@@ -55,10 +79,26 @@ function Users() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    if (name === "user_type_id") {
+      // For user_type_id, we need to find the matching user type object
+      const selectedUserType = userTypes.find(type => type.$id === value);
+      
+      if (selectedUserType) {
+        setEditFormData((prev) => ({
+          ...prev,
+          user_type_id: {
+            $id: selectedUserType.$id,
+            label: selectedUserType.label,
+          },
+        }));
+      }
+    } else {
+      setEditFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleNewUserFormChange = (
@@ -67,41 +107,111 @@ function Users() {
     const { name, value } = e.target;
     setNewUserData((prev) => ({
       ...prev,
-      [name]: name === "totalTickets" ? parseInt(value) || 0 : value,
+      [name]: value,
     }));
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedUser) {
-      updateUser(selectedUser.id, editFormData);
+      await updateUser(selectedUser.$id, editFormData);
       setIsEditDialogOpen(false);
       setSelectedUser(null);
     }
   };
 
-  const handleSubmitNewUser = (e: React.FormEvent) => {
+  const handleSubmitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    addUser(newUserData);
+    
+    // For the API call, we need to convert the form data to the format expected by Appwrite
+    const selectedUserType = userTypes.find(type => type.$id === newUserData.user_type_id);
+    
+    if (selectedUserType) {
+      await addUser({
+        first_name: newUserData.first_name,
+        last_name: newUserData.last_name,
+        username: newUserData.username,
+        user_type_id: {
+          $id: selectedUserType.$id,
+          label: selectedUserType.label,
+        },
+      });
+    }
+    
     setIsAddDialogOpen(false);
     setNewUserData({
-      firstName: "",
-      lastName: "",
+      first_name: "",
+      last_name: "",
       username: "",
-      userType: "Support",
-      totalTickets: 0,
+      user_type_id: "",
     });
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "No date";
     try {
       return format(new Date(dateString), "MMM dd, yyyy HH:mm");
     } catch (error) {
       console.error("Error formatting date:", error);
-
       return "Invalid date";
     }
   };
+
+  // Get user type label by ID
+  const getUserTypeLabel = (userType: any) => {
+    // Check if userType exists
+    if (!userType) return 'Unknown';
+    
+    // If userType is a string, try to find the label from userTypes
+    if (typeof userType === 'string') {
+      const foundType = userTypes.find(ut => ut.$id === userType);
+      return foundType?.label || 'Unknown';
+    }
+    
+    // If userType is an object with a label property
+    if (typeof userType === 'object' && userType.label) {
+      return String(userType.label);
+    }
+    
+    return 'Unknown';
+  };
+
+  // Ensure the empty state has a key
+  const renderEmptyState = () => (
+    <TableRow key="empty-state">
+      <TableCell colSpan={7} className="text-center py-4 text-neutral-500">
+        No users found. Add a new user to get started.
+      </TableCell>
+    </TableRow>
+  );
+
+  if (loading && users.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading users...</h2>
+          <p className="text-neutral-500">Please wait while we fetch the data.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && users.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Error loading users</h2>
+          <p className="text-neutral-500 mb-4">{error.message}</p>
+          <button 
+            onClick={() => fetchUsers()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -130,39 +240,40 @@ function Users() {
               <TableHead>Last Name</TableHead>
               <TableHead>Username</TableHead>
               <TableHead>User Type</TableHead>
-              <TableHead>Total Tickets</TableHead>
               <TableHead>Last Modified</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.id}</TableCell>
-                <TableCell>{user.firstName}</TableCell>
-                <TableCell>{user.lastName}</TableCell>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.userType}</TableCell>
-                <TableCell>{user.totalTickets}</TableCell>
-                <TableCell>{formatDate(user.lastModified)}</TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEditClick(user)}
-                      className="p-1 text-blue-600 hover:text-blue-800"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(user.id)}
-                      className="p-1 text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {users.length === 0 
+              ? renderEmptyState()
+              : users.map((user) => (
+                  <TableRow key={user.$id || `user-${Math.random()}`}>
+                    <TableCell>{user.$id}</TableCell>
+                    <TableCell>{user.first_name}</TableCell>
+                    <TableCell>{user.last_name}</TableCell>
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{getUserTypeLabel(user.user_type_id)}</TableCell>
+                    <TableCell>{formatDate(user.$updatedAt)}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditClick(user)}
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(user.$id)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+            }
           </TableBody>
         </Table>
       </div>
@@ -180,28 +291,28 @@ function Users() {
           <form onSubmit={handleSubmitEdit} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="firstName" className="text-sm font-medium block">
+                <label htmlFor="first_name" className="text-sm font-medium block">
                   First Name
                 </label>
                 <input
-                  id="firstName"
-                  name="firstName"
+                  id="first_name"
+                  name="first_name"
                   type="text"
-                  value={editFormData.firstName || ""}
+                  value={editFormData.first_name || ""}
                   onChange={handleEditFormChange}
                   className="w-full rounded-md border border-gray-300 p-2 text-sm"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="lastName" className="text-sm font-medium block">
+                <label htmlFor="last_name" className="text-sm font-medium block">
                   Last Name
                 </label>
                 <input
-                  id="lastName"
-                  name="lastName"
+                  id="last_name"
+                  name="last_name"
                   type="text"
-                  value={editFormData.lastName || ""}
+                  value={editFormData.last_name || ""}
                   onChange={handleEditFormChange}
                   className="w-full rounded-md border border-gray-300 p-2 text-sm"
                 />
@@ -223,21 +334,26 @@ function Users() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="userType" className="text-sm font-medium block">
+              <label htmlFor="user_type_id" className="text-sm font-medium block">
                 User Type
               </label>
               <select
-                id="userType"
-                name="userType"
-                value={editFormData.userType || ""}
+                id="user_type_id"
+                name="user_type_id"
+                value={editFormData.user_type_id?.$id || ""}
                 onChange={handleEditFormChange}
                 className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
               >
-                <option value="Admin">Admin</option>
-                <option value="Support">Support</option>
-                <option value="Developer">Developer</option>
-                <option value="Customer">Customer</option>
-                <option value="Manager">Manager</option>
+                <option value="">Select a user type</option>
+                {userTypes && userTypes.length > 0 ? (
+                  userTypes.map(type => (
+                    <option key={type.$id || `type-${Math.random()}`} value={type.$id || ""}>
+                      {type.label ? String(type.label) : "Unknown type"}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No user types available</option>
+                )}
               </select>
             </div>
 
@@ -252,8 +368,9 @@ function Users() {
               <button
                 type="submit"
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                disabled={loading}
               >
-                Save Changes
+                {loading ? "Saving..." : "Save Changes"}
               </button>
             </DialogFooter>
           </form>
@@ -266,90 +383,81 @@ function Users() {
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">Add New User</DialogTitle>
             <DialogDescription>
-              Fill in the user information and click add to create a new user.
+              Fill out the form below to add a new user to the system.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitNewUser} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="newFirstName" className="text-sm font-medium block">
+                <label htmlFor="first_name" className="text-sm font-medium block">
                   First Name
                 </label>
                 <input
-                  id="newFirstName"
-                  name="firstName"
+                  id="first_name"
+                  name="first_name"
                   type="text"
-                  value={newUserData.firstName}
+                  value={newUserData.first_name}
                   onChange={handleNewUserFormChange}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
                   required
+                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="newLastName" className="text-sm font-medium block">
+                <label htmlFor="last_name" className="text-sm font-medium block">
                   Last Name
                 </label>
                 <input
-                  id="newLastName"
-                  name="lastName"
+                  id="last_name"
+                  name="last_name"
                   type="text"
-                  value={newUserData.lastName}
+                  value={newUserData.last_name}
                   onChange={handleNewUserFormChange}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
                   required
+                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="newUsername" className="text-sm font-medium block">
+              <label htmlFor="username" className="text-sm font-medium block">
                 Username
               </label>
               <input
-                id="newUsername"
+                id="username"
                 name="username"
                 type="text"
                 value={newUserData.username}
                 onChange={handleNewUserFormChange}
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
                 required
+                className="w-full rounded-md border border-gray-300 p-2 text-sm"
               />
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="newUserType" className="text-sm font-medium block">
+              <label htmlFor="user_type_id" className="text-sm font-medium block">
                 User Type
               </label>
               <select
-                id="newUserType"
-                name="userType"
-                value={newUserData.userType}
+                id="user_type_id"
+                name="user_type_id"
+                value={newUserData.user_type_id}
                 onChange={handleNewUserFormChange}
+                required
                 className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
               >
-                <option value="Admin">Admin</option>
-                <option value="Support">Support</option>
-                <option value="Developer">Developer</option>
-                <option value="Customer">Customer</option>
-                <option value="Manager">Manager</option>
+                <option value="">Select a user type</option>
+                {userTypes && userTypes.length > 0 ? (
+                  userTypes.map(type => (
+                    <option key={type.$id || `type-${Math.random()}`} value={type.$id || ""}>
+                      {type.label ? String(type.label) : "Unknown type"}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No user types available</option>
+                )}
               </select>
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="newTotalTickets" className="text-sm font-medium block">
-                Total Tickets
-              </label>
-              <input
-                id="newTotalTickets"
-                name="totalTickets"
-                type="number"
-                min="0"
-                value={newUserData.totalTickets}
-                onChange={handleNewUserFormChange}
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
-              />
             </div>
 
             <DialogFooter className="flex justify-end space-x-2 pt-4">
@@ -363,8 +471,9 @@ function Users() {
               <button
                 type="submit"
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                disabled={loading}
               >
-                Add User
+                {loading ? "Adding..." : "Add User"}
               </button>
             </DialogFooter>
           </form>
