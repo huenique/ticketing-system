@@ -1,4 +1,4 @@
-import { Edit, Plus, Trash2, UserPlus } from "lucide-react";
+import { Edit, Plus, Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import useCustomersStore, { Contact, Customer } from "@/stores/customersStore";
+import { contactsService } from "@/services/customerContactsService";
+import { CustomerContact } from "@/types/common";
 
 function Customers() {
   const {
@@ -44,6 +46,9 @@ function Customers() {
   const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
   const [isEditContactDialogOpen, setIsEditContactDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsError, setContactsError] = useState<Error | null>(null);
+  const [appwriteContacts, setAppwriteContacts] = useState<CustomerContact[]>([]);
 
   // Define simplified types for form data
   type CustomerFormData = {
@@ -98,6 +103,21 @@ function Customers() {
     loadData();
   }, [fetchCustomers]);
 
+  // Add a function to fetch contacts from Appwrite
+  const fetchCustomerContacts = async (customerId: string) => {
+    setContactsLoading(true);
+    setContactsError(null);
+    try {
+      const contacts = await contactsService.getContactsByCustomerId(customerId);
+      setAppwriteContacts(contacts);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      setContactsError(error instanceof Error ? error : new Error("Failed to fetch contacts"));
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
   const handleEditClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setEditFormData({
@@ -119,8 +139,12 @@ function Customers() {
 
   const handleViewContactsClick = (customer: Customer) => {
     setSelectedCustomer(customer);
+    // First set the existing contacts from the customer object
     setSelectedContacts(customer.contacts || []);
     setIsContactsDialogOpen(true);
+    
+    // Then fetch the contacts from Appwrite collection
+    fetchCustomerContacts(customer.$id);
   };
 
   const handleAddContactClick = (customer: Customer) => {
@@ -222,47 +246,83 @@ function Customers() {
     });
   };
 
-  const handleSubmitNewContact = async (e: React.FormEvent) => {
+  const handleSubmitNewContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer) {
-      await addContact(selectedCustomer.$id, {
-        ...newContactData,
-        customer_id: selectedCustomer.$id
-      });
+      try {
+        // Create contact in the customer_contacts collection
+        await contactsService.createContact({
+          customerId: selectedCustomer.$id,
+          first_name: newContactData.first_name,
+          last_name: newContactData.last_name,
+          position: newContactData.position,
+          contact_number: newContactData.contact_number,
+          email: newContactData.email
+        });
 
-      // Get the updated customer to refresh its contacts
-      const updatedCustomer = customers.find(c => c.$id === selectedCustomer.$id);
-      if (updatedCustomer) {
-        setSelectedCustomer(updatedCustomer);
-        setSelectedContacts(updatedCustomer.contacts || []);
+        // Also add to the local customer object using existing function
+        await addContact(selectedCustomer.$id, {
+          ...newContactData,
+          customer_id: selectedCustomer.$id
+        });
+
+        // Refresh contacts
+        fetchCustomerContacts(selectedCustomer.$id);
+
+        // Reset form and close dialog
+        setIsAddContactDialogOpen(false);
+        setNewContactData({
+          first_name: "",
+          last_name: "",
+          contact_number: "",
+          email: "",
+          position: "",
+          customer_id: selectedCustomer.$id,
+        });
+      } catch (error) {
+        console.error("Error adding contact:", error);
       }
-
-      setIsAddContactDialogOpen(false);
-      setNewContactData({
-        first_name: "",
-        last_name: "",
-        contact_number: "",
-        email: "",
-        position: "",
-        customer_id: selectedCustomer.$id,
-      });
     }
   };
 
-  const handleSubmitEditContact = async (e: React.FormEvent) => {
+  const handleSubmitEditContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer && selectedContact) {
-      await updateContact(selectedCustomer.$id, selectedContact.$id, editContactFormData);
+      try {
+        // Update contact in the customer_contacts collection
+        await contactsService.updateContact(selectedContact.$id, editContactFormData);
 
-      // Get the updated customer to refresh its contacts
-      const updatedCustomer = customers.find(c => c.$id === selectedCustomer.$id);
-      if (updatedCustomer) {
-        setSelectedCustomer(updatedCustomer);
-        setSelectedContacts(updatedCustomer.contacts || []);
+        // Also update in the local customer object using existing function
+        await updateContact(selectedCustomer.$id, selectedContact.$id, editContactFormData);
+
+        // Refresh contacts
+        fetchCustomerContacts(selectedCustomer.$id);
+
+        // Reset form and close dialog
+        setIsEditContactDialogOpen(false);
+        setSelectedContact(null);
+      } catch (error) {
+        console.error("Error updating contact:", error);
       }
+    }
+  };
 
-      setIsEditContactDialogOpen(false);
-      setSelectedContact(null);
+  const handleDeleteContactFromAppwrite = async (contactId: string) => {
+    if (window.confirm("Are you sure you want to delete this contact?")) {
+      if (selectedCustomer) {
+        try {
+          // Delete contact from the customer_contacts collection
+          await contactsService.deleteContact(contactId);
+
+          // Also delete from the local customer object using existing function
+          await deleteContact(selectedCustomer.$id, contactId);
+
+          // Refresh contacts
+          fetchCustomerContacts(selectedCustomer.$id);
+        } catch (error) {
+          console.error("Error deleting contact:", error);
+        }
+      }
     }
   };
 
@@ -602,58 +662,85 @@ function Customers() {
                 </button>
               )}
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>First Name</TableHead>
-                  <TableHead>Last Name</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Contact Number</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedContacts.length === 0 ? (
-                  <TableRow key="empty-contacts">
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-4 text-neutral-500"
-                    >
-                      No contacts found for this customer.
-                    </TableCell>
+            
+            {contactsLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <span className="ml-2 text-sm text-gray-500">Loading contacts...</span>
+              </div>
+            ) : contactsError ? (
+              <div className="text-center py-8 text-red-500">
+                <p>Error loading contacts: {contactsError.message}</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-2"
+                  onClick={() => selectedCustomer && fetchCustomerContacts(selectedCustomer.$id)}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>First Name</TableHead>
+                    <TableHead>Last Name</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Contact Number</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ) : (
-                  selectedContacts.map((contact) => (
-                    <TableRow key={contact.$id}>
-                      <TableCell>{contact.first_name}</TableCell>
-                      <TableCell>{contact.last_name}</TableCell>
-                      <TableCell>{contact.position}</TableCell>
-                      <TableCell>{contact.contact_number}</TableCell>
-                      <TableCell>{contact.email}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditContactClick(contact)}
-                            className="p-1 text-blue-600 hover:text-blue-800"
-                            title="Edit Contact"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteContactClick(contact.$id)}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Delete Contact"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {appwriteContacts.length === 0 ? (
+                    <TableRow key="empty-contacts">
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-4 text-neutral-500"
+                      >
+                        No contacts found for this customer.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    appwriteContacts.map((contact) => (
+                      <TableRow key={contact.id}>
+                        <TableCell>{contact.first_name}</TableCell>
+                        <TableCell>{contact.last_name}</TableCell>
+                        <TableCell>{contact.position}</TableCell>
+                        <TableCell>{contact.contact_number}</TableCell>
+                        <TableCell>{contact.email}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditContactClick({
+                                $id: contact.id,
+                                customer_id: contact.customerId,
+                                first_name: contact.first_name,
+                                last_name: contact.last_name,
+                                position: contact.position,
+                                contact_number: contact.contact_number,
+                                email: contact.email
+                              } as Contact)}
+                              className="p-1 text-blue-600 hover:text-blue-800"
+                              title="Edit Contact"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteContactFromAppwrite(contact.id)}
+                              className="p-1 text-red-600 hover:text-red-800"
+                              title="Delete Contact"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={() => setIsContactsDialogOpen(false)}>Close</Button>
@@ -670,7 +757,7 @@ function Customers() {
               Enter contact details for {selectedCustomer?.name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitNewContact}>
+          <form onSubmit={handleSubmitNewContactToAppwrite}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="first_name" className="text-right text-sm font-medium">
@@ -750,10 +837,10 @@ function Customers() {
           <DialogHeader>
             <DialogTitle>Edit Contact</DialogTitle>
             <DialogDescription>
-              Update contact information. Click save when done.
+              Update contact details for {selectedCustomer?.name}.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitEditContact}>
+          <form onSubmit={handleSubmitEditContactToAppwrite}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="first_name" className="text-right text-sm font-medium">
