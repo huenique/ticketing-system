@@ -12,6 +12,7 @@ const TICKETS_COLLECTION = "tickets";
 const STATUSES_COLLECTION = "statuses";
 const USERS_COLLECTION = "users";
 const CUSTOMERS_COLLECTION = "customers";
+const USER_TYPES_COLLECTION = "user_types";
 
 // Status interface
 export interface Status {
@@ -230,10 +231,39 @@ export const usersService = {
   },
 
   /**
+   * Get all user types
+   */
+  getAllUserTypes: async (): Promise<any[]> => {
+    const response = await getCollection<any>(USER_TYPES_COLLECTION);
+    return response.documents;
+  },
+
+  /**
    * Get a user by ID
    */
   getUser: async (id: string): Promise<User> => {
     return getDocument<User>(USERS_COLLECTION, id);
+  },
+
+  /**
+   * Create a new user
+   */
+  createUser: async (userData: Omit<User, "id">): Promise<User> => {
+    return createDocument<User>(USERS_COLLECTION, userData);
+  },
+
+  /**
+   * Update a user
+   */
+  updateUser: async (id: string, userData: Partial<User>): Promise<User> => {
+    return updateDocument<User>(USERS_COLLECTION, id, userData);
+  },
+
+  /**
+   * Delete a user
+   */
+  deleteUser: async (id: string): Promise<void> => {
+    return deleteDocument(USERS_COLLECTION, id);
   },
 
   /**

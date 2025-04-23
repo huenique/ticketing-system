@@ -20,23 +20,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import useCustomersStore, { Contact, Customer } from "@/stores/customersStore";
+import { Customer, CustomerContact } from "@/types/common";
 import { contactsService } from "@/services/customerContactsService";
-import { CustomerContact } from "@/types/common";
+import { useAppwriteCustomers } from "@/hooks/useAppwriteCustomers";
 
 function Customers() {
   const {
     customers,
-    loading,
+    isLoading: loading,
     error,
     fetchCustomers,
-    addCustomer,
+    createCustomer: addCustomer,
     updateCustomer,
     deleteCustomer,
-    addContact,
-    updateContact,
-    deleteContact,
-  } = useCustomersStore();
+  } = useAppwriteCustomers();
+
+  type Contact = CustomerContact;
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
@@ -66,7 +65,7 @@ function Customers() {
     contact_number: string;
     email: string;
     position: string;
-    customer_id: string;
+    customerId: string;
   };
 
   const [editFormData, setEditFormData] = useState<Partial<CustomerFormData>>({});
@@ -85,7 +84,7 @@ function Customers() {
     contact_number: "",
     email: "",
     position: "",
-    customer_id: "",
+    customerId: "",
   });
 
   const [editContactFormData, setEditContactFormData] = useState<Partial<ContactFormData>>({});
@@ -103,6 +102,41 @@ function Customers() {
     loadData();
   }, [fetchCustomers]);
 
+  // Function to handle contact operations
+  const addContact = async (customerId: string, contactData: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
+    try {
+      await contactsService.createContact(contactData);
+      await fetchCustomerContacts(customerId);
+    } catch (error) {
+      console.error("Error adding contact:", error);
+      throw error;
+    }
+  };
+  
+  const updateContact = async (contactId: string, updates: Partial<Contact>) => {
+    try {
+      await contactsService.updateContact(contactId, updates);
+      if (selectedCustomer) {
+        await fetchCustomerContacts(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      throw error;
+    }
+  };
+  
+  const deleteContact = async (contactId: string) => {
+    try {
+      await contactsService.deleteContact(contactId);
+      if (selectedCustomer) {
+        await fetchCustomerContacts(selectedCustomer.id);
+      }
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      throw error;
+    }
+  };
+
   // Add a function to fetch contacts from Appwrite
   const fetchCustomerContacts = async (customerId: string) => {
     setContactsLoading(true);
@@ -110,6 +144,7 @@ function Customers() {
     try {
       const contacts = await contactsService.getContactsByCustomerId(customerId);
       setAppwriteContacts(contacts);
+      setSelectedContacts(contacts);
     } catch (error) {
       console.error("Error fetching contacts:", error);
       setContactsError(error instanceof Error ? error : new Error("Failed to fetch contacts"));
@@ -139,19 +174,17 @@ function Customers() {
 
   const handleViewContactsClick = (customer: Customer) => {
     setSelectedCustomer(customer);
-    // First set the existing contacts from the customer object
-    setSelectedContacts(customer.contacts || []);
     setIsContactsDialogOpen(true);
     
-    // Then fetch the contacts from Appwrite collection
-    fetchCustomerContacts(customer.$id);
+    // Fetch the contacts from Appwrite collection
+    fetchCustomerContacts(customer.id);
   };
 
   const handleAddContactClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setNewContactData(prev => ({
       ...prev,
-      customer_id: customer.$id
+      customerId: customer.id
     }));
     setIsAddContactDialogOpen(true);
   };
@@ -171,14 +204,8 @@ function Customers() {
   const handleDeleteContactClick = async (contactId: string) => {
     if (window.confirm("Are you sure you want to delete this contact?")) {
       if (selectedCustomer) {
-        await deleteContact(selectedCustomer.$id, contactId);
-        
-        // Get the updated customer to refresh its contacts
-        const updatedCustomer = customers.find(c => c.$id === selectedCustomer.$id);
-        if (updatedCustomer) {
-          setSelectedCustomer(updatedCustomer);
-          setSelectedContacts(updatedCustomer.contacts || []);
-        }
+        await deleteContact(contactId);
+        // Contacts will be refreshed by the deleteContact function
       }
     }
   };
@@ -226,7 +253,7 @@ function Customers() {
   const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer) {
-      await updateCustomer(selectedCustomer.$id, editFormData);
+      await updateCustomer(selectedCustomer.id, editFormData);
       setIsEditDialogOpen(false);
       setSelectedCustomer(null);
     }
@@ -248,97 +275,63 @@ function Customers() {
 
   const handleSubmitNewContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (selectedCustomer) {
-      try {
-        // Create contact in the customer_contacts collection
-        await contactsService.createContact({
-          customerId: selectedCustomer.$id,
-          first_name: newContactData.first_name,
-          last_name: newContactData.last_name,
-          position: newContactData.position,
-          contact_number: newContactData.contact_number,
-          email: newContactData.email
-        });
-
-        // Also add to the local customer object using existing function
-        await addContact(selectedCustomer.$id, {
-          ...newContactData,
-          customer_id: selectedCustomer.$id
-        });
-
-        // Refresh contacts
-        fetchCustomerContacts(selectedCustomer.$id);
-
-        // Reset form and close dialog
-        setIsAddContactDialogOpen(false);
-        setNewContactData({
-          first_name: "",
-          last_name: "",
-          contact_number: "",
-          email: "",
-          position: "",
-          customer_id: selectedCustomer.$id,
-        });
-      } catch (error) {
-        console.error("Error adding contact:", error);
-      }
+      await addContact(selectedCustomer.id, {
+        ...newContactData,
+        customerId: selectedCustomer.id
+      });
+      
+      setIsAddContactDialogOpen(false);
+      setNewContactData({
+        first_name: "",
+        last_name: "",
+        contact_number: "",
+        email: "",
+        position: "",
+        customerId: selectedCustomer.id,
+      });
     }
   };
 
   const handleSubmitEditContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedCustomer && selectedContact) {
-      try {
-        // Update contact in the customer_contacts collection
-        await contactsService.updateContact(selectedContact.$id, editContactFormData);
-
-        // Also update in the local customer object using existing function
-        await updateContact(selectedCustomer.$id, selectedContact.$id, editContactFormData);
-
-        // Refresh contacts
-        fetchCustomerContacts(selectedCustomer.$id);
-
-        // Reset form and close dialog
-        setIsEditContactDialogOpen(false);
-        setSelectedContact(null);
-      } catch (error) {
-        console.error("Error updating contact:", error);
-      }
+    
+    if (selectedContact) {
+      await updateContact(selectedContact.id, editContactFormData);
+      
+      setIsEditContactDialogOpen(false);
+      setSelectedContact(null);
+      setEditContactFormData({});
     }
   };
 
   const handleDeleteContactFromAppwrite = async (contactId: string) => {
     if (window.confirm("Are you sure you want to delete this contact?")) {
-      if (selectedCustomer) {
-        try {
-          // Delete contact from the customer_contacts collection
-          await contactsService.deleteContact(contactId);
-
-          // Also delete from the local customer object using existing function
-          await deleteContact(selectedCustomer.$id, contactId);
-
-          // Refresh contacts
-          fetchCustomerContacts(selectedCustomer.$id);
-        } catch (error) {
-          console.error("Error deleting contact:", error);
-        }
-      }
+      await deleteContact(contactId);
+      
+      // Update the UI
+      setAppwriteContacts(prev => prev.filter(c => c.id !== contactId));
+      setSelectedContacts(prev => prev.filter(c => c.id !== contactId));
     }
   };
 
+  // Helper function to format date
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "No date";
+    if (!dateString) return "N/A";
+    
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "Invalid date";
+      }).format(date);
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return dateString;
     }
   };
 
@@ -412,15 +405,15 @@ function Customers() {
               </TableRow>
             ) : (
               customers.map((customer) => (
-                <TableRow key={customer.$id}>
-                  <TableCell>{customer.$id}</TableCell>
+                <TableRow key={customer.id}>
+                  <TableCell>{customer.id}</TableCell>
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>{customer.address}</TableCell>
                   <TableCell>{customer.primary_contact_name}</TableCell>
                   <TableCell>{customer.primary_contact_number}</TableCell>
                   <TableCell>{customer.primary_email}</TableCell>
                   <TableCell>{customer.abn || "N/A"}</TableCell>
-                  <TableCell>{formatDate(customer.$updatedAt)}</TableCell>
+                  <TableCell>{formatDate(customer.updatedAt)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <button
@@ -438,7 +431,7 @@ function Customers() {
                         <Edit size={16} />
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(customer.$id)}
+                        onClick={() => handleDeleteClick(customer.id)}
                         className="p-1 text-red-600 hover:text-red-800"
                         title="Delete Customer"
                       >
@@ -674,7 +667,7 @@ function Customers() {
                 <Button 
                   variant="outline" 
                   className="mt-2"
-                  onClick={() => selectedCustomer && fetchCustomerContacts(selectedCustomer.$id)}
+                  onClick={() => selectedCustomer && fetchCustomerContacts(selectedCustomer.id)}
                 >
                   Try Again
                 </Button>
@@ -712,15 +705,7 @@ function Customers() {
                         <TableCell>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleEditContactClick({
-                                $id: contact.id,
-                                customer_id: contact.customerId,
-                                first_name: contact.first_name,
-                                last_name: contact.last_name,
-                                position: contact.position,
-                                contact_number: contact.contact_number,
-                                email: contact.email
-                              } as Contact)}
+                              onClick={() => handleEditContactClick(contact)}
                               className="p-1 text-blue-600 hover:text-blue-800"
                               title="Edit Contact"
                             >

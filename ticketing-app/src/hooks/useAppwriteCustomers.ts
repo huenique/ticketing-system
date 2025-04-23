@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Customer, CustomerContact } from "@/types/common";
-import { customersService } from "@/services";
+import { appwriteCustomersService } from "@/services/customersService";
 import { customerContactsService } from "@/services";
 
 interface UseAppwriteCustomersProps {
@@ -13,7 +13,7 @@ interface UseAppwriteCustomersReturn {
   error: Error | null;
   fetchCustomers: () => Promise<void>;
   getCustomer: (id: string) => Promise<Customer | undefined>;
-  createCustomer: (customerData: Omit<Customer, "id">) => Promise<Customer>;
+  createCustomer: (customerData: Omit<Customer, "id" | "createdAt" | "updatedAt">) => Promise<Customer>;
   updateCustomer: (id: string, customerData: Partial<Customer>) => Promise<Customer>;
   deleteCustomer: (id: string) => Promise<void>;
   getCustomerContacts: (customerId: string) => Promise<CustomerContact[]>;
@@ -29,8 +29,8 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
     setError(null);
     
     try {
-      const result = await customersService.getAllCustomers();
-      setCustomers(result as Customer[]);
+      const result = await appwriteCustomersService.getAllCustomers();
+      setCustomers(result);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to fetch customers"));
       console.error("Error fetching customers:", err);
@@ -45,18 +45,16 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
       if (foundCustomer) return foundCustomer;
       
       // If not in local state, fetch from API
-      // Note: We'd need to add a getCustomer method to the service
-      return undefined;
+      return await appwriteCustomersService.getCustomerById(id);
     } catch (err) {
       console.error(`Error fetching customer ${id}:`, err);
       return undefined;
     }
   }, [customers]);
 
-  const createCustomer = useCallback(async (customerData: Omit<Customer, "id">): Promise<Customer> => {
+  const createCustomer = useCallback(async (customerData: Omit<Customer, "id" | "createdAt" | "updatedAt">): Promise<Customer> => {
     try {
-      // Note: We'd need to add a createCustomer method to the service
-      const newCustomer = { id: `temp-${Date.now()}`, ...customerData } as Customer;
+      const newCustomer = await appwriteCustomersService.createCustomer(customerData);
       setCustomers((prevCustomers) => [...prevCustomers, newCustomer]);
       return newCustomer;
     } catch (err) {
@@ -67,11 +65,7 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
 
   const updateCustomer = useCallback(async (id: string, customerData: Partial<Customer>): Promise<Customer> => {
     try {
-      // Note: We'd need to add an updateCustomer method to the service
-      const customer = customers.find(c => c.id === id);
-      if (!customer) throw new Error(`Customer with ID ${id} not found`);
-      
-      const updatedCustomer = { ...customer, ...customerData };
+      const updatedCustomer = await appwriteCustomersService.updateCustomer(id, customerData);
       setCustomers((prevCustomers) =>
         prevCustomers.map((customer) => (customer.id === id ? updatedCustomer : customer))
       );
@@ -80,11 +74,11 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
       console.error(`Error updating customer ${id}:`, err);
       throw err;
     }
-  }, [customers]);
+  }, []);
 
   const deleteCustomer = useCallback(async (id: string): Promise<void> => {
     try {
-      // Note: We'd need to add a deleteCustomer method to the service
+      await appwriteCustomersService.deleteCustomer(id);
       setCustomers((prevCustomers) => prevCustomers.filter((customer) => customer.id !== id));
     } catch (err) {
       console.error(`Error deleting customer ${id}:`, err);
@@ -95,7 +89,7 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
   const getCustomerContacts = useCallback(async (customerId: string): Promise<CustomerContact[]> => {
     try {
       const contacts = await customerContactsService.getContactsByCustomerId(customerId);
-      return contacts as CustomerContact[];
+      return contacts;
     } catch (err) {
       console.error(`Error fetching contacts for customer ${customerId}:`, err);
       return [];

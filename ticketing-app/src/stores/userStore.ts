@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { AuthUser, LoginCredentials, UserRole } from "@/types/auth";
-import { authService } from "@/utils/auth";
+import { authService } from "@/lib/appwrite";
 
 import { persist } from "./middleware";
 
@@ -11,8 +11,9 @@ interface UserState {
   error: string | null;
   setCurrentUser: (user: AuthUser | null) => void;
   login: (credentials: LoginCredentials) => Promise<void>;
+  register: (credentials: LoginCredentials & { name: string }) => Promise<void>;
   logout: () => void;
-  checkAuth: () => void;
+  checkAuth: () => Promise<void>;
   hasPermission: (requiredRole: UserRole) => boolean;
 }
 
@@ -28,27 +29,77 @@ const useUserStore = create<UserState>()(
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
-          const { user, token } = await authService.login(credentials);
-          // Store token and user in localStorage
-          localStorage.setItem("auth-token", token);
-          localStorage.setItem("auth-user", JSON.stringify(user));
-
-          set({ currentUser: user, isLoading: false });
+          // Use Appwrite authentication
+          await authService.login(credentials.email, credentials.password);
+          const user = await authService.getCurrentUser();
+          
+          if (!user) {
+            throw new Error("Failed to get user data after login");
+          }
+          
+          // Convert Appwrite user to AuthUser format
+          const authUser: AuthUser = {
+            id: user.$id,
+            name: user.name,
+            email: user.email,
+            username: user.email.split('@')[0], // Default username based on email
+            role: "admin", // Set role to admin instead of user
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`, // Generate avatar
+          };
+          
+          set({ currentUser: authUser, isLoading: false });
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
           throw error;
         }
       },
 
-      logout: () => {
-        authService.logout();
-        set({ currentUser: null });
+      register: async (credentials) => {
+        set({ isLoading: true, error: null });
+        try {
+          // Register new user with Appwrite
+          await authService.createAccount(credentials.email, credentials.password, credentials.name);
+          
+          // Login after registration
+          await get().login({ 
+            email: credentials.email, 
+            password: credentials.password,
+            username: credentials.email // Keep username for compatibility
+          });
+        } catch (error) {
+          set({ error: (error as Error).message, isLoading: false });
+          throw error;
+        }
       },
 
-      checkAuth: () => {
-        const user = authService.getCurrentUser();
-        if (user) {
-          set({ currentUser: user });
+      logout: async () => {
+        try {
+          await authService.logout();
+          set({ currentUser: null });
+        } catch (error) {
+          console.error("Logout error:", error);
+          // Still clear local state even if logout fails
+          set({ currentUser: null });
+        }
+      },
+
+      checkAuth: async () => {
+        try {
+          const user = await authService.getCurrentUser();
+          if (user) {
+            // Convert Appwrite user to AuthUser format
+            const authUser: AuthUser = {
+              id: user.$id,
+              name: user.name,
+              email: user.email,
+              username: user.email.split('@')[0],
+              role: "admin", // Set role to admin instead of user
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
+            };
+            set({ currentUser: authUser });
+          }
+        } catch (error) {
+          console.error("Auth check error:", error);
         }
       },
 
