@@ -37,13 +37,16 @@ const useUserStore = create<UserState>()(
             throw new Error("Failed to get user data after login");
           }
           
+          // Check if user has admin label
+          const isAdmin = user.labels?.includes("admin") || false;
+          
           // Convert Appwrite user to AuthUser format
           const authUser: AuthUser = {
             id: user.$id,
             name: user.name,
             email: user.email,
             username: user.email.split('@')[0], // Default username based on email
-            role: "admin", // Set role to admin instead of user
+            role: isAdmin ? "admin" : "user", // Set role based on labels
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`, // Generate avatar
           };
           
@@ -87,13 +90,16 @@ const useUserStore = create<UserState>()(
         try {
           const user = await authService.getCurrentUser();
           if (user) {
+            // Check if user has admin label
+            const isAdmin = user.labels?.includes("admin") || false;
+            
             // Convert Appwrite user to AuthUser format
             const authUser: AuthUser = {
               id: user.$id,
               name: user.name,
               email: user.email,
               username: user.email.split('@')[0],
-              role: "admin", // Set role to admin instead of user
+              role: isAdmin ? "admin" : "user", // Set role based on labels
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
             };
             set({ currentUser: authUser });
