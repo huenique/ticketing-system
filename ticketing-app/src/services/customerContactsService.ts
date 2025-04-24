@@ -1,43 +1,12 @@
-import { getCollection, getDocument, createDocument, updateDocument, deleteDocument, Query } from "@/lib/appwrite";
+import { customersService, CustomerContact } from "@/services/customersService";
 import { CustomerContact as CommonCustomerContact } from "@/types/common";
 
-const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-const CONTACTS_COLLECTION = "customer_contacts";
-
-/**
- * Interface for customer contact data from Appwrite
- */
-export interface AppwriteContact {
-  $id: string;
-  customer_id: Array<{
-    $id: string;
-    name: string;
-    address: string;
-    primary_contact_name: string;
-    primary_contact_number: string;
-    primary_email: string;
-    abn?: string;
-    $createdAt: string;
-    $updatedAt: string;
-    $permissions: string[];
-    $databaseId: string;
-    $collectionId: string;
-  }> | string; // Can be either an array of customer objects or a string ID
-  first_name: string;
-  last_name: string;
-  position?: string;
-  contact_number: string;
-  email: string;
-  $createdAt?: string;
-  $updatedAt?: string;
-}
-
 // Helper function to convert Appwrite contact to common type
-const mapToCommonContact = (contact: AppwriteContact): CommonCustomerContact => {
+const mapToCommonContact = (contact: CustomerContact): CommonCustomerContact => {
   // Extract customerId from the relationship structure
   let customerId = "";
-  if (Array.isArray(contact.customer_id) && contact.customer_id.length > 0) {
-    customerId = contact.customer_id[0].$id;
+  if (typeof contact.customer_id === 'object' && contact.customer_id) {
+    customerId = contact.customer_id.$id;
   } else if (typeof contact.customer_id === 'string') {
     customerId = contact.customer_id;
   }
@@ -60,11 +29,18 @@ const mapToCommonContact = (contact: AppwriteContact): CommonCustomerContact => 
  */
 export const getAllContacts = async (): Promise<CommonCustomerContact[]> => {
   try {
-    // Request contacts with expanded relationships
-    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION, [
-      Query.limit(100)
-    ]);
-    return response.documents.map(mapToCommonContact);
+    // We'll need to fetch contacts for all customers
+    // This is not optimal but will work for now
+    const customers = await customersService.getAllCustomers();
+    const allContacts: CustomerContact[] = [];
+
+    // Fetch contacts for each customer
+    for (const customer of customers) {
+      const customerContacts = await customersService.getCustomerContacts(customer.$id);
+      allContacts.push(...customerContacts);
+    }
+
+    return allContacts.map(mapToCommonContact);
   } catch (error) {
     console.error("Error fetching contacts:", error);
     throw error;
@@ -76,13 +52,8 @@ export const getAllContacts = async (): Promise<CommonCustomerContact[]> => {
  */
 export const getContactsByCustomerId = async (customerId: string): Promise<CommonCustomerContact[]> => {
   try {
-    // Using the Appwrite Query SDK to filter by customer relationship
-    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION, [
-      Query.equal("customer_id", customerId),
-      Query.limit(100)
-    ]);
-    
-    return response.documents.map(mapToCommonContact);
+    const contacts = await customersService.getCustomerContacts(customerId);
+    return contacts.map(mapToCommonContact);
   } catch (error) {
     console.error(`Error fetching contacts for customer ${customerId}:`, error);
     throw error;
@@ -92,10 +63,21 @@ export const getContactsByCustomerId = async (customerId: string): Promise<Commo
 /**
  * Get a contact by ID
  */
-export const getContactById = async (contactId: string): Promise<CommonCustomerContact> => {
+export const getContactById = async (contactId: string): Promise<CommonCustomerContact | null> => {
   try {
-    const contact = await getDocument<AppwriteContact>(CONTACTS_COLLECTION, contactId);
-    return mapToCommonContact(contact);
+    // Since we don't have a direct method to get a contact by ID,
+    // we need to fetch all contacts and find the one we need
+    const customers = await customersService.getAllCustomers();
+    
+    for (const customer of customers) {
+      const contacts = await customersService.getCustomerContacts(customer.$id);
+      const contact = contacts.find(c => c.$id === contactId);
+      if (contact) {
+        return mapToCommonContact(contact);
+      }
+    }
+    
+    return null;
   } catch (error) {
     console.error(`Error fetching contact ${contactId}:`, error);
     throw error;
@@ -107,8 +89,7 @@ export const getContactById = async (contactId: string): Promise<CommonCustomerC
  */
 export const createContact = async (contactData: Omit<CommonCustomerContact, "id" | "createdAt" | "updatedAt">): Promise<CommonCustomerContact> => {
   try {
-    // For relationships in client-side SDK, just use the ID as a string
-    // Appwrite will handle the relationship mapping internally
+    // Convert from common format to Appwrite format
     const appwriteData = {
       customer_id: contactData.customerId,
       first_name: contactData.first_name,
@@ -118,7 +99,7 @@ export const createContact = async (contactData: Omit<CommonCustomerContact, "id
       email: contactData.email
     };
     
-    const newContact = await createDocument<AppwriteContact>(CONTACTS_COLLECTION, appwriteData);
+    const newContact = await customersService.createCustomerContact(appwriteData);
     return mapToCommonContact(newContact);
   } catch (error) {
     console.error("Error creating contact:", error);
@@ -132,7 +113,7 @@ export const createContact = async (contactData: Omit<CommonCustomerContact, "id
 export const updateContact = async (contactId: string, contactData: Partial<CommonCustomerContact>): Promise<CommonCustomerContact> => {
   try {
     // For updates, only include fields that are actually changing
-    const appwriteData: Partial<AppwriteContact> = {};
+    const appwriteData: any = {};
     
     // Handle relationship field properly
     if (contactData.customerId) appwriteData.customer_id = contactData.customerId;
@@ -142,7 +123,7 @@ export const updateContact = async (contactId: string, contactData: Partial<Comm
     if (contactData.contact_number) appwriteData.contact_number = contactData.contact_number;
     if (contactData.email) appwriteData.email = contactData.email;
     
-    const updatedContact = await updateDocument<AppwriteContact>(CONTACTS_COLLECTION, contactId, appwriteData);
+    const updatedContact = await customersService.updateCustomerContact(contactId, appwriteData);
     return mapToCommonContact(updatedContact);
   } catch (error) {
     console.error(`Error updating contact ${contactId}:`, error);
@@ -155,7 +136,7 @@ export const updateContact = async (contactId: string, contactData: Partial<Comm
  */
 export const deleteContact = async (contactId: string): Promise<void> => {
   try {
-    await deleteDocument(CONTACTS_COLLECTION, contactId);
+    await customersService.deleteCustomerContact(contactId);
   } catch (error) {
     console.error(`Error deleting contact ${contactId}:`, error);
     throw error;

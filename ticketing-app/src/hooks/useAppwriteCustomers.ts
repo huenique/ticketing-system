@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Customer, CustomerContact } from "@/types/common";
-import { appwriteCustomersService } from "@/services/customersService";
+import { customersService } from "@/services/customersService";
 import { customerContactsService } from "@/services";
 
 interface UseAppwriteCustomersProps {
@@ -29,8 +29,20 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
     setError(null);
     
     try {
-      const result = await appwriteCustomersService.getAllCustomers();
-      setCustomers(result);
+      const result = await customersService.getAllCustomers();
+      // Convert from Appwrite format to Common format
+      const mappedCustomers = result.map(customer => ({
+        id: customer.$id,
+        name: customer.name,
+        address: customer.address,
+        primary_contact_name: customer.primary_contact_name,
+        primary_contact_number: customer.primary_contact_number,
+        primary_email: customer.primary_email,
+        abn: customer.abn || "",
+        createdAt: customer.$createdAt,
+        updatedAt: customer.$updatedAt
+      }));
+      setCustomers(mappedCustomers);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to fetch customers"));
       console.error("Error fetching customers:", err);
@@ -45,7 +57,19 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
       if (foundCustomer) return foundCustomer;
       
       // If not in local state, fetch from API
-      return await appwriteCustomersService.getCustomerById(id);
+      const customer = await customersService.getCustomer(id);
+      // Convert from Appwrite format to Common format
+      return {
+        id: customer.$id,
+        name: customer.name,
+        address: customer.address,
+        primary_contact_name: customer.primary_contact_name,
+        primary_contact_number: customer.primary_contact_number,
+        primary_email: customer.primary_email,
+        abn: customer.abn || "",
+        createdAt: customer.$createdAt,
+        updatedAt: customer.$updatedAt
+      };
     } catch (err) {
       console.error(`Error fetching customer ${id}:`, err);
       return undefined;
@@ -54,9 +78,33 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
 
   const createCustomer = useCallback(async (customerData: Omit<Customer, "id" | "createdAt" | "updatedAt">): Promise<Customer> => {
     try {
-      const newCustomer = await appwriteCustomersService.createCustomer(customerData);
-      setCustomers((prevCustomers) => [...prevCustomers, newCustomer]);
-      return newCustomer;
+      // Convert from Common format to Appwrite format
+      const appwriteData = {
+        name: customerData.name,
+        address: customerData.address,
+        primary_contact_name: customerData.primary_contact_name,
+        primary_contact_number: customerData.primary_contact_number,
+        primary_email: customerData.primary_email,
+        abn: customerData.abn || ""
+      };
+      
+      const newCustomer = await customersService.createCustomer(appwriteData);
+      
+      // Convert back to Common format
+      const commonCustomer = {
+        id: newCustomer.$id,
+        name: newCustomer.name,
+        address: newCustomer.address,
+        primary_contact_name: newCustomer.primary_contact_name,
+        primary_contact_number: newCustomer.primary_contact_number,
+        primary_email: newCustomer.primary_email,
+        abn: newCustomer.abn || "",
+        createdAt: newCustomer.$createdAt,
+        updatedAt: newCustomer.$updatedAt
+      };
+      
+      setCustomers((prevCustomers) => [...prevCustomers, commonCustomer]);
+      return commonCustomer;
     } catch (err) {
       console.error("Error creating customer:", err);
       throw err;
@@ -65,11 +113,35 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
 
   const updateCustomer = useCallback(async (id: string, customerData: Partial<Customer>): Promise<Customer> => {
     try {
-      const updatedCustomer = await appwriteCustomersService.updateCustomer(id, customerData);
+      // Convert from Common format to Appwrite format
+      const appwriteData: any = {};
+      
+      if (customerData.name !== undefined) appwriteData.name = customerData.name;
+      if (customerData.address !== undefined) appwriteData.address = customerData.address;
+      if (customerData.primary_contact_name !== undefined) appwriteData.primary_contact_name = customerData.primary_contact_name;
+      if (customerData.primary_contact_number !== undefined) appwriteData.primary_contact_number = customerData.primary_contact_number;
+      if (customerData.primary_email !== undefined) appwriteData.primary_email = customerData.primary_email;
+      if (customerData.abn !== undefined) appwriteData.abn = customerData.abn;
+      
+      const updatedCustomer = await customersService.updateCustomer(id, appwriteData);
+      
+      // Convert back to Common format
+      const commonCustomer = {
+        id: updatedCustomer.$id,
+        name: updatedCustomer.name,
+        address: updatedCustomer.address,
+        primary_contact_name: updatedCustomer.primary_contact_name,
+        primary_contact_number: updatedCustomer.primary_contact_number,
+        primary_email: updatedCustomer.primary_email,
+        abn: updatedCustomer.abn || "",
+        createdAt: updatedCustomer.$createdAt,
+        updatedAt: updatedCustomer.$updatedAt
+      };
+      
       setCustomers((prevCustomers) =>
-        prevCustomers.map((customer) => (customer.id === id ? updatedCustomer : customer))
+        prevCustomers.map((customer) => (customer.id === id ? commonCustomer : customer))
       );
-      return updatedCustomer;
+      return commonCustomer;
     } catch (err) {
       console.error(`Error updating customer ${id}:`, err);
       throw err;
@@ -78,7 +150,7 @@ export function useAppwriteCustomers({ initialFetch = true }: UseAppwriteCustome
 
   const deleteCustomer = useCallback(async (id: string): Promise<void> => {
     try {
-      await appwriteCustomersService.deleteCustomer(id);
+      await customersService.deleteCustomer(id);
       setCustomers((prevCustomers) => prevCustomers.filter((customer) => customer.id !== id));
     } catch (err) {
       console.error(`Error deleting customer ${id}:`, err);

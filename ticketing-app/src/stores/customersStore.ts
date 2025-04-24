@@ -1,75 +1,41 @@
 import { create } from "zustand";
-import { getCollection, getDocument, createDocument, updateDocument, deleteDocument } from "@/lib/appwrite";
+import { Customer, CustomerContact, customersService } from "@/services/customersService";
 
-// Collection ID constants
-const CUSTOMERS_COLLECTION = "customers";
+// Input type for creating/updating a customer
+export type CustomerInput = Omit<Customer, 
+  "$id" | "$createdAt" | "$updatedAt" | "$permissions" | "$databaseId" | "$collectionId">;
 
-export interface Contact {
-  $id: string;
-  customer_id: string;
-  first_name: string;
-  last_name: string;
-  position: string;
-  contact_number: string;
-  email: string;
-  $updatedAt?: string;
-  $createdAt?: string;
-  $permissions?: string[];
-  $databaseId?: string;
-  $collectionId?: string;
-}
-
-export interface Customer {
-  $id: string;
-  name: string;
-  address: string;
-  primary_contact_name: string;
-  primary_contact_number: string;
-  primary_email: string;
-  abn: string;
-  $updatedAt?: string;
-  $createdAt?: string;
-  $permissions?: string[];
-  $databaseId?: string;
-  $collectionId?: string;
-  // Store contacts as a property of customer if available from Appwrite
-  contacts?: Contact[];
-}
+// Input type for creating/updating a customer contact
+export type CustomerContactInput = Omit<CustomerContact, 
+  "$id" | "$createdAt" | "$updatedAt" | "$permissions" | "$databaseId" | "$collectionId">;
 
 interface CustomersState {
   customers: Customer[];
+  customerContacts: { [customerId: string]: CustomerContact[] };
   loading: boolean;
   error: Error | null;
   fetchCustomers: () => Promise<void>;
-  addCustomer: (customer: Omit<Customer, "$id" | "$updatedAt" | "$createdAt" | "$permissions" | "$databaseId" | "$collectionId" | "contacts">) => Promise<Customer>;
-  updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
+  fetchCustomerContacts: (customerId: string) => Promise<void>;
+  addCustomer: (customer: CustomerInput) => Promise<Customer>;
+  updateCustomer: (id: string, updates: Partial<CustomerInput>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
-  addContact: (customerId: string, contact: Omit<Contact, "$id" | "$updatedAt" | "$createdAt" | "$permissions" | "$databaseId" | "$collectionId">) => Promise<void>;
-  updateContact: (customerId: string, contactId: string, updates: Partial<Contact>) => Promise<void>;
-  deleteContact: (customerId: string, contactId: string) => Promise<void>;
-  getCustomerContacts: (customerId: string) => Contact[];
+  addCustomerContact: (contact: CustomerContactInput) => Promise<void>;
+  updateCustomerContact: (id: string, updates: Partial<CustomerContactInput>) => Promise<void>;
+  deleteCustomerContact: (id: string) => Promise<void>;
+  getCustomerContacts: (customerId: string) => CustomerContact[];
 }
 
 const useCustomersStore = create<CustomersState>((set, get) => ({
   customers: [],
+  customerContacts: {},
   loading: false,
   error: null,
 
   fetchCustomers: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await getCollection<Customer>(CUSTOMERS_COLLECTION);
-      
-      // Process contacts if they exist in the response
-      const processedCustomers = response.documents.map(customer => {
-        // Ensure contacts is always an array
-        return {
-          ...customer,
-          contacts: customer.contacts || []
-        };
-      });
-      
-      set({ customers: processedCustomers, loading: false });
+      const customers = await customersService.getAllCustomers();
+      set({ customers, loading: false });
     } catch (error) {
       console.error("Error fetching customers:", error);
       set({ 
@@ -79,13 +45,30 @@ const useCustomersStore = create<CustomersState>((set, get) => ({
     }
   },
 
+  fetchCustomerContacts: async (customerId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const contacts = await customersService.getCustomerContacts(customerId);
+      set((state) => ({
+        customerContacts: {
+          ...state.customerContacts,
+          [customerId]: contacts
+        },
+        loading: false
+      }));
+    } catch (error) {
+      console.error(`Error fetching contacts for customer ${customerId}:`, error);
+      set({ 
+        error: error instanceof Error ? error : new Error(`Failed to fetch contacts for customer ${customerId}`),
+        loading: false 
+      });
+    }
+  },
+
   addCustomer: async (customerData) => {
     set({ loading: true, error: null });
     try {
-      // Initialize empty contacts array
-      const customerWithContacts = { ...customerData, contacts: [] };
-      const newCustomer = await createDocument<Customer>(CUSTOMERS_COLLECTION, customerWithContacts);
-      
+      const newCustomer = await customersService.createCustomer(customerData);
       set((state) => ({
         customers: [...state.customers, newCustomer],
         loading: false
@@ -104,19 +87,11 @@ const useCustomersStore = create<CustomersState>((set, get) => ({
   updateCustomer: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      // Ensure we don't overwrite contacts if not included in updates
-      const customer = get().customers.find(c => c.$id === id);
-      const contacts = customer?.contacts || [];
-      
-      // Only include contacts in the update if it's explicitly provided
-      const updatesWithContacts = 'contacts' in updates 
-        ? updates 
-        : { ...updates, contacts };
-        
-      const updatedCustomer = await updateDocument<Customer>(CUSTOMERS_COLLECTION, id, updatesWithContacts);
-      
+      const updatedCustomer = await customersService.updateCustomer(id, updates);
       set((state) => ({
-        customers: state.customers.map((customer) => customer.$id === id ? updatedCustomer : customer),
+        customers: state.customers.map((customer) => 
+          customer.$id === id ? updatedCustomer : customer
+        ),
         loading: false
       }));
     } catch (error) {
@@ -132,7 +107,7 @@ const useCustomersStore = create<CustomersState>((set, get) => ({
   deleteCustomer: async (id) => {
     set({ loading: true, error: null });
     try {
-      await deleteDocument(CUSTOMERS_COLLECTION, id);
+      await customersService.deleteCustomer(id);
       set((state) => ({
         customers: state.customers.filter((customer) => customer.$id !== id),
         loading: false
@@ -147,104 +122,112 @@ const useCustomersStore = create<CustomersState>((set, get) => ({
     }
   },
 
-  addContact: async (customerId, contactData) => {
+  addCustomerContact: async (contactData) => {
     set({ loading: true, error: null });
     try {
-      // Find the customer
-      const customer = get().customers.find(c => c.$id === customerId);
-      if (!customer) throw new Error(`Customer with ID ${customerId} not found`);
+      const newContact = await customersService.createCustomerContact(contactData);
       
-      // Add the new contact to the existing contacts
-      const updatedContacts = [...(customer.contacts || []), { 
-        ...contactData,
-        $id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate a temporary ID
-        customer_id: customerId
-      }];
+      // Get the customer ID from the contact data
+      const customerId = typeof contactData.customer_id === 'string' 
+        ? contactData.customer_id 
+        : contactData.customer_id.$id;
       
-      // Update the customer with the new contacts array
-      const updatedCustomer = await updateDocument<Customer>(
-        CUSTOMERS_COLLECTION, 
-        customerId, 
-        { contacts: updatedContacts }
-      );
-      
-      // Update the local state
-      set((state) => ({
-        customers: state.customers.map(c => c.$id === customerId ? updatedCustomer : c),
-        loading: false
-      }));
+      set((state) => {
+        // Get current contacts for this customer or initialize empty array
+        const currentContacts = state.customerContacts[customerId] || [];
+        
+        return {
+          customerContacts: {
+            ...state.customerContacts,
+            [customerId]: [...currentContacts, newContact]
+          },
+          loading: false
+        };
+      });
     } catch (error) {
-      console.error("Error adding contact:", error);
+      console.error("Error adding customer contact:", error);
       set({ 
-        error: error instanceof Error ? error : new Error("Failed to add contact"),
+        error: error instanceof Error ? error : new Error("Failed to add customer contact"),
         loading: false 
       });
       throw error;
     }
   },
 
-  updateContact: async (customerId, contactId, updates) => {
+  updateCustomerContact: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      // Find the customer
-      const customer = get().customers.find(c => c.$id === customerId);
-      if (!customer) throw new Error(`Customer with ID ${customerId} not found`);
-      if (!customer.contacts) throw new Error(`No contacts found for customer ${customerId}`);
+      const updatedContact = await customersService.updateCustomerContact(id, updates);
       
-      // Update the specific contact
-      const updatedContacts = customer.contacts.map(contact => 
-        contact.$id === contactId ? { ...contact, ...updates } : contact
-      );
-      
-      // Update the customer with the modified contacts array
-      const updatedCustomer = await updateDocument<Customer>(
-        CUSTOMERS_COLLECTION, 
-        customerId, 
-        { contacts: updatedContacts }
-      );
-      
-      // Update the local state
-      set((state) => ({
-        customers: state.customers.map(c => c.$id === customerId ? updatedCustomer : c),
-        loading: false
-      }));
+      set((state) => {
+        // We need to find which customer this contact belongs to
+        const customerId = typeof updatedContact.customer_id === 'string'
+          ? updatedContact.customer_id
+          : updatedContact.customer_id.$id;
+        
+        // Get current contacts for this customer
+        const currentContacts = state.customerContacts[customerId] || [];
+        
+        return {
+          customerContacts: {
+            ...state.customerContacts,
+            [customerId]: currentContacts.map(contact => 
+              contact.$id === id ? updatedContact : contact
+            )
+          },
+          loading: false
+        };
+      });
     } catch (error) {
-      console.error("Error updating contact:", error);
+      console.error("Error updating customer contact:", error);
       set({ 
-        error: error instanceof Error ? error : new Error("Failed to update contact"),
+        error: error instanceof Error ? error : new Error("Failed to update customer contact"),
         loading: false 
       });
       throw error;
     }
   },
 
-  deleteContact: async (customerId, contactId) => {
+  deleteCustomerContact: async (id) => {
     set({ loading: true, error: null });
     try {
-      // Find the customer
-      const customer = get().customers.find(c => c.$id === customerId);
-      if (!customer) throw new Error(`Customer with ID ${customerId} not found`);
-      if (!customer.contacts) throw new Error(`No contacts found for customer ${customerId}`);
+      // We need to find which customer this contact belongs to before deleting
+      // Find the contact in our store first
+      let customerId = '';
+      let contactToDelete = null;
       
-      // Filter out the contact to delete
-      const updatedContacts = customer.contacts.filter(contact => contact.$id !== contactId);
+      // Search through all customer contacts to find the one with matching ID
+      Object.entries(get().customerContacts).forEach(([cId, contacts]) => {
+        const contact = contacts.find(c => c.$id === id);
+        if (contact) {
+          customerId = cId;
+          contactToDelete = contact;
+        }
+      });
       
-      // Update the customer with the filtered contacts array
-      const updatedCustomer = await updateDocument<Customer>(
-        CUSTOMERS_COLLECTION, 
-        customerId, 
-        { contacts: updatedContacts }
-      );
+      if (!contactToDelete) {
+        throw new Error(`Contact with ID ${id} not found in store`);
+      }
       
-      // Update the local state
-      set((state) => ({
-        customers: state.customers.map(c => c.$id === customerId ? updatedCustomer : c),
-        loading: false
-      }));
+      // Now delete the contact
+      await customersService.deleteCustomerContact(id);
+      
+      // Update the store
+      set((state) => {
+        const currentContacts = state.customerContacts[customerId] || [];
+        
+        return {
+          customerContacts: {
+            ...state.customerContacts,
+            [customerId]: currentContacts.filter(contact => contact.$id !== id)
+          },
+          loading: false
+        };
+      });
     } catch (error) {
-      console.error("Error deleting contact:", error);
+      console.error("Error deleting customer contact:", error);
       set({ 
-        error: error instanceof Error ? error : new Error("Failed to delete contact"),
+        error: error instanceof Error ? error : new Error("Failed to delete customer contact"),
         loading: false 
       });
       throw error;
@@ -252,10 +235,10 @@ const useCustomersStore = create<CustomersState>((set, get) => ({
   },
 
   getCustomerContacts: (customerId) => {
-    const { customers } = get();
-    const customer = customers.find(c => c.$id === customerId);
-    return customer?.contacts || [];
+    const { customerContacts } = get();
+    return customerContacts[customerId] || [];
   }
 }));
 
 export default useCustomersStore;
+export type { Customer, CustomerContact };
