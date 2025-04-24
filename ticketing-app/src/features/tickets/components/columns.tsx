@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Row } from "@/types/tickets";
 import { storageService } from "@/services/storageService";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { storage } from "@/lib/appwrite";
 
 // Helper function to format dates
 const formatDate = (dateStr: string) => {
@@ -36,7 +37,11 @@ const FileAttachment = ({ fileId }: { fileId: string }) => {
     const fetchFileInfo = async () => {
       try {
         setLoading(true);
-        const info = await storageService.getFileDetails(fileId);
+        // Using the client SDK to get file info
+        const info = await storage.getFile(
+          import.meta.env.VITE_APPWRITE_BUCKET_ID,
+          fileId
+        );
         setFileInfo(info);
         setError(null);
       } catch (err) {
@@ -62,7 +67,7 @@ const FileAttachment = ({ fileId }: { fileId: string }) => {
   if (error || !fileInfo) {
     return (
       <a
-        href={storageService.getFileDownloadURL(fileId)}
+        href={storageService.getFileDownload(fileId)}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
@@ -73,7 +78,7 @@ const FileAttachment = ({ fileId }: { fileId: string }) => {
     );
   }
 
-  const isImage = fileInfo.mimeType && storageService.isImageFile(fileInfo.mimeType);
+  const isImage = fileInfo.mimeType && fileInfo.mimeType.startsWith('image/');
   const fileName = fileInfo.name || `File-${fileId.substring(0, 6)}`;
   const fileSize = fileInfo.sizeOriginal 
     ? `${(fileInfo.sizeOriginal / 1024).toFixed(1)} KB` 
@@ -84,7 +89,7 @@ const FileAttachment = ({ fileId }: { fileId: string }) => {
       <Tooltip>
         <TooltipTrigger asChild>
           <a
-            href={storageService.getFileDownloadURL(fileId)}
+            href={storageService.getFileDownload(fileId)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"

@@ -18,14 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import useUsersStore, { User } from "@/stores/usersStore";
+import useUsersStore, { User, UserType, UserInput } from "@/stores/usersStore";
 
 function Users() {
   const { users, userTypes, loading, error, fetchUsers, fetchUserTypes, updateUser, deleteUser, addUser } = useUsersStore();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const [editFormData, setEditFormData] = useState<Partial<UserInput>>({});
   
   // Define a simpler type for the new user form data
   type NewUserFormData = {
@@ -81,18 +81,11 @@ function Users() {
     const { name, value } = e.target;
     
     if (name === "user_type_id") {
-      // For user_type_id, we need to find the matching user type object
-      const selectedUserType = userTypes.find(type => type.$id === value);
-      
-      if (selectedUserType) {
-        setEditFormData((prev) => ({
-          ...prev,
-          user_type_id: {
-            $id: selectedUserType.$id,
-            label: selectedUserType.label,
-          },
-        }));
-      }
+      // For user_type_id, we store the ID directly
+      setEditFormData((prev) => ({
+        ...prev,
+        user_type_id: value, // Store just the ID
+      }));
     } else {
       setEditFormData((prev) => ({
         ...prev,
@@ -123,28 +116,37 @@ function Users() {
   const handleSubmitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // For the API call, we need to convert the form data to the format expected by Appwrite
-    const selectedUserType = userTypes.find(type => type.$id === newUserData.user_type_id);
-    
-    if (selectedUserType) {
+    try {
+      // For the API call, we need to convert the form data to the format expected by Appwrite
+      const selectedUserType = userTypes.find(type => type.$id === newUserData.user_type_id);
+      
+      if (!selectedUserType) {
+        alert("Please select a valid user type");
+        return;
+      }
+      
+      console.log('Selected user type:', selectedUserType);
+      
+      // Submit the form with the user type ID
       await addUser({
         first_name: newUserData.first_name,
         last_name: newUserData.last_name,
         username: newUserData.username,
-        user_type_id: {
-          $id: selectedUserType.$id,
-          label: selectedUserType.label,
-        },
+        user_type_id: newUserData.user_type_id, // Send the ID string
       });
+      
+      setIsAddDialogOpen(false);
+      setNewUserData({
+        first_name: "",
+        last_name: "",
+        username: "",
+        user_type_id: "",
+      });
+      
+    } catch (error) {
+      console.error("Failed to add user:", error);
+      alert("Failed to add user. Please check the console for details.");
     }
-    
-    setIsAddDialogOpen(false);
-    setNewUserData({
-      first_name: "",
-      last_name: "",
-      username: "",
-      user_type_id: "",
-    });
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -340,7 +342,9 @@ function Users() {
               <select
                 id="user_type_id"
                 name="user_type_id"
-                value={editFormData.user_type_id?.$id || ""}
+                value={typeof editFormData.user_type_id === 'string' 
+                  ? editFormData.user_type_id 
+                  : editFormData.user_type_id?.$id || ""}
                 onChange={handleEditFormChange}
                 className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
               >

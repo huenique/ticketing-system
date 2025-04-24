@@ -1,4 +1,4 @@
-import { appwriteFetch, getCollection, getDocument, createDocument, updateDocument, deleteDocument } from "@/lib/appwrite";
+import { getCollection, getDocument, createDocument, updateDocument, deleteDocument, Query } from "@/lib/appwrite";
 import { CustomerContact as CommonCustomerContact } from "@/types/common";
 
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -60,7 +60,10 @@ const mapToCommonContact = (contact: AppwriteContact): CommonCustomerContact => 
  */
 export const getAllContacts = async (): Promise<CommonCustomerContact[]> => {
   try {
-    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION);
+    // Request contacts with expanded relationships
+    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION, [
+      Query.limit(100)
+    ]);
     return response.documents.map(mapToCommonContact);
   } catch (error) {
     console.error("Error fetching contacts:", error);
@@ -73,23 +76,13 @@ export const getAllContacts = async (): Promise<CommonCustomerContact[]> => {
  */
 export const getContactsByCustomerId = async (customerId: string): Promise<CommonCustomerContact[]> => {
   try {
-    // Using the correct Appwrite query format based on documentation
-    // https://appwrite.io/docs/products/databases/queries
-    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION);
+    // Using the Appwrite Query SDK to filter by customer relationship
+    const response = await getCollection<AppwriteContact>(CONTACTS_COLLECTION, [
+      Query.equal("customer_id", customerId),
+      Query.limit(100)
+    ]);
     
-    // Filter for the specific customer, handling the relationship structure
-    const filteredContacts = response.documents.filter(contact => {
-      if (Array.isArray(contact.customer_id)) {
-        // If it's an array of customer objects, check if any of them has the matching ID
-        return contact.customer_id.some(customer => customer.$id === customerId);
-      } else if (typeof contact.customer_id === 'string') {
-        // If it's a simple string ID
-        return contact.customer_id === customerId;
-      }
-      return false;
-    });
-    
-    return filteredContacts.map(mapToCommonContact);
+    return response.documents.map(mapToCommonContact);
   } catch (error) {
     console.error(`Error fetching contacts for customer ${customerId}:`, error);
     throw error;
@@ -114,12 +107,13 @@ export const getContactById = async (contactId: string): Promise<CommonCustomerC
  */
 export const createContact = async (contactData: Omit<CommonCustomerContact, "id" | "createdAt" | "updatedAt">): Promise<CommonCustomerContact> => {
   try {
-    // Convert to Appwrite format with proper relationship format
+    // For relationships in client-side SDK, just use the ID as a string
+    // Appwrite will handle the relationship mapping internally
     const appwriteData = {
-      customer_id: contactData.customerId, // Appwrite will handle the relationship
+      customer_id: contactData.customerId,
       first_name: contactData.first_name,
       last_name: contactData.last_name,
-      position: contactData.position,
+      position: contactData.position || "",
       contact_number: contactData.contact_number,
       email: contactData.email
     };
@@ -137,13 +131,14 @@ export const createContact = async (contactData: Omit<CommonCustomerContact, "id
  */
 export const updateContact = async (contactId: string, contactData: Partial<CommonCustomerContact>): Promise<CommonCustomerContact> => {
   try {
-    // Convert to Appwrite format
+    // For updates, only include fields that are actually changing
     const appwriteData: Partial<AppwriteContact> = {};
     
+    // Handle relationship field properly
     if (contactData.customerId) appwriteData.customer_id = contactData.customerId;
     if (contactData.first_name) appwriteData.first_name = contactData.first_name;
     if (contactData.last_name) appwriteData.last_name = contactData.last_name;
-    if (contactData.position) appwriteData.position = contactData.position;
+    if (contactData.position !== undefined) appwriteData.position = contactData.position;
     if (contactData.contact_number) appwriteData.contact_number = contactData.contact_number;
     if (contactData.email) appwriteData.email = contactData.email;
     

@@ -10,7 +10,6 @@ const API_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID;
 const BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_ID;
-const API_KEY = import.meta.env.VITE_APPWRITE_API_KEY;
 
 // Initialize the Appwrite client
 export const client = new Client();
@@ -118,61 +117,23 @@ export const authService = {
   }
 };
 
-// Default headers
-const getHeaders = () => ({
-  'X-Appwrite-Project': PROJECT_ID,
-  'X-Appwrite-Key': API_KEY,
-  'Content-Type': 'application/json',
-});
-
-/**
- * Generic fetch function for Appwrite API
- */
-export async function appwriteFetch<T>(
-  endpoint: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-  body?: object
-): Promise<T> {
-  const url = `${API_ENDPOINT}${endpoint}`;
-  
-  const options: RequestInit = {
-    method,
-    headers: getHeaders(),
-  };
-
-  if (body && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(body);
-  }
-
-  try {
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `API Error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`
-      );
-    }
-    
-    return await response.json() as T;
-  } catch (error) {
-    console.error('Appwrite API request failed:', error);
-    throw error;
-  }
-}
-
 /**
  * Get all documents from a collection
  */
 export async function getCollection<T>(collectionId: string, queries: string[] = []): Promise<{ documents: T[] }> {
   try {
+    // Using the proper client-side queries from Appwrite SDK
+    // Convert string queries to proper Query objects if provided
+    const queryObjects = queries.length > 0 
+      ? queries 
+      : [Query.limit(100)];
+    
     const response = await databases.listDocuments(
       DATABASE_ID,
       collectionId,
-      queries
+      queryObjects
     );
     
-    // Convert the response to match the expected return type
     return {
       documents: response.documents as unknown as T[]
     };
@@ -256,5 +217,57 @@ export async function deleteDocument(
   } catch (error) {
     console.error(`Error deleting document ${documentId} from ${collectionId}:`, error);
     throw error;
+  }
+}
+
+// Add file storage methods using the Storage SDK
+export const storageService = {
+  /**
+   * Upload a file to storage
+   */
+  async uploadFile(file: File, permissions: string[] = ['*']) {
+    try {
+      return await storage.createFile(
+        BUCKET_ID,
+        ID.unique(),
+        file,
+        permissions
+      );
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get a file preview URL
+   */
+  getFilePreview(fileId: string, width?: number, height?: number) {
+    try {
+      return storage.getFilePreview(
+        BUCKET_ID,
+        fileId,
+        width,
+        height
+      );
+    } catch (error) {
+      console.error('Error getting file preview:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a file
+   */
+  async deleteFile(fileId: string) {
+    try {
+      await storage.deleteFile(
+        BUCKET_ID,
+        fileId
+      );
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      throw error;
+    }
   }
 } 

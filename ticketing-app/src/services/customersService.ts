@@ -1,4 +1,4 @@
-import { getCollection, getDocument, createDocument, updateDocument, deleteDocument } from "@/lib/appwrite";
+import { getCollection, getDocument, createDocument, updateDocument, deleteDocument, Query } from "@/lib/appwrite";
 import { Customer as CommonCustomer } from "@/types/common";
 
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -42,7 +42,9 @@ const mapToCommonCustomer = (customer: AppwriteCustomer): CommonCustomer => {
  */
 export const getAllCustomers = async (): Promise<CommonCustomer[]> => {
   try {
-    const response = await getCollection<AppwriteCustomer>(CUSTOMERS_COLLECTION);
+    const response = await getCollection<AppwriteCustomer>(CUSTOMERS_COLLECTION, [
+      Query.limit(100)
+    ]);
     return response.documents.map(mapToCommonCustomer);
   } catch (error) {
     console.error("Error fetching customers:", error);
@@ -75,7 +77,7 @@ export const createCustomer = async (customerData: Omit<CommonCustomer, "id" | "
       primary_contact_name: customerData.primary_contact_name,
       primary_contact_number: customerData.primary_contact_number,
       primary_email: customerData.primary_email,
-      abn: customerData.abn
+      abn: customerData.abn || ""
     };
     
     const newCustomer = await createDocument<AppwriteCustomer>(CUSTOMERS_COLLECTION, appwriteData);
@@ -91,15 +93,15 @@ export const createCustomer = async (customerData: Omit<CommonCustomer, "id" | "
  */
 export const updateCustomer = async (customerId: string, customerData: Partial<CommonCustomer>): Promise<CommonCustomer> => {
   try {
-    // Convert to Appwrite format
+    // Convert to Appwrite format - only include fields that are actually being updated
     const appwriteData: Partial<AppwriteCustomer> = {};
     
-    if (customerData.name) appwriteData.name = customerData.name;
-    if (customerData.address) appwriteData.address = customerData.address;
-    if (customerData.primary_contact_name) appwriteData.primary_contact_name = customerData.primary_contact_name;
-    if (customerData.primary_contact_number) appwriteData.primary_contact_number = customerData.primary_contact_number;
-    if (customerData.primary_email) appwriteData.primary_email = customerData.primary_email;
-    if (customerData.abn) appwriteData.abn = customerData.abn;
+    if (customerData.name !== undefined) appwriteData.name = customerData.name;
+    if (customerData.address !== undefined) appwriteData.address = customerData.address;
+    if (customerData.primary_contact_name !== undefined) appwriteData.primary_contact_name = customerData.primary_contact_name;
+    if (customerData.primary_contact_number !== undefined) appwriteData.primary_contact_number = customerData.primary_contact_number;
+    if (customerData.primary_email !== undefined) appwriteData.primary_email = customerData.primary_email;
+    if (customerData.abn !== undefined) appwriteData.abn = customerData.abn;
     
     const updatedCustomer = await updateDocument<AppwriteCustomer>(CUSTOMERS_COLLECTION, customerId, appwriteData);
     return mapToCommonCustomer(updatedCustomer);

@@ -5,7 +5,8 @@ import {
   getDocument, 
   createDocument, 
   updateDocument, 
-  deleteDocument 
+  deleteDocument,
+  Query
 } from "@/lib/appwrite";
 
 // Collection ID constants
@@ -18,7 +19,9 @@ export const userTypesService = {
    * Get all user types
    */
   getAllUserTypes: async (): Promise<UserType[]> => {
-    const response = await getCollection<UserType>(USER_TYPES_COLLECTION);
+    const response = await getCollection<UserType>(USER_TYPES_COLLECTION, [
+      Query.limit(100)
+    ]);
     return response.documents;
   },
 
@@ -57,7 +60,9 @@ export const customerContactsService = {
    * Get all customer contacts
    */
   getAllCustomerContacts: async (): Promise<CustomerContact[]> => {
-    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION);
+    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, [
+      Query.limit(100)
+    ]);
     return response.documents;
   },
 
@@ -65,9 +70,12 @@ export const customerContactsService = {
    * Get customer contacts by customer ID
    */
   getContactsByCustomerId: async (customerId: string): Promise<CustomerContact[]> => {
-    // Need to implement query filters here, but basic version returns all and filters client-side
-    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION);
-    return response.documents.filter(contact => contact.customerId === customerId);
+    // Use proper Query filtering instead of client-side filtering
+    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, [
+      Query.equal("customerId", customerId),
+      Query.limit(100)
+    ]);
+    return response.documents;
   },
 
   /**

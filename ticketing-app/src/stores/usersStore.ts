@@ -1,41 +1,19 @@
 import { create } from "zustand";
 import { persist } from "./middleware";
-import { getCollection, getDocument, createDocument, updateDocument, deleteDocument } from "@/lib/appwrite";
+import { User, UserType, usersService } from "@/services/usersService";
 
-export interface User {
-  $id: string;
+// Define type for relationship fields
+type RelationshipInput = string | { $id: string; label: string };
+
+// Define input type for user creation
+interface UserInput {
   first_name: string;
   last_name: string;
   username: string;
-  user_type_id: {
-    $id: string;
-    label: string;
-    $createdAt?: string;
-    $updatedAt?: string;
-    $permissions?: string[];
-    $databaseId?: string;
-    $collectionId?: string;
-  };
-  $createdAt?: string;
-  $updatedAt?: string;
-  $permissions?: string[];
-  $databaseId?: string;
-  $collectionId?: string;
+  user_type_id: RelationshipInput;
 }
 
-interface UserType {
-  $id: string;
-  label: string;
-  $createdAt?: string;
-  $updatedAt?: string;
-  $permissions?: string[];
-  $databaseId?: string;
-  $collectionId?: string;
-}
-
-const USERS_COLLECTION = "users";
-const USER_TYPES_COLLECTION = "user_types";
-
+// State interface
 interface UsersState {
   users: User[];
   userTypes: UserType[];
@@ -43,14 +21,9 @@ interface UsersState {
   error: Error | null;
   fetchUsers: () => Promise<void>;
   fetchUserTypes: () => Promise<void>;
-  addUser: (user: Omit<User, "$id" | "$createdAt" | "$updatedAt" | "$permissions" | "$databaseId" | "$collectionId">) => Promise<void>;
-  updateUser: (id: string, user: Partial<User>) => Promise<void>;
+  addUser: (user: UserInput) => Promise<void>;
+  updateUser: (id: string, user: Partial<UserInput>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
-}
-
-interface AppwriteResponse<T> {
-  documents: T[];
-  total: number;
 }
 
 const useUsersStore = create<UsersState>()(
@@ -64,8 +37,8 @@ const useUsersStore = create<UsersState>()(
       fetchUsers: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await getCollection<User>(USERS_COLLECTION);
-          set({ users: response.documents, loading: false });
+          const users = await usersService.getAllUsers();
+          set({ users, loading: false });
         } catch (error) {
           console.error("Error fetching users:", error);
           set({ 
@@ -78,8 +51,8 @@ const useUsersStore = create<UsersState>()(
       fetchUserTypes: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await getCollection<UserType>(USER_TYPES_COLLECTION);
-          set({ userTypes: response.documents, loading: false });
+          const userTypes = await usersService.getAllUserTypes();
+          set({ userTypes, loading: false });
         } catch (error) {
           console.error("Error fetching user types:", error);
           set({ 
@@ -92,7 +65,16 @@ const useUsersStore = create<UsersState>()(
       addUser: async (user) => {
         set({ loading: true, error: null });
         try {
-          const newUser = await createDocument<User>(USERS_COLLECTION, user);
+          // Convert user input to format required by service
+          const userData = {
+            ...user,
+            // Handle both string and object formats for relationship
+            user_type_id: typeof user.user_type_id === 'string' 
+              ? user.user_type_id 
+              : user.user_type_id.$id
+          };
+          
+          const newUser = await usersService.createUser(userData as any);
           set((state) => ({
             users: [...state.users, newUser],
             loading: false
@@ -109,7 +91,17 @@ const useUsersStore = create<UsersState>()(
       updateUser: async (id, updatedUser) => {
         set({ loading: true, error: null });
         try {
-          const updated = await updateDocument<User>(USERS_COLLECTION, id, updatedUser);
+          // Convert user input to format required by service
+          const userData = { ...updatedUser };
+          
+          // Handle user_type_id if it exists
+          if (updatedUser.user_type_id !== undefined) {
+            userData.user_type_id = typeof updatedUser.user_type_id === 'string' 
+              ? updatedUser.user_type_id 
+              : updatedUser.user_type_id.$id;
+          }
+          
+          const updated = await usersService.updateUser(id, userData as any);
           set((state) => ({
             users: state.users.map((user) => user.$id === id ? updated : user),
             loading: false
@@ -126,7 +118,7 @@ const useUsersStore = create<UsersState>()(
       deleteUser: async (id) => {
         set({ loading: true, error: null });
         try {
-          await deleteDocument(USERS_COLLECTION, id);
+          await usersService.deleteUser(id);
           set((state) => ({
             users: state.users.filter((user) => user.$id !== id),
             loading: false
@@ -146,4 +138,5 @@ const useUsersStore = create<UsersState>()(
   ),
 );
 
+export type { User, UserType, UserInput };
 export default useUsersStore;
