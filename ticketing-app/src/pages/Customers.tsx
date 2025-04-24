@@ -20,8 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Customer, CustomerContact } from "@/types/common";
-import { contactsService } from "@/services/customerContactsService";
+import { Customer as CommonCustomer } from "@/types/common";
+import { Customer as AppwriteCustomer, CustomerContact, customersService } from "@/services/customersService";
 import { useAppwriteCustomers } from "@/hooks/useAppwriteCustomers";
 
 function Customers() {
@@ -36,8 +36,10 @@ function Customers() {
   } = useAppwriteCustomers();
 
   type Contact = CustomerContact;
+  // Use a union type to handle both formats of Customer
+  type CustomerType = CommonCustomer | AppwriteCustomer;
 
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerType | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -66,6 +68,16 @@ function Customers() {
     email: string;
     position: string;
     customerId: string;
+  };
+
+  // Helper function to get customer ID regardless of type
+  const getCustomerId = (customer: CustomerType): string => {
+    // Check if it's an Appwrite customer (has $id)
+    if ('$id' in customer) {
+      return customer.$id;
+    }
+    // Otherwise assume it's a common Customer type
+    return customer.id;
   };
 
   const [editFormData, setEditFormData] = useState<Partial<CustomerFormData>>({});
@@ -103,9 +115,24 @@ function Customers() {
   }, [fetchCustomers]);
 
   // Function to handle contact operations
-  const addContact = async (customerId: string, contactData: Omit<Contact, "id" | "createdAt" | "updatedAt">) => {
+  const addContact = async (customerId: string, contactData: Omit<ContactFormData, "customerId">) => {
     try {
-      await contactsService.createContact(contactData);
+      console.log(`Adding contact for customer ID: ${customerId}`);
+      
+      // Format the data for Appwrite
+      const appwriteContactData = {
+        customer_id: customerId,
+        first_name: contactData.first_name,
+        last_name: contactData.last_name,
+        position: contactData.position || "",
+        contact_number: contactData.contact_number,
+        email: contactData.email
+      };
+      
+      console.log('Contact data to send:', appwriteContactData);
+      const result = await customersService.createCustomerContact(appwriteContactData);
+      console.log('Contact created successfully:', result);
+      
       await fetchCustomerContacts(customerId);
     } catch (error) {
       console.error("Error adding contact:", error);
@@ -113,11 +140,30 @@ function Customers() {
     }
   };
   
-  const updateContact = async (contactId: string, updates: Partial<Contact>) => {
+  const updateContact = async (contactId: string, updates: Partial<ContactFormData>) => {
     try {
-      await contactsService.updateContact(contactId, updates);
+      console.log(`Updating contact with ID: ${contactId}`, updates);
+      
+      // Format the data for Appwrite
+      const appwriteContactData: any = {
+        first_name: updates.first_name,
+        last_name: updates.last_name,
+        position: updates.position || "",
+        contact_number: updates.contact_number,
+        email: updates.email
+      };
+      
+      // Remove undefined values
+      Object.keys(appwriteContactData).forEach(key => 
+        appwriteContactData[key] === undefined && delete appwriteContactData[key]
+      );
+      
+      console.log('Contact update data to send:', appwriteContactData);
+      const result = await customersService.updateCustomerContact(contactId, appwriteContactData);
+      console.log('Contact updated successfully:', result);
+      
       if (selectedCustomer) {
-        await fetchCustomerContacts(selectedCustomer.id);
+        await fetchCustomerContacts(getCustomerId(selectedCustomer));
       }
     } catch (error) {
       console.error("Error updating contact:", error);
@@ -127,9 +173,9 @@ function Customers() {
   
   const deleteContact = async (contactId: string) => {
     try {
-      await contactsService.deleteContact(contactId);
+      await customersService.deleteCustomerContact(contactId);
       if (selectedCustomer) {
-        await fetchCustomerContacts(selectedCustomer.id);
+        await fetchCustomerContacts(getCustomerId(selectedCustomer));
       }
     } catch (error) {
       console.error("Error deleting contact:", error);
@@ -137,12 +183,14 @@ function Customers() {
     }
   };
 
-  // Add a function to fetch contacts from Appwrite
+  // Update the fetchCustomerContacts function with better logging
   const fetchCustomerContacts = async (customerId: string) => {
     setContactsLoading(true);
     setContactsError(null);
     try {
-      const contacts = await contactsService.getContactsByCustomerId(customerId);
+      console.log(`Fetching contacts for customer ID: ${customerId}`);
+      const contacts = await customersService.getCustomerContacts(customerId);
+      console.log(`Retrieved ${contacts.length} contacts:`, contacts);
       setAppwriteContacts(contacts);
       setSelectedContacts(contacts);
     } catch (error) {
@@ -153,7 +201,7 @@ function Customers() {
     }
   };
 
-  const handleEditClick = (customer: Customer) => {
+  const handleEditClick = (customer: CustomerType) => {
     setSelectedCustomer(customer);
     setEditFormData({
       name: customer.name,
@@ -172,31 +220,38 @@ function Customers() {
     }
   };
 
-  const handleViewContactsClick = (customer: Customer) => {
+  const handleViewContactsClick = (customer: CustomerType) => {
     setSelectedCustomer(customer);
     setIsContactsDialogOpen(true);
     
+    // Get customer ID using the helper function
+    const customerId = getCustomerId(customer);
+    
     // Fetch the contacts from Appwrite collection
-    fetchCustomerContacts(customer.id);
+    fetchCustomerContacts(customerId);
   };
 
-  const handleAddContactClick = (customer: Customer) => {
+  const handleAddContactClick = (customer: CustomerType) => {
     setSelectedCustomer(customer);
+    // Get customer ID using the helper function
+    const customerId = getCustomerId(customer);
+    
     setNewContactData(prev => ({
       ...prev,
-      customerId: customer.id
+      customerId
     }));
     setIsAddContactDialogOpen(true);
   };
 
   const handleEditContactClick = (contact: Contact) => {
+    console.log('Edit contact:', contact);
     setSelectedContact(contact);
     setEditContactFormData({
       first_name: contact.first_name,
       last_name: contact.last_name,
       contact_number: contact.contact_number,
       email: contact.email,
-      position: contact.position,
+      position: contact.position || '',
     });
     setIsEditContactDialogOpen(true);
   };
@@ -253,7 +308,7 @@ function Customers() {
   const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCustomer) {
-      await updateCustomer(selectedCustomer.id, editFormData);
+      await updateCustomer(getCustomerId(selectedCustomer), editFormData);
       setIsEditDialogOpen(false);
       setSelectedCustomer(null);
     }
@@ -277,20 +332,31 @@ function Customers() {
     e.preventDefault();
     
     if (selectedCustomer) {
-      await addContact(selectedCustomer.id, {
-        ...newContactData,
-        customerId: selectedCustomer.id
-      });
-      
-      setIsAddContactDialogOpen(false);
-      setNewContactData({
-        first_name: "",
-        last_name: "",
-        contact_number: "",
-        email: "",
-        position: "",
-        customerId: selectedCustomer.id,
-      });
+      try {
+        // Get customer ID using the helper function
+        const customerId = getCustomerId(selectedCustomer);
+        
+        await addContact(customerId, {
+          first_name: newContactData.first_name,
+          last_name: newContactData.last_name,
+          contact_number: newContactData.contact_number,
+          email: newContactData.email,
+          position: newContactData.position,
+        });
+        
+        setIsAddContactDialogOpen(false);
+        setNewContactData({
+          first_name: "",
+          last_name: "",
+          contact_number: "",
+          email: "",
+          position: "",
+          customerId: customerId,
+        });
+      } catch (error) {
+        console.error("Error adding contact:", error);
+        alert("Failed to add contact. Please try again.");
+      }
     }
   };
 
@@ -298,22 +364,41 @@ function Customers() {
     e.preventDefault();
     
     if (selectedContact) {
-      await updateContact(selectedContact.id, editContactFormData);
-      
-      setIsEditContactDialogOpen(false);
-      setSelectedContact(null);
-      setEditContactFormData({});
+      try {
+        const contactId = selectedContact.$id;
+        await updateContact(contactId, editContactFormData);
+        
+        setIsEditContactDialogOpen(false);
+        setSelectedContact(null);
+        setEditContactFormData({});
+      } catch (error) {
+        console.error("Error updating contact:", error);
+        alert("Failed to update contact. Please try again.");
+      }
     }
   };
 
   const handleDeleteContactFromAppwrite = async (contactId: string) => {
     if (window.confirm("Are you sure you want to delete this contact?")) {
-      await deleteContact(contactId);
-      
-      // Update the UI
-      setAppwriteContacts(prev => prev.filter(c => c.id !== contactId));
-      setSelectedContacts(prev => prev.filter(c => c.id !== contactId));
+      try {
+        await deleteContact(contactId);
+        
+        // Update the UI
+        setAppwriteContacts(prev => prev.filter(c => c.$id !== contactId));
+        setSelectedContacts(prev => prev.filter(c => c.$id !== contactId));
+      } catch (error) {
+        console.error("Error deleting contact:", error);
+        alert("Failed to delete contact. Please try again.");
+      }
     }
+  };
+
+  // Helper function to get updated timestamp regardless of customer type
+  const getUpdatedTimestamp = (customer: CustomerType): string | undefined => {
+    if ('$updatedAt' in customer) {
+      return customer.$updatedAt;
+    }
+    return customer.updatedAt;
   };
 
   // Helper function to format date
@@ -405,15 +490,15 @@ function Customers() {
               </TableRow>
             ) : (
               customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.id}</TableCell>
+                <TableRow key={getCustomerId(customer)}>
+                  <TableCell>{getCustomerId(customer)}</TableCell>
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>{customer.address}</TableCell>
                   <TableCell>{customer.primary_contact_name}</TableCell>
                   <TableCell>{customer.primary_contact_number}</TableCell>
                   <TableCell>{customer.primary_email}</TableCell>
                   <TableCell>{customer.abn || "N/A"}</TableCell>
-                  <TableCell>{formatDate(customer.updatedAt)}</TableCell>
+                  <TableCell>{formatDate(getUpdatedTimestamp(customer))}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <button
@@ -431,7 +516,7 @@ function Customers() {
                         <Edit size={16} />
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(customer.id)}
+                        onClick={() => handleDeleteClick(getCustomerId(customer))}
                         className="p-1 text-red-600 hover:text-red-800"
                         title="Delete Customer"
                       >
@@ -667,7 +752,7 @@ function Customers() {
                 <Button 
                   variant="outline" 
                   className="mt-2"
-                  onClick={() => selectedCustomer && fetchCustomerContacts(selectedCustomer.id)}
+                  onClick={() => selectedCustomer && fetchCustomerContacts(getCustomerId(selectedCustomer))}
                 >
                   Try Again
                 </Button>
@@ -696,7 +781,7 @@ function Customers() {
                     </TableRow>
                   ) : (
                     appwriteContacts.map((contact) => (
-                      <TableRow key={contact.id}>
+                      <TableRow key={contact.$id}>
                         <TableCell>{contact.first_name}</TableCell>
                         <TableCell>{contact.last_name}</TableCell>
                         <TableCell>{contact.position}</TableCell>
@@ -712,7 +797,7 @@ function Customers() {
                               <Edit size={16} />
                             </button>
                             <button
-                              onClick={() => handleDeleteContactFromAppwrite(contact.id)}
+                              onClick={() => handleDeleteContactFromAppwrite(contact.$id)}
                               className="p-1 text-red-600 hover:text-red-800"
                               title="Delete Contact"
                             >

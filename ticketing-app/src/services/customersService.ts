@@ -139,12 +139,36 @@ export const customersService = {
    */
   getCustomerContacts: async (customerId: string): Promise<CustomerContact[]> => {
     try {
+      console.log(`Fetching contacts for customer ID: ${customerId}`);
+      
+      // When querying on relationship fields in Appwrite, we should list all documents
+      // and then filter client-side for contacts that belong to this customer
       const response = await databases.listDocuments(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
-        [Query.equal("customer_id", customerId), Query.limit(100)]
+        [Query.limit(100)]
       );
-      return response.documents as CustomerContact[];
+      
+      console.log("Raw contacts response:", JSON.stringify(response, null, 2));
+      
+      // Filter documents to only include those belonging to the specified customer
+      const customerContacts = response.documents.filter(doc => {
+        const customerId_field = doc.customer_id;
+        
+        // Handle all possible representations of customer_id
+        if (typeof customerId_field === 'string') {
+          return customerId_field === customerId;
+        } else if (Array.isArray(customerId_field)) {
+          // When it's an array of customer objects
+          return customerId_field.some(customer => customer.$id === customerId);
+        } else if (customerId_field && typeof customerId_field === 'object' && '$id' in customerId_field) {
+          return customerId_field.$id === customerId;
+        }
+        return false;
+      });
+      
+      console.log(`Retrieved ${customerContacts.length} contacts:`, customerContacts);
+      return customerContacts as CustomerContact[];
     } catch (error) {
       console.error(`Error fetching contacts for customer ${customerId}:`, error);
       throw error;
@@ -159,11 +183,25 @@ export const customersService = {
       // Make a copy of the contactData to modify
       let dataToSend: any = { ...contactData };
       
-      // Ensure customer_id is properly formatted
-      if (contactData.customer_id && typeof contactData.customer_id === 'object') {
-        // Make sure we're only sending the $id for the relationship
-        dataToSend.customer_id = contactData.customer_id.$id;
+      // For relationship fields, we need to provide an array of IDs
+      // Handle different possible formats of customer_id
+      if (contactData.customer_id) {
+        if (typeof contactData.customer_id === 'string') {
+          // If it's a string ID, convert to array of IDs
+          dataToSend.customer_id = [contactData.customer_id];
+        } else if (typeof contactData.customer_id === 'object' && '$id' in contactData.customer_id) {
+          // If it's an object with $id, extract the ID and convert to array
+          dataToSend.customer_id = [contactData.customer_id.$id];
+        } else if (Array.isArray(contactData.customer_id)) {
+          // If it's already an array, keep it as is
+          // (but make sure it contains strings/IDs not objects)
+          dataToSend.customer_id = (contactData.customer_id as any[]).map((item: any) => 
+            typeof item === 'string' ? item : item.$id
+          );
+        }
       }
+      
+      console.log('Creating contact with formatted data:', JSON.stringify(dataToSend, null, 2));
       
       const contact = await databases.createDocument(
         DATABASE_ID,
@@ -188,9 +226,23 @@ export const customersService = {
       let dataToSend: any = { ...contactData };
       
       // Ensure customer_id is properly formatted if it's being updated
-      if (contactData.customer_id && typeof contactData.customer_id === 'object') {
-        dataToSend.customer_id = contactData.customer_id.$id;
+      if (contactData.customer_id) {
+        if (typeof contactData.customer_id === 'string') {
+          // If it's a string ID, convert to array of IDs
+          dataToSend.customer_id = [contactData.customer_id];
+        } else if (typeof contactData.customer_id === 'object' && '$id' in contactData.customer_id) {
+          // If it's an object with $id, extract the ID and convert to array
+          dataToSend.customer_id = [contactData.customer_id.$id];
+        } else if (Array.isArray(contactData.customer_id)) {
+          // If it's already an array, keep it as is
+          // (but make sure it contains strings/IDs not objects)
+          dataToSend.customer_id = (contactData.customer_id as any[]).map((item: any) => 
+            typeof item === 'string' ? item : item.$id
+          );
+        }
       }
+      
+      console.log('Updating contact with formatted data:', JSON.stringify(dataToSend, null, 2));
       
       const contact = await databases.updateDocument(
         DATABASE_ID,
