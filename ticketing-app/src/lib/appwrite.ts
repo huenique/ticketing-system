@@ -49,7 +49,7 @@ export const authService = {
   // Logout (delete current session)
   async logout() {
     try {
-      return await account.deleteSession('current');
+      return await account.deleteSessions();
     } catch (error) {
       console.error("Error logging out:", error);
       throw error;
