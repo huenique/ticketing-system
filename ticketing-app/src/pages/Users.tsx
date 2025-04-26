@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -121,7 +122,7 @@ function Users() {
       const selectedUserType = userTypes.find(type => type.$id === newUserData.user_type_id);
       
       if (!selectedUserType) {
-        alert("Please select a valid user type");
+        toast.warning("Please select a valid user type");
         return;
       }
       
@@ -145,7 +146,7 @@ function Users() {
       
     } catch (error) {
       console.error("Failed to add user:", error);
-      alert("Failed to add user. Please check the console for details.");
+      toast.error("Failed to add user. Please check the console for details.");
     }
   };
 

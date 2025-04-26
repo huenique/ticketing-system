@@ -1,5 +1,6 @@
 import { Edit, Plus, Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -355,7 +356,7 @@ function Customers() {
         });
       } catch (error) {
         console.error("Error adding contact:", error);
-        alert("Failed to add contact. Please try again.");
+        toast.error("Failed to add contact. Please try again.");
       }
     }
   };
@@ -373,7 +374,7 @@ function Customers() {
         setEditContactFormData({});
       } catch (error) {
         console.error("Error updating contact:", error);
-        alert("Failed to update contact. Please try again.");
+        toast.error("Failed to update contact. Please try again.");
       }
     }
   };
@@ -388,7 +389,7 @@ function Customers() {
         setSelectedContacts(prev => prev.filter(c => c.$id !== contactId));
       } catch (error) {
         console.error("Error deleting contact:", error);
-        alert("Failed to delete contact. Please try again.");
+        toast.error("Failed to delete contact. Please try again.");
       }
     }
   };
