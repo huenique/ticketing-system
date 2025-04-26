@@ -3,7 +3,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 // React and Hooks
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 import { PRESET_TABLES } from "@/constants/tickets";
 import { Row, Ticket } from "@/types/tickets";
@@ -135,10 +135,57 @@ function Tickets() {
     }
   }, [activeTab, tables, createNewTable]);
 
+  // Helper function to check if any tab has the engineering preset applied
+  const hasEngineeringPreset = useCallback(() => {
+    return tabs.some(tab => tab.appliedPreset === "Engineering");
+  }, [tabs]);
+
   // Fetch status options from Appwrite when component mounts
   useEffect(() => {
     fetchStatusOptions();
   }, [fetchStatusOptions]);
+
+  // Fetch tickets data only if engineering preset is already initiated
+  useEffect(() => {
+    const fetchTicketsIfPresetExists = async () => {
+      if (hasEngineeringPreset()) {
+        try {
+          setTicketsLoading(true);
+          setTicketsError(null);
+          
+          // Fetch tickets with relationships from Appwrite
+          const ticketsWithRelationships = await ticketsService.getTicketsWithRelationships();
+          
+          // Convert tickets to rows
+          const allTicketRows = ticketsWithRelationships.map(ticket => convertTicketToRow(ticket));
+          
+          // Update tables for each tab based on status
+          // Find the "All Tickets" tab
+          const allTicketsTab = tabs.find(tab => tab.title === "All Tickets");
+          if (allTicketsTab) {
+            createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
+          }
+          
+          // Update filtered status tabs
+          tabs.forEach((tab) => {
+            if (tab.status) {
+              createFilteredTable(tab.id, tab.status, allTicketRows);
+            }
+          });
+          
+          setTicketsLoading(false);
+        } catch (error) {
+          console.error("Error fetching tickets data:", error);
+          setTicketsError(error instanceof Error ? error : new Error("Failed to load tickets"));
+          setTicketsLoading(false);
+        }
+      }
+    };
+    
+    fetchTicketsIfPresetExists();
+    // Only run when hasEngineeringPreset changes or ticketsRefreshCounter changes
+    // Removed 'tabs' from dependency array to avoid infinite loop
+  }, [hasEngineeringPreset, ticketsRefreshCounter]);
 
   // Enhanced applyEngineeringPreset function that creates tabs based on statusOptions and uses real data
   const applyEngineeringPreset = async () => {
@@ -205,6 +252,26 @@ function Tickets() {
 
     if (!presetTable) return;
 
+    // Check if the table already exists with the same number of rows to avoid unnecessary updates
+    const existingTable = tablesStore.tables[tabId];
+    if (existingTable && existingTable.rows.length === ticketRows.length) {
+      // If the table exists with same number of rows, only update if needed
+      let needsUpdate = false;
+      
+      // Compare the first row to see if data has changed (simple check)
+      if (existingTable.rows.length > 0 && ticketRows.length > 0) {
+        const firstExistingRow = existingTable.rows[0];
+        const firstNewRow = ticketRows[0];
+        if (JSON.stringify(firstExistingRow) !== JSON.stringify(firstNewRow)) {
+          needsUpdate = true;
+        }
+      }
+      
+      if (!needsUpdate) {
+        return; // Skip update if data hasn't changed
+      }
+    }
+
     // Update table with new rows
     tablesStore.setTables({
       ...tablesStore.tables,
@@ -233,6 +300,26 @@ function Tickets() {
     const filteredRows = allTicketRows.filter(
       (row) => row.cells["col-7"] === status,
     );
+    
+    // Check if the table already exists with the same number of rows to avoid unnecessary updates
+    const existingTable = tablesStore.tables[tabId];
+    if (existingTable && existingTable.rows.length === filteredRows.length) {
+      // If the table exists with same number of rows, only update if needed
+      let needsUpdate = false;
+      
+      // Compare the first row to see if data has changed (simple check)
+      if (existingTable.rows.length > 0 && filteredRows.length > 0) {
+        const firstExistingRow = existingTable.rows[0];
+        const firstNewRow = filteredRows[0];
+        if (JSON.stringify(firstExistingRow) !== JSON.stringify(firstNewRow)) {
+          needsUpdate = true;
+        }
+      }
+      
+      if (!needsUpdate) {
+        return; // Skip update if data hasn't changed
+      }
+    }
 
     // Update table with filtered rows
     tablesStore.setTables({
@@ -459,35 +546,20 @@ function Tickets() {
   // Get the current table based on active tab
   const currentTable = tables[activeTab];
 
-  // Subscribe to tables store changes
-  useEffect(() => {
-    // This empty effect with tables as a dependency will re-render 
-    // the component whenever tables state changes
-    console.log("Tables state updated, refreshing UI");
-  }, [tables, ticketsRefreshCounter]);
-
   // Inject a refresh function to reload data from Appwrite
   const refreshTicketsData = async () => {
     try {
-      setTicketsLoading(true);
-      
-      // Fetch fresh data
-      const ticketsWithRelationships = await ticketsService.getTicketsWithRelationships();
-      
-      // Convert to rows
-      const allTicketRows = ticketsWithRelationships.map(ticket => convertTicketToRow(ticket));
-      
-      // Update All Tickets tab
-      createTicketsTableForAllTickets("tab-all-tickets", allTicketRows);
-      
-      // Update status tabs
-      tabs.forEach(tab => {
-        if (tab.status) {
-          createFilteredTable(tab.id, tab.status, allTicketRows);
-        }
-      });
-      
-      setTicketsLoading(false);
+      // Only refresh if engineering preset is already initiated
+      if (hasEngineeringPreset()) {
+        setTicketsLoading(true);
+        
+        // Increment the counter to trigger the useEffect that fetches data
+        setTicketsRefreshCounter(prev => prev + 1);
+        
+        setTicketsLoading(false);
+      } else {
+        console.log("Cannot refresh tickets: Engineering preset not initiated");
+      }
     } catch (error) {
       console.error("Error refreshing tickets data:", error);
       setTicketsError(error instanceof Error ? error : new Error("Failed to refresh tickets"));
