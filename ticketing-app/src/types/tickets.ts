@@ -77,12 +77,18 @@ export interface TimeEntry {
 }
 
 export interface TicketForm {
+  // UI fields
   status: string;
   customerId: string;
   description: string;
   billableHours: number;
   totalHours: number;
   assigneeIds: string[];
+  
+  // Appwrite relationship fields (optional since they're derived)
+  status_id?: string;
+  customer_id?: string;
+  assignee_ids?: string[];
 }
 
 export interface Row {

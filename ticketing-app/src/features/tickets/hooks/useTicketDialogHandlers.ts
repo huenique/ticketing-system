@@ -244,11 +244,16 @@ export default function useTicketDialogHandlers(
     // Reset form data based on ticket
     setTicketForm({
       status: ticket.cells["col-7"] || "New",
-      customerId: "",
+      customerId: ticket.cells["customer_id"] || "",
       description: ticket.cells["col-4"] || "",
       billableHours: parseFloat(ticket.cells["col-9"] || "0"),
       totalHours: parseFloat(ticket.cells["col-8"] || "0"),
-      assigneeIds: []
+      assigneeIds: ticket.cells["assignee_ids"] ? JSON.parse(ticket.cells["assignee_ids"]) : [],
+      
+      // Appwrite relationship fields
+      status_id: ticket.cells["status_id"] || ticket.cells["col-7"] || "New",
+      customer_id: ticket.cells["customer_id"] || "",
+      assignee_ids: ticket.cells["assignee_ids"] ? JSON.parse(ticket.cells["assignee_ids"]) : []
     });
 
     // Reset uploaded images
@@ -450,14 +455,25 @@ export default function useTicketDialogHandlers(
       // Extract the real ticket ID (not the display ID)
       const ticketId = currentTicket.id;
 
-      // In a production app, we would find the real status ID from the status label
-      // For now, assume we're using the status label directly, but in a real app 
-      // you would need to fetch statuses and find the matching ID
+      // Prepare Appwrite relationship fields
+      // Map the form data to the correct Appwrite field names
+      const appwriteTicketData = {
+        ...ticketForm,
+        // Map status field to status_id for Appwrite
+        status_id: ticketForm.status,
+        // Map customerId field to customer_id for Appwrite
+        customer_id: ticketForm.customerId,
+        // Ensure assignee_ids is properly formatted
+        assignee_ids: ticketForm.assigneeIds,
+      };
+      
+      // Log the data being saved for debugging
+      console.log("Saving ticket with Appwrite relationship fields:", appwriteTicketData);
       
       // Call saveTicketChanges from tablesStore
       useTablesStore.getState().saveTicketChanges(
         currentTicket,
-        ticketForm,
+        appwriteTicketData,
         setViewDialogOpen,
         activeTab,
         hasCompletedAssignees, // Pass the completion status to be saved

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { PRESET_TABLES } from "@/constants/tickets";
 import { Row, Ticket } from "@/types/tickets";
 import { convertTicketToRow } from "@/utils/ticketUtils";
-import { ticketsService } from "@/services/ticketsService";
+import { ticketsService, statusesService, customersService, usersService } from "@/services/ticketsService";
 
 // Components
 import TabNavigation from "../components/TabNavigation";
@@ -28,11 +28,38 @@ import {
   getSavedTabsData,
   getScrollbarStyles,
 } from "../utils/ticketUtils";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus } from "lucide-react";
 
+/**
+ * Tickets Component
+ * 
+ * This component manages the tickets tab and grid interface.
+ * 
+ * Relationship Fields:
+ * - status_id: Many-to-one relationship with the statuses collection
+ *   When creating a ticket, this is a string ID of the selected status
+ * 
+ * - customer_id: Many-to-one relationship with the customers collection
+ *   When creating a ticket, this is a string ID of the selected customer
+ * 
+ * - assignee_ids: Many-to-many relationship with the users collection
+ *   When creating a ticket, this is an array of string IDs of selected users
+ *   
+ * The selection of these relationship fields is handled in the "Create New Ticket" dialog,
+ * and the correct formatting for Appwrite is managed in the ticketsService.createTicket
+ * and ticketsService.updateTicket methods.
+ */
 function Tickets() {
   // State for Appwrite data loading
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketsError, setTicketsError] = useState<Error | null>(null);
+  // State for forcing UI refreshes
+  const [ticketsRefreshCounter, setTicketsRefreshCounter] = useState(0);
 
   // ===== Zustand Stores =====
   // Tabs Store
@@ -238,43 +265,83 @@ function Tickets() {
         attachments: ticketData.attachments || []
       };
       
+      console.log("Formatted ticket data for creation:", {
+        status_id: newTicketData.status_id,
+        customer_id: newTicketData.customer_id, 
+        assignee_ids: newTicketData.assignee_ids,
+        description: newTicketData.description?.substring(0, 50) + (newTicketData.description?.length > 50 ? '...' : '')
+      });
+      
       // Create the ticket in Appwrite
       const createdTicket = await ticketsService.createTicket(newTicketData);
       
-      // Fetch the complete ticket with relationships
-      const ticketWithRelationships = await ticketsService.getTicketWithRelationships(createdTicket.id);
+      // Make sure we have a valid ID before proceeding
+      if (!createdTicket || !createdTicket.id) {
+        throw new Error("Failed to create ticket: No ID returned");
+      }
       
-      // Convert to row format
-      const newRow = convertTicketToRow(ticketWithRelationships);
+      console.log("Created ticket with ID:", createdTicket.id);
+      
+      // Create a simplified row for now, in case relationship fetching fails
+      let newRow: Row = {
+        id: createdTicket.id,
+        cells: {
+          "col-1": createdTicket.id || "",
+          "col-2": new Date().toISOString(),
+          "col-3": "Loading...", // Customer name (will be updated if relationship fetch succeeds)
+          "col-4": createdTicket.description || "",
+          "col-5": "Loading...", // Assignee names (will be updated if relationship fetch succeeds)
+          "col-6": Array.isArray(createdTicket.attachments) ? createdTicket.attachments.join(", ") : "",
+          "col-7": "Loading...", // Status (will be updated if relationship fetch succeeds)
+          "col-8": createdTicket.billable_hours?.toString() || "0",
+          "col-9": createdTicket.total_hours?.toString() || "0"
+        }
+      };
+      
+      try {
+        // Try to fetch the complete ticket with relationships
+        const ticketWithRelationships = await ticketsService.getTicketWithRelationships(createdTicket.id);
+        
+        // If successful, convert to proper row format
+        newRow = convertTicketToRow(ticketWithRelationships);
+      } catch (relationshipError) {
+        console.warn("Error fetching relationships for newly created ticket:", relationshipError);
+        // Continue with the simplified row we created
+      }
+      
+      // Get current tables and create updated tables object
+      const currentTables = { ...tables };
       
       // Update the All Tickets tab
       const allTicketsTabId = "tab-all-tickets";
-      if (tables[allTicketsTabId]) {
-        const tablesStore = useTablesStore.getState();
-        tablesStore.setTables({
-          ...tables,
-          [allTicketsTabId]: {
-            ...tables[allTicketsTabId],
-            rows: [...tables[allTicketsTabId].rows, newRow]
-          }
-        });
+      if (currentTables[allTicketsTabId]) {
+        currentTables[allTicketsTabId] = {
+          ...currentTables[allTicketsTabId],
+          rows: [...currentTables[allTicketsTabId].rows, newRow]
+        };
       }
       
       // Also update the current status tab if applicable
-      const statusTabs = tabs.filter(tab => tab.status === ticketWithRelationships.status?.label);
-      if (statusTabs.length > 0) {
-        const statusTabId = statusTabs[0].id;
-        if (tables[statusTabId]) {
-          const tablesStore = useTablesStore.getState();
-          tablesStore.setTables({
-            ...tables,
-            [statusTabId]: {
-              ...tables[statusTabId],
-              rows: [...tables[statusTabId].rows, newRow]
-            }
-          });
+      // Only do this if we successfully got the status
+      if (newRow.cells["col-7"] !== "Loading...") {
+        const statusTabs = tabs.filter(tab => tab.status === newRow.cells["col-7"]);
+        if (statusTabs.length > 0) {
+          const statusTabId = statusTabs[0].id;
+          if (currentTables[statusTabId]) {
+            currentTables[statusTabId] = {
+              ...currentTables[statusTabId],
+              rows: [...currentTables[statusTabId].rows, newRow]
+            };
+          }
         }
       }
+      
+      // Update the tables in the store all at once
+      const tablesStore = useTablesStore.getState();
+      tablesStore.setTables(currentTables);
+      
+      // Force a refresh of the UI by updating a state value
+      setTicketsRefreshCounter(prev => prev + 1);
       
       return newRow;
     } catch (error) {
@@ -392,6 +459,13 @@ function Tickets() {
   // Get the current table based on active tab
   const currentTable = tables[activeTab];
 
+  // Subscribe to tables store changes
+  useEffect(() => {
+    // This empty effect with tables as a dependency will re-render 
+    // the component whenever tables state changes
+    console.log("Tables state updated, refreshing UI");
+  }, [tables, ticketsRefreshCounter]);
+
   // Inject a refresh function to reload data from Appwrite
   const refreshTicketsData = async () => {
     try {
@@ -421,30 +495,182 @@ function Tickets() {
     }
   };
 
+  // State for the Add Ticket dialog
+  const [isAddTicketDialogOpen, setIsAddTicketDialogOpen] = useState(false);
+  const [newTicketData, setNewTicketData] = useState({
+    status_id: "",
+    customer_id: "",
+    description: "",
+    billable_hours: 0,
+    total_hours: 0,
+    assignee_ids: [] as string[]
+  });
+  const [statuses, setStatuses] = useState<{$id: string; id?: string; label: string}[]>([]);
+  const [customers, setCustomers] = useState<{$id: string; id?: string; name: string}[]>([]);
+  const [users, setUsers] = useState<{$id: string; id?: string; first_name: string; last_name: string}[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+
+  // Fetch statuses, customers, and users when component mounts or dialog opens
+  useEffect(() => {
+    const fetchTicketFormData = async () => {
+      try {
+        console.log("Fetching ticket form data...");
+        
+        // Fetch statuses
+        const statusesData = await statusesService.getAllStatuses();
+        console.log("Fetched statuses:", statusesData);
+        setStatuses(statusesData as any[]);
+        
+        // Fetch customers
+        const customersData = await customersService.getAllCustomers();
+        console.log("Fetched customers:", customersData);
+        setCustomers(customersData as any[]);
+        
+        // Fetch users
+        const usersData = await usersService.getAllUsers();
+        console.log("Fetched users:", usersData);
+        setUsers(usersData as any[]);
+      } catch (error) {
+        console.error("Error fetching form data:", error);
+      }
+    };
+    
+    if (isAddTicketDialogOpen) {
+      fetchTicketFormData();
+    }
+  }, [isAddTicketDialogOpen]);
+
+  // Handle new ticket form changes
+  const handleNewTicketFormChange = (
+    field: string,
+    value: string | number
+  ) => {
+    console.log(`Setting ${field} to:`, value);
+    setNewTicketData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Helper function to get status label from ID
+  const getStatusLabel = (statusId: string): string => {
+    if (!statusId || statusId === "placeholder") return "Select status";
+    const status = statuses.find(s => s.$id === statusId);
+    return status ? status.label : "Select status";
+  };
+
+  // Helper function to get customer name from ID
+  const getCustomerName = (customerId: string): string => {
+    if (!customerId || customerId === "placeholder") return "Select customer";
+    const customer = customers.find(c => c.$id === customerId);
+    return customer ? customer.name : "Select customer";
+  };
+
+  // Handle assignee selection
+  const handleAssigneeSelection = (userId: string) => {
+    console.log("Toggling assignee selection for:", userId);
+    setSelectedAssignees(prev => {
+      // If already selected, remove it
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      }
+      // Otherwise add it
+      return [...prev, userId];
+    });
+  };
+
+  // Handle submit new ticket
+  const handleSubmitNewTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      // Set loading state
+      setTicketsLoading(true);
+      
+      // Create new ticket with form data
+      const ticketData = {
+        ...newTicketData,
+        assignee_ids: selectedAssignees
+      };
+      
+      console.log("Creating ticket with relationship fields:", {
+        status_id: ticketData.status_id,
+        customer_id: ticketData.customer_id,
+        assignee_ids: ticketData.assignee_ids
+      });
+      
+      // Create the ticket and update the UI
+      await handleCreateTicket(ticketData);
+      
+      // Reset form data
+      setNewTicketData({
+        status_id: "",
+        customer_id: "",
+        description: "",
+        billable_hours: 0,
+        total_hours: 0,
+        assignee_ids: []
+      });
+      setSelectedAssignees([]);
+      
+      // Close dialog
+      setIsAddTicketDialogOpen(false);
+      
+    } catch (error) {
+      console.error("Error creating new ticket:", error);
+    } finally {
+      // End loading state
+      setTicketsLoading(false);
+    }
+  };
+
+  // Reset form when dialog opens or closes
+  useEffect(() => {
+    if (isAddTicketDialogOpen) {
+      // Reset form when opening
+      setNewTicketData({
+        status_id: "",
+        customer_id: "",
+        description: "",
+        billable_hours: 0,
+        total_hours: 0,
+        assignee_ids: []
+      });
+      setSelectedAssignees([]);
+      console.log("Form data reset when dialog opened");
+    }
+  }, [isAddTicketDialogOpen]);
+
   return (
     <div className="p-8 max-w-full">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Tickets</h1>
+        <h1 className="text-3xl font-bold mr-2">Tickets</h1>
         <div className="flex space-x-2">
-          <button
+          <Button
+            onClick={() => setIsAddTicketDialogOpen(true)}
+            className="flex items-center gap-1 bg-green-500 text-white rounded-md hover:bg-green-600"
+          >
+            <Plus size={16} /> Add Ticket
+          </Button>
+          <Button
             onClick={applyEngineeringPreset}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
           >
             Apply Engineering Preset
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={resetTabs}
             className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
           >
             Reset
-          </button>
-          <button
+          </Button>
+          {/* <button
             onClick={refreshTicketsData}
             className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
             disabled={ticketsLoading}
           >
             {ticketsLoading ? "Loading..." : "Refresh Data"}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -473,20 +699,255 @@ function Tickets() {
       />
 
       <div className="mt-6">
-        {/* Only render if we have a table for the active tab */}
-        {currentTable ? (
-          <DataTable
-            columns={columns}
-            data={currentTable.rows}
-            onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
-            statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
-          />
+        {ticketsLoading ? (
+          <div className="text-center py-10">
+            <div className="flex justify-center items-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Loading tickets...</span>
+            </div>
+          </div>
+        ) : ticketsError ? (
+          <div className="text-center py-10 text-red-500">
+            <p>Error loading tickets: {ticketsError.message}</p>
+            <Button 
+              variant="outline" 
+              className="mt-2"
+              onClick={refreshTicketsData}
+            >
+              Try Again
+            </Button>
+          </div>
+        ) : currentTable ? (
+          // Key prop forces a remount when ticketsRefreshCounter changes
+          <div key={`table-${activeTab}-${ticketsRefreshCounter}`}>
+            <DataTable
+              columns={columns}
+              data={currentTable.rows}
+              onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
+              statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
+            />
+          </div>
         ) : (
           <div className="text-center py-10">
             <p className="text-neutral-500">No table for this tab yet</p>
           </div>
         )}
       </div>
+
+      {/* Add Ticket Dialog */}
+      <Dialog open={isAddTicketDialogOpen} onOpenChange={setIsAddTicketDialogOpen}>
+        <DialogTrigger asChild>
+          <button
+            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 hidden"
+            aria-hidden="true"
+          >
+            Add Ticket
+          </button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create New Ticket</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new ticket. Click create when done.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitNewTicket}>
+            <div className="grid gap-4 py-4">
+              {/* Status */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="status_id" className="text-right text-sm font-medium">
+                  Status
+                </label>
+                <div className="col-span-3">
+                  <Select
+                    value={newTicketData.status_id || "placeholder"}
+                    onValueChange={(value) => {
+                      if (value !== "placeholder") {
+                        handleNewTicketFormChange("status_id", value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full" aria-label={getStatusLabel(newTicketData.status_id)}>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
+                      <SelectGroup>
+                        <SelectItem value="placeholder" disabled>Select status</SelectItem>
+                        {statuses && statuses.length > 0 ? (
+                          statuses.map((status, index) => (
+                            <SelectItem 
+                              key={status.$id || `status-${index}`} 
+                              value={status.$id ? status.$id.toString() : `undefined-status-${index}`}
+                            >
+                              {status.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-statuses" disabled>No statuses available</SelectItem>
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Customer */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="customer_id" className="text-right text-sm font-medium">
+                  Customer
+                </label>
+                <div className="col-span-3">
+                  <Select
+                    value={newTicketData.customer_id || "placeholder"}
+                    onValueChange={(value) => {
+                      if (value !== "placeholder") {
+                        handleNewTicketFormChange("customer_id", value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full" aria-label={getCustomerName(newTicketData.customer_id)}>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
+                      <SelectGroup>
+                        <SelectItem value="placeholder" disabled>Select customer</SelectItem>
+                        {customers && customers.length > 0 ? (
+                          customers.map((customer, index) => (
+                            <SelectItem 
+                              key={customer.$id || `customer-${index}`} 
+                              value={customer.$id ? customer.$id.toString() : `undefined-customer-${index}`}
+                            >
+                              {customer.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-customers" disabled>No customers available</SelectItem>
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Description */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="description" className="text-right text-sm font-medium">
+                  Description
+                </label>
+                <Textarea
+                  id="description"
+                  value={newTicketData.description}
+                  onChange={(e) => handleNewTicketFormChange("description", e.target.value)}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              
+              {/* Hours */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="billable_hours" className="text-right text-sm font-medium">
+                  Billable Hours
+                </label>
+                <Input
+                  id="billable_hours"
+                  type="number"
+                  value={newTicketData.billable_hours}
+                  onChange={(e) => handleNewTicketFormChange("billable_hours", parseFloat(e.target.value) || 0)}
+                  className="col-span-3"
+                  min="0"
+                  step="0.5"
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="total_hours" className="text-right text-sm font-medium">
+                  Total Hours
+                </label>
+                <Input
+                  id="total_hours"
+                  type="number"
+                  value={newTicketData.total_hours}
+                  onChange={(e) => handleNewTicketFormChange("total_hours", parseFloat(e.target.value) || 0)}
+                  className="col-span-3"
+                  min="0"
+                  step="0.5"
+                />
+              </div>
+              
+              {/* Assignees */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label className="text-right text-sm font-medium mt-2">
+                  Assignees
+                </label>
+                <div className="col-span-3">
+                  <Select
+                    value={selectedAssignees.length > 0 ? "has-selections" : "placeholder"}
+                    onValueChange={(value) => {
+                      if (value && value !== "has-selections" && value !== "placeholder") {
+                        handleAssigneeSelection(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full" aria-label="Select assignees">
+                      <SelectValue placeholder="Select assignees" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
+                      <SelectGroup>
+                        <SelectItem value="placeholder" disabled>Select assignees</SelectItem>
+                        {users && users.length > 0 && users.map((user, index) => (
+                          <SelectItem 
+                            key={user.$id || `user-${index}`} 
+                            value={user.$id ? user.$id.toString() : `undefined-user-${index}`}
+                            className={selectedAssignees.includes(user.$id || `undefined-user-${index}`) ? "bg-blue-100" : ""}
+                          >
+                            {user.first_name} {user.last_name}
+                            {selectedAssignees.includes(user.$id || `undefined-user-${index}`) && ' ✓'}
+                          </SelectItem>
+                        ))}
+                        {(!users || users.length === 0) && (
+                          <SelectItem value="no-users" disabled>No users available</SelectItem>
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Show selected assignees as tags */}
+                  {selectedAssignees.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedAssignees.map(id => {
+                        const user = users.find(u => u.$id === id);
+                        if (!user) return null;
+                        
+                        return (
+                          <div key={id} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm flex items-center">
+                            {user.first_name} {user.last_name}
+                            <button 
+                              type="button"
+                              onClick={() => setSelectedAssignees(prev => prev.filter(userId => userId !== id))}
+                              className="ml-2 text-blue-600 hover:text-blue-800"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddTicketDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Ticket</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Ticket Dialog */}
       <TicketDialog
