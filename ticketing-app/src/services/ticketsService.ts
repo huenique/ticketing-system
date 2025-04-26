@@ -18,6 +18,7 @@ const USER_TYPES_COLLECTION = "user_types";
 // Status interface
 export interface Status {
   id: string;
+  $id?: string; // Appwrite document ID
   label: string;
 }
 

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "./middleware";
 import { Status, statusesService } from "@/services/ticketsService";
+import { toast } from "sonner";
 
 interface SettingsState {
   // Status widget configuration
@@ -77,10 +78,14 @@ export const useSettingsStore = create<SettingsState>()(
           // Then try to add to the backend
           try {
             await statusesService.createStatus({ label: option });
+            toast.success(`Status "${option}" successfully added`);
           } catch (err) {
             console.error("Error adding status to backend:", err);
+            toast.error(`Failed to add status: ${err instanceof Error ? err.message : 'Unknown error'}`);
             // Consider if you want to revert the local state on error
           }
+        } else {
+          toast.warning(`Status "${option}" already exists`);
         }
       },
 
@@ -99,7 +104,18 @@ export const useSettingsStore = create<SettingsState>()(
           const statusToDelete = statuses.find(status => status.label === option);
           
           if (statusToDelete) {
-            await statusesService.deleteStatus(statusToDelete.id);
+            // Check which ID property is available and use that
+            const documentId = statusToDelete.$id || statusToDelete.id;
+            
+            if (!documentId) {
+              console.error(`Cannot delete status: No ID found for status "${option}"`, statusToDelete);
+              return;
+            }
+            
+            console.log(`Deleting status with ID: ${documentId}`);
+            await statusesService.deleteStatus(documentId);
+          } else {
+            console.warn(`Status "${option}" not found in the database`);
           }
         } catch (err) {
           console.error("Error removing status from backend:", err);
@@ -130,15 +146,26 @@ export const useSettingsStore = create<SettingsState>()(
           
           // Delete all existing statuses
           for (const status of existingStatuses) {
-            await statusesService.deleteStatus(status.id);
+            // Check which ID property is available and use that
+            const documentId = status.$id || status.id;
+            
+            if (!documentId) {
+              console.error(`Cannot delete status: No ID found for status "${status.label}"`, status);
+              continue; // Skip this status and try to delete others
+            }
+            
+            await statusesService.deleteStatus(documentId);
           }
           
           // Create default statuses
           for (const label of DEFAULT_STATUS_OPTIONS) {
             await statusesService.createStatus({ label });
           }
+          
+          toast.success("Status options have been reset to defaults");
         } catch (err) {
           console.error("Error resetting statuses in backend:", err);
+          toast.error(`Failed to reset statuses: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       },
     }),
