@@ -27,94 +27,82 @@ const formatDate = (dateStr: string) => {
   }
 };
 
-// File attachment component with info fetching
-const FileAttachment = ({ fileId }: { fileId: string }) => {
-  const [fileInfo, setFileInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Helper function to get a better display name for attachments
+const getAttachmentDisplayName = (fileId: string) => {
+  // If fileId contains a file name or type pattern, extract it
+  // Otherwise, display a generic file name with the ID
+  if (fileId.includes('_') && fileId.length > 10) {
+    // Some file IDs might contain original filename information
+    const parts = fileId.split('_');
+    if (parts.length > 1) {
+      return parts[parts.length - 1]; // Get the last part
+    }
+  }
+  
+  // Default to a formatted ID
+  return `File-${fileId.substring(0, 6)}`;
+};
 
+// File attachment component with info fetching
+const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string | null }) => {
+  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Attempt to fetch the file info to get the actual file name
   useEffect(() => {
+    let isMounted = true;
     const fetchFileInfo = async () => {
       try {
-        setLoading(true);
-        // Using the client SDK to get file info
-        const info = await storage.getFile(
-          import.meta.env.VITE_APPWRITE_BUCKET_ID,
-          fileId
-        );
-        setFileInfo(info);
-        setError(null);
+        setIsLoading(true);
+        const info = await storageService.getFileInfo(fileId);
+        
+        if (isMounted && info) {
+          setFileInfo(info);
+        }
       } catch (err) {
-        console.error("Error fetching file info:", err);
-        setError("Failed to load file info");
+        console.log("Could not fetch file info:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchFileInfo();
+    return () => { isMounted = false; };
   }, [fileId]);
 
-  if (loading) {
-    return (
-      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">
-        <Paperclip className="w-3 h-3 mr-1" />
-        Loading...
-      </span>
-    );
+  // Determine what name to display
+  let displayName = "Loading...";
+  
+  if (!isLoading) {
+    if (fileInfo && fileInfo.name) {
+      // Use the real file name from metadata if available
+      displayName = fileInfo.name;
+    } else if (fileName) {
+      // Use the provided fileName if available
+      displayName = fileName;
+    } else {
+      // Fall back to generated name
+      displayName = getAttachmentDisplayName(fileId);
+    }
   }
-
-  if (error || !fileInfo) {
-    return (
-      <a
-        href={storageService.getFileDownload(fileId)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-      >
-        <FileText className="w-3 h-3 mr-1" />
-        {fileId.substring(0, 6)}
-      </a>
-    );
-  }
-
-  const isImage = fileInfo.mimeType && fileInfo.mimeType.startsWith('image/');
-  const fileName = fileInfo.name || `File-${fileId.substring(0, 6)}`;
-  const fileSize = fileInfo.sizeOriginal 
-    ? `${(fileInfo.sizeOriginal / 1024).toFixed(1)} KB` 
-    : '';
-
+  
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <a
-            href={storageService.getFileDownload(fileId)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-          >
-            {isImage ? (
-              <Image className="w-3 h-3 mr-1" />
-            ) : (
-              <FileText className="w-3 h-3 mr-1" />
-            )}
-            {fileName.length > 15 ? fileName.substring(0, 12) + '...' : fileName}
-          </a>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{fileName}</p>
-          {fileSize && <p className="text-xs text-gray-500">{fileSize}</p>}
-          {isImage && (
-            <img 
-              src={storageService.getFilePreview(fileId, 200, 200)} 
-              alt={fileName}
-              className="mt-2 max-w-[200px] max-h-[200px] rounded"
-            />
-          )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <a
+      href={storageService.getFileView(fileId)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+      title={`Open attachment: ${fileId}`}
+    >
+      {fileInfo && fileInfo.mimeType && fileInfo.mimeType.startsWith('image/') ? (
+        <Image className="w-3 h-3 mr-1" />
+      ) : (
+        <FileText className="w-3 h-3 mr-1" />
+      )}
+      {displayName}
+    </a>
   );
 };
 
@@ -172,14 +160,25 @@ export const columns: ColumnDef<Row>[] = [
       const attachments = row.original.cells["col-6"];
       if (!attachments) return "-";
 
-      // Split attachments string into an array of file IDs
-      const fileIds = attachments.split(", ");
+      // Split attachments string into an array of file IDs or ID:Name pairs
+      const attachmentItems = attachments.split(", ");
 
       return (
         <div className="flex flex-wrap gap-2">
-          {fileIds.map((fileId, index) => (
-            <FileAttachment key={index} fileId={fileId} />
-          ))}
+          {attachmentItems.map((item, index) => {
+            // Check if the attachment includes a name in format "id:name"
+            const parts = item.split(':');
+            const fileId = parts[0];
+            const fileName = parts.length > 1 ? parts[1] : null;
+            
+            return (
+              <FileAttachment 
+                key={index} 
+                fileId={fileId} 
+                fileName={fileName}
+              />
+            );
+          })}
         </div>
       );
     },

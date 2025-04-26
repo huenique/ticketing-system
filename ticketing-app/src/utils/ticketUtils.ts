@@ -325,11 +325,45 @@ export function convertTicketToRow(
   // Handle attachments - ensure it's an array of file IDs as strings
   let attachmentsStr = "";
   if (ticket.attachments) {
-    const attachmentsArray = Array.isArray(ticket.attachments) 
-      ? ticket.attachments 
-      : [ticket.attachments];
-    
-    attachmentsStr = attachmentsArray.join(", ");
+    try {
+      // Handle different possible formats of attachments
+      const attachmentsArray = Array.isArray(ticket.attachments) 
+        ? ticket.attachments 
+        : typeof ticket.attachments === 'string'
+          ? ticket.attachments.split(',').map((id: string) => id.trim())
+          : [ticket.attachments];
+      
+      // Filter out empty or invalid attachment IDs
+      attachmentsStr = attachmentsArray
+        .filter((attachment: any) => attachment && String(attachment).trim() !== '')
+        .join(", ");
+        
+      // If we have attachment metadata in the original ticket, use it
+      if (ticket.attachment_metadata && Array.isArray(ticket.attachment_metadata)) {
+        const metadataMap = new Map();
+        ticket.attachment_metadata.forEach((metadata: any) => {
+          if (metadata.id && metadata.name) {
+            metadataMap.set(metadata.id, metadata.name);
+          }
+        });
+        
+        // If we have metadata for at least one attachment, use a more descriptive format
+        // with both ID and name
+        if (metadataMap.size > 0) {
+          attachmentsStr = attachmentsArray
+            .filter((attachment: any) => attachment && String(attachment).trim() !== '')
+            .map((id: string) => {
+              const name = metadataMap.get(id);
+              return name ? `${id}:${name}` : id;
+            })
+            .join(", ");
+        }
+      }
+    } catch (error) {
+      console.error("Error processing attachments:", error);
+      // Return empty string if there's any error processing attachments
+      attachmentsStr = "";
+    }
   }
 
   // Use $id for Appwrite's document ID if available
