@@ -810,7 +810,14 @@ function Tickets() {
       </div>
 
       {/* Add Ticket Dialog */}
-      <Dialog open={isAddTicketDialogOpen} onOpenChange={setIsAddTicketDialogOpen}>
+      <Dialog 
+        open={isAddTicketDialogOpen} 
+        onOpenChange={(open) => {
+          // Prevent closing the dialog when loading
+          if (ticketsLoading && !open) return;
+          setIsAddTicketDialogOpen(open);
+        }}
+      >
         <DialogTrigger asChild>
           <button
             className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 hidden"
@@ -1012,10 +1019,15 @@ function Tickets() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddTicketDialogOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsAddTicketDialogOpen(false)} 
+                disabled={ticketsLoading}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Create Ticket</Button>
+              <Button type="submit" disabled={ticketsLoading} className="bg-green-500 text-white rounded-md hover:bg-green-600">Create Ticket</Button>
             </DialogFooter>
           </form>
         </DialogContent>
