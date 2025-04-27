@@ -290,13 +290,15 @@ const useTablesStore = create<TablesState>()(
             if (ticketForm.description) updatedCells["col-4"] = ticketForm.description;
             if (ticketForm.billableHours)
               updatedCells["col-9"] = String(ticketForm.billableHours);
-            if (ticketForm.totalHours) updatedCells["col-8"] = String(ticketForm.totalHours);
-            
+            if (ticketForm.totalHours)
+              updatedCells["col-8"] = String(ticketForm.totalHours);
+
             // Store relationship field IDs in the table data too (even though this is UI only)
             // These fields are needed when sending to Appwrite
-            if (ticketForm.customerId) updatedCells["customer_id"] = ticketForm.customerId;
+            if (ticketForm.customerId)
+              updatedCells["customer_id"] = ticketForm.customerId;
             if (ticketForm.status) updatedCells["status_id"] = ticketForm.status;
-            if (ticketForm.assigneeIds && ticketForm.assigneeIds.length > 0) 
+            if (ticketForm.assigneeIds && ticketForm.assigneeIds.length > 0)
               updatedCells["assignee_ids"] = JSON.stringify(ticketForm.assigneeIds);
 
             // Update status column if it exists based on completion

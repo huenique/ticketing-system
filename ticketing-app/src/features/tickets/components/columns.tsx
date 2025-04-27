@@ -5,10 +5,15 @@ import { ArrowUpDown, Calendar, FileText, Image, Paperclip } from "lucide-react"
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Row } from "@/types/tickets";
-import { storageService } from "@/services/storageService";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { storage } from "@/lib/appwrite";
+import { storageService } from "@/services/storageService";
+import { Row } from "@/types/tickets";
 
 // Helper function to format dates
 const formatDate = (dateStr: string) => {
@@ -31,20 +36,26 @@ const formatDate = (dateStr: string) => {
 const getAttachmentDisplayName = (fileId: string) => {
   // If fileId contains a file name or type pattern, extract it
   // Otherwise, display a generic file name with the ID
-  if (fileId.includes('_') && fileId.length > 10) {
+  if (fileId.includes("_") && fileId.length > 10) {
     // Some file IDs might contain original filename information
-    const parts = fileId.split('_');
+    const parts = fileId.split("_");
     if (parts.length > 1) {
       return parts[parts.length - 1]; // Get the last part
     }
   }
-  
+
   // Default to a formatted ID
   return `File-${fileId.substring(0, 6)}`;
 };
 
 // File attachment component with info fetching
-const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string | null }) => {
+const FileAttachment = ({
+  fileId,
+  fileName,
+}: {
+  fileId: string;
+  fileName: string | null;
+}) => {
   const [fileInfo, setFileInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,7 +66,7 @@ const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string
       try {
         setIsLoading(true);
         const info = await storageService.getFileInfo(fileId);
-        
+
         if (isMounted && info) {
           setFileInfo(info);
         }
@@ -69,12 +80,14 @@ const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string
     };
 
     fetchFileInfo();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [fileId]);
 
   // Determine what name to display
   let displayName = "Loading...";
-  
+
   if (!isLoading) {
     if (fileInfo && fileInfo.name) {
       // Use the real file name from metadata if available
@@ -87,7 +100,7 @@ const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string
       displayName = getAttachmentDisplayName(fileId);
     }
   }
-  
+
   return (
     <a
       href={storageService.getFileView(fileId)}
@@ -96,7 +109,7 @@ const FileAttachment = ({ fileId, fileName }: { fileId: string; fileName: string
       className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
       title={`Open attachment: ${fileId}`}
     >
-      {fileInfo && fileInfo.mimeType && fileInfo.mimeType.startsWith('image/') ? (
+      {fileInfo && fileInfo.mimeType && fileInfo.mimeType.startsWith("image/") ? (
         <Image className="w-3 h-3 mr-1" />
       ) : (
         <FileText className="w-3 h-3 mr-1" />
@@ -167,17 +180,11 @@ export const columns: ColumnDef<Row>[] = [
         <div className="flex flex-wrap gap-2">
           {attachmentItems.map((item, index) => {
             // Check if the attachment includes a name in format "id:name"
-            const parts = item.split(':');
+            const parts = item.split(":");
             const fileId = parts[0];
             const fileName = parts.length > 1 ? parts[1] : null;
-            
-            return (
-              <FileAttachment 
-                key={index} 
-                fileId={fileId} 
-                fileName={fileName}
-              />
-            );
+
+            return <FileAttachment key={index} fileId={fileId} fileName={fileName} />;
           })}
         </div>
       );

@@ -1,13 +1,13 @@
+import {
+  createDocument,
+  deleteDocument,
+  getCollection,
+  getDocument,
+  Query,
+  updateDocument,
+} from "@/lib/appwrite";
 import { UserType } from "@/types/auth";
 import { CustomerContact } from "@/types/common";
-import { 
-  getCollection, 
-  getDocument, 
-  createDocument, 
-  updateDocument, 
-  deleteDocument,
-  Query
-} from "@/lib/appwrite";
 
 // Collection ID constants
 const USER_TYPES_COLLECTION = "user_types";
@@ -20,7 +20,7 @@ export const userTypesService = {
    */
   getAllUserTypes: async (): Promise<UserType[]> => {
     const response = await getCollection<UserType>(USER_TYPES_COLLECTION, [
-      Query.limit(100)
+      Query.limit(100),
     ]);
     return response.documents;
   },
@@ -42,7 +42,10 @@ export const userTypesService = {
   /**
    * Update an existing user type
    */
-  updateUserType: async (userTypeId: string, userTypeData: Partial<UserType>): Promise<UserType> => {
+  updateUserType: async (
+    userTypeId: string,
+    userTypeData: Partial<UserType>,
+  ): Promise<UserType> => {
     return updateDocument<UserType>(USER_TYPES_COLLECTION, userTypeId, userTypeData);
   },
 
@@ -51,7 +54,7 @@ export const userTypesService = {
    */
   deleteUserType: async (userTypeId: string): Promise<void> => {
     return deleteDocument(USER_TYPES_COLLECTION, userTypeId);
-  }
+  },
 };
 
 // Customer contacts service
@@ -60,9 +63,10 @@ export const customerContactsService = {
    * Get all customer contacts
    */
   getAllCustomerContacts: async (): Promise<CustomerContact[]> => {
-    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, [
-      Query.limit(100)
-    ]);
+    const response = await getCollection<CustomerContact>(
+      CUSTOMER_CONTACTS_COLLECTION,
+      [Query.limit(100)],
+    );
     return response.documents;
   },
 
@@ -71,10 +75,10 @@ export const customerContactsService = {
    */
   getContactsByCustomerId: async (customerId: string): Promise<CustomerContact[]> => {
     // Use proper Query filtering instead of client-side filtering
-    const response = await getCollection<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, [
-      Query.equal("customerId", customerId),
-      Query.limit(100)
-    ]);
+    const response = await getCollection<CustomerContact>(
+      CUSTOMER_CONTACTS_COLLECTION,
+      [Query.equal("customerId", customerId), Query.limit(100)],
+    );
     return response.documents;
   },
 
@@ -88,15 +92,24 @@ export const customerContactsService = {
   /**
    * Create a new customer contact
    */
-  createCustomerContact: async (contactData: Omit<CustomerContact, "id">): Promise<CustomerContact> => {
+  createCustomerContact: async (
+    contactData: Omit<CustomerContact, "id">,
+  ): Promise<CustomerContact> => {
     return createDocument<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, contactData);
   },
 
   /**
    * Update an existing customer contact
    */
-  updateCustomerContact: async (contactId: string, contactData: Partial<CustomerContact>): Promise<CustomerContact> => {
-    return updateDocument<CustomerContact>(CUSTOMER_CONTACTS_COLLECTION, contactId, contactData);
+  updateCustomerContact: async (
+    contactId: string,
+    contactData: Partial<CustomerContact>,
+  ): Promise<CustomerContact> => {
+    return updateDocument<CustomerContact>(
+      CUSTOMER_CONTACTS_COLLECTION,
+      contactId,
+      contactData,
+    );
   },
 
   /**
@@ -104,5 +117,5 @@ export const customerContactsService = {
    */
   deleteCustomerContact: async (contactId: string): Promise<void> => {
     return deleteDocument(CUSTOMER_CONTACTS_COLLECTION, contactId);
-  }
-}; 
+  },
+};

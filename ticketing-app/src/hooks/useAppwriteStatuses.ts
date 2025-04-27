@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+
 import { Status, statusesService } from "@/services/ticketsService";
 
 interface UseAppwriteStatusesProps {
@@ -16,7 +17,9 @@ interface UseAppwriteStatusesReturn {
   deleteStatus: (id: string) => Promise<void>;
 }
 
-export function useAppwriteStatuses({ initialFetch = true }: UseAppwriteStatusesProps = {}): UseAppwriteStatusesReturn {
+export function useAppwriteStatuses({
+  initialFetch = true,
+}: UseAppwriteStatusesProps = {}): UseAppwriteStatusesReturn {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -24,7 +27,7 @@ export function useAppwriteStatuses({ initialFetch = true }: UseAppwriteStatuses
   const fetchStatuses = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await statusesService.getAllStatuses();
       setStatuses(result);
@@ -36,43 +39,52 @@ export function useAppwriteStatuses({ initialFetch = true }: UseAppwriteStatuses
     }
   }, []);
 
-  const getStatus = useCallback(async (id: string): Promise<Status | undefined> => {
-    try {
-      const foundStatus = statuses.find(status => status.id === id);
-      if (foundStatus) return foundStatus;
-      
-      // If not in local state, fetch from API
-      const status = await statusesService.getStatus(id);
-      return status;
-    } catch (err) {
-      console.error(`Error fetching status ${id}:`, err);
-      return undefined;
-    }
-  }, [statuses]);
+  const getStatus = useCallback(
+    async (id: string): Promise<Status | undefined> => {
+      try {
+        const foundStatus = statuses.find((status) => status.id === id);
+        if (foundStatus) return foundStatus;
 
-  const createStatus = useCallback(async (statusData: Omit<Status, "id">): Promise<Status> => {
-    try {
-      const newStatus = await statusesService.createStatus(statusData);
-      setStatuses((prevStatuses) => [...prevStatuses, newStatus]);
-      return newStatus;
-    } catch (err) {
-      console.error("Error creating status:", err);
-      throw err;
-    }
-  }, []);
+        // If not in local state, fetch from API
+        const status = await statusesService.getStatus(id);
+        return status;
+      } catch (err) {
+        console.error(`Error fetching status ${id}:`, err);
+        return undefined;
+      }
+    },
+    [statuses],
+  );
 
-  const updateStatus = useCallback(async (id: string, statusData: Partial<Status>): Promise<Status> => {
-    try {
-      const updatedStatus = await statusesService.updateStatus(id, statusData);
-      setStatuses((prevStatuses) =>
-        prevStatuses.map((status) => (status.id === id ? updatedStatus : status))
-      );
-      return updatedStatus;
-    } catch (err) {
-      console.error(`Error updating status ${id}:`, err);
-      throw err;
-    }
-  }, []);
+  const createStatus = useCallback(
+    async (statusData: Omit<Status, "id">): Promise<Status> => {
+      try {
+        const newStatus = await statusesService.createStatus(statusData);
+        setStatuses((prevStatuses) => [...prevStatuses, newStatus]);
+        return newStatus;
+      } catch (err) {
+        console.error("Error creating status:", err);
+        throw err;
+      }
+    },
+    [],
+  );
+
+  const updateStatus = useCallback(
+    async (id: string, statusData: Partial<Status>): Promise<Status> => {
+      try {
+        const updatedStatus = await statusesService.updateStatus(id, statusData);
+        setStatuses((prevStatuses) =>
+          prevStatuses.map((status) => (status.id === id ? updatedStatus : status)),
+        );
+        return updatedStatus;
+      } catch (err) {
+        console.error(`Error updating status ${id}:`, err);
+        throw err;
+      }
+    },
+    [],
+  );
 
   const deleteStatus = useCallback(async (id: string): Promise<void> => {
     try {
@@ -100,4 +112,4 @@ export function useAppwriteStatuses({ initialFetch = true }: UseAppwriteStatuses
     updateStatus,
     deleteStatus,
   };
-} 
+}

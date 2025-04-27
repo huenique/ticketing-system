@@ -52,7 +52,7 @@ export const customersService = {
       const response = await databases.listDocuments(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
-        [Query.limit(100)]
+        [Query.limit(100)],
       );
       return response.documents as Customer[];
     } catch (error) {
@@ -69,7 +69,7 @@ export const customersService = {
       const customer = await databases.getDocument(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
-        id
+        id,
       );
       return customer as Customer;
     } catch (error) {
@@ -83,16 +83,19 @@ export const customersService = {
    */
   createCustomer: async (customerData: NewCustomer): Promise<Customer> => {
     try {
-      console.log('Creating customer with data:', JSON.stringify(customerData, null, 2));
-      
+      console.log(
+        "Creating customer with data:",
+        JSON.stringify(customerData, null, 2),
+      );
+
       const customer = await databases.createDocument(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
         ID.unique(),
-        customerData
+        customerData,
       );
-      
-      console.log('Customer created successfully:', JSON.stringify(customer, null, 2));
+
+      console.log("Customer created successfully:", JSON.stringify(customer, null, 2));
       return customer as Customer;
     } catch (error) {
       console.error("Error creating customer:", error);
@@ -103,13 +106,16 @@ export const customersService = {
   /**
    * Update a customer
    */
-  updateCustomer: async (id: string, customerData: Partial<NewCustomer>): Promise<Customer> => {
+  updateCustomer: async (
+    id: string,
+    customerData: Partial<NewCustomer>,
+  ): Promise<Customer> => {
     try {
       const customer = await databases.updateDocument(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
         id,
-        customerData
+        customerData,
       );
       return customer as Customer;
     } catch (error) {
@@ -123,11 +129,7 @@ export const customersService = {
    */
   deleteCustomer: async (id: string): Promise<void> => {
     try {
-      await databases.deleteDocument(
-        DATABASE_ID,
-        CUSTOMERS_COLLECTION,
-        id
-      );
+      await databases.deleteDocument(DATABASE_ID, CUSTOMERS_COLLECTION, id);
     } catch (error) {
       console.error(`Error deleting customer ${id}:`, error);
       throw error;
@@ -140,33 +142,37 @@ export const customersService = {
   getCustomerContacts: async (customerId: string): Promise<CustomerContact[]> => {
     try {
       console.log(`Fetching contacts for customer ID: ${customerId}`);
-      
+
       // When querying on relationship fields in Appwrite, we should list all documents
       // and then filter client-side for contacts that belong to this customer
       const response = await databases.listDocuments(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
-        [Query.limit(100)]
+        [Query.limit(100)],
       );
-      
+
       console.log("Raw contacts response:", JSON.stringify(response, null, 2));
-      
+
       // Filter documents to only include those belonging to the specified customer
-      const customerContacts = response.documents.filter(doc => {
+      const customerContacts = response.documents.filter((doc) => {
         const customerId_field = doc.customer_id;
-        
+
         // Handle all possible representations of customer_id
-        if (typeof customerId_field === 'string') {
+        if (typeof customerId_field === "string") {
           return customerId_field === customerId;
         } else if (Array.isArray(customerId_field)) {
           // When it's an array of customer objects
-          return customerId_field.some(customer => customer.$id === customerId);
-        } else if (customerId_field && typeof customerId_field === 'object' && '$id' in customerId_field) {
+          return customerId_field.some((customer) => customer.$id === customerId);
+        } else if (
+          customerId_field &&
+          typeof customerId_field === "object" &&
+          "$id" in customerId_field
+        ) {
           return customerId_field.$id === customerId;
         }
         return false;
       });
-      
+
       console.log(`Retrieved ${customerContacts.length} contacts:`, customerContacts);
       return customerContacts as CustomerContact[];
     } catch (error) {
@@ -178,38 +184,46 @@ export const customersService = {
   /**
    * Create a new customer contact
    */
-  createCustomerContact: async (contactData: NewCustomerContact): Promise<CustomerContact> => {
+  createCustomerContact: async (
+    contactData: NewCustomerContact,
+  ): Promise<CustomerContact> => {
     try {
       // Make a copy of the contactData to modify
-      let dataToSend: any = { ...contactData };
-      
+      const dataToSend: any = { ...contactData };
+
       // For relationship fields, we need to provide an array of IDs
       // Handle different possible formats of customer_id
       if (contactData.customer_id) {
-        if (typeof contactData.customer_id === 'string') {
+        if (typeof contactData.customer_id === "string") {
           // If it's a string ID, convert to array of IDs
           dataToSend.customer_id = [contactData.customer_id];
-        } else if (typeof contactData.customer_id === 'object' && '$id' in contactData.customer_id) {
+        } else if (
+          typeof contactData.customer_id === "object" &&
+          "$id" in contactData.customer_id
+        ) {
           // If it's an object with $id, extract the ID and convert to array
           dataToSend.customer_id = [contactData.customer_id.$id];
         } else if (Array.isArray(contactData.customer_id)) {
           // If it's already an array, keep it as is
           // (but make sure it contains strings/IDs not objects)
-          dataToSend.customer_id = (contactData.customer_id as any[]).map((item: any) => 
-            typeof item === 'string' ? item : item.$id
+          dataToSend.customer_id = (contactData.customer_id as any[]).map(
+            (item: any) => (typeof item === "string" ? item : item.$id),
           );
         }
       }
-      
-      console.log('Creating contact with formatted data:', JSON.stringify(dataToSend, null, 2));
-      
+
+      console.log(
+        "Creating contact with formatted data:",
+        JSON.stringify(dataToSend, null, 2),
+      );
+
       const contact = await databases.createDocument(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
         ID.unique(),
-        dataToSend
+        dataToSend,
       );
-      
+
       return contact as CustomerContact;
     } catch (error) {
       console.error("Error creating customer contact:", error);
@@ -220,37 +234,46 @@ export const customersService = {
   /**
    * Update a customer contact
    */
-  updateCustomerContact: async (id: string, contactData: Partial<NewCustomerContact>): Promise<CustomerContact> => {
+  updateCustomerContact: async (
+    id: string,
+    contactData: Partial<NewCustomerContact>,
+  ): Promise<CustomerContact> => {
     try {
       // Make a copy of the contactData to modify
-      let dataToSend: any = { ...contactData };
-      
+      const dataToSend: any = { ...contactData };
+
       // Ensure customer_id is properly formatted if it's being updated
       if (contactData.customer_id) {
-        if (typeof contactData.customer_id === 'string') {
+        if (typeof contactData.customer_id === "string") {
           // If it's a string ID, convert to array of IDs
           dataToSend.customer_id = [contactData.customer_id];
-        } else if (typeof contactData.customer_id === 'object' && '$id' in contactData.customer_id) {
+        } else if (
+          typeof contactData.customer_id === "object" &&
+          "$id" in contactData.customer_id
+        ) {
           // If it's an object with $id, extract the ID and convert to array
           dataToSend.customer_id = [contactData.customer_id.$id];
         } else if (Array.isArray(contactData.customer_id)) {
           // If it's already an array, keep it as is
           // (but make sure it contains strings/IDs not objects)
-          dataToSend.customer_id = (contactData.customer_id as any[]).map((item: any) => 
-            typeof item === 'string' ? item : item.$id
+          dataToSend.customer_id = (contactData.customer_id as any[]).map(
+            (item: any) => (typeof item === "string" ? item : item.$id),
           );
         }
       }
-      
-      console.log('Updating contact with formatted data:', JSON.stringify(dataToSend, null, 2));
-      
+
+      console.log(
+        "Updating contact with formatted data:",
+        JSON.stringify(dataToSend, null, 2),
+      );
+
       const contact = await databases.updateDocument(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
         id,
-        dataToSend
+        dataToSend,
       );
-      
+
       return contact as CustomerContact;
     } catch (error) {
       console.error(`Error updating customer contact ${id}:`, error);
@@ -263,16 +286,12 @@ export const customersService = {
    */
   deleteCustomerContact: async (id: string): Promise<void> => {
     try {
-      await databases.deleteDocument(
-        DATABASE_ID,
-        CUSTOMER_CONTACTS_COLLECTION,
-        id
-      );
+      await databases.deleteDocument(DATABASE_ID, CUSTOMER_CONTACTS_COLLECTION, id);
     } catch (error) {
       console.error(`Error deleting customer contact ${id}:`, error);
       throw error;
     }
-  }
+  },
 };
 
-export default customersService; 
+export default customersService;

@@ -3,7 +3,7 @@
  * Provides modular functions to interact with Appwrite backend
  */
 
-import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
+import { Account, Client, Databases, ID, Query, Storage } from "appwrite";
 
 // Retrieve environment variables
 const API_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
@@ -14,9 +14,7 @@ const BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_ID;
 // Initialize the Appwrite client
 export const client = new Client();
 
-client
-  .setEndpoint(API_ENDPOINT)
-  .setProject(PROJECT_ID);
+client.setEndpoint(API_ENDPOINT).setProject(PROJECT_ID);
 
 // Initialize Appwrite services
 export const account = new Account(client);
@@ -79,7 +77,10 @@ export const authService = {
   // Send password reset email
   async sendPasswordRecovery(email: string) {
     try {
-      return await account.createRecovery(email, `${window.location.origin}/reset-password`);
+      return await account.createRecovery(
+        email,
+        `${window.location.origin}/reset-password`,
+      );
     } catch (error) {
       console.error("Error sending password recovery:", error);
       throw error;
@@ -114,28 +115,29 @@ export const authService = {
       console.error("Error confirming verification:", error);
       throw error;
     }
-  }
+  },
 };
 
 /**
  * Get all documents from a collection
  */
-export async function getCollection<T>(collectionId: string, queries: string[] = []): Promise<{ documents: T[] }> {
+export async function getCollection<T>(
+  collectionId: string,
+  queries: string[] = [],
+): Promise<{ documents: T[] }> {
   try {
     // Using the proper client-side queries from Appwrite SDK
     // Convert string queries to proper Query objects if provided
-    const queryObjects = queries.length > 0 
-      ? queries 
-      : [Query.limit(100)];
-    
+    const queryObjects = queries.length > 0 ? queries : [Query.limit(100)];
+
     const response = await databases.listDocuments(
       DATABASE_ID,
       collectionId,
-      queryObjects
+      queryObjects,
     );
-    
+
     return {
-      documents: response.documents as unknown as T[]
+      documents: response.documents as unknown as T[],
     };
   } catch (error) {
     console.error(`Error fetching collection ${collectionId}:`, error);
@@ -146,13 +148,12 @@ export async function getCollection<T>(collectionId: string, queries: string[] =
 /**
  * Get a single document by ID
  */
-export async function getDocument<T>(collectionId: string, documentId: string): Promise<T> {
+export async function getDocument<T>(
+  collectionId: string,
+  documentId: string,
+): Promise<T> {
   try {
-    return await databases.getDocument(
-      DATABASE_ID,
-      collectionId,
-      documentId
-    ) as T;
+    return (await databases.getDocument(DATABASE_ID, collectionId, documentId)) as T;
   } catch (error) {
     console.error(`Error fetching document ${documentId} from ${collectionId}:`, error);
     throw error;
@@ -163,17 +164,17 @@ export async function getDocument<T>(collectionId: string, documentId: string): 
  * Create a new document
  */
 export async function createDocument<T>(
-  collectionId: string, 
+  collectionId: string,
   data: object,
-  documentId: string = ID.unique()
+  documentId: string = ID.unique(),
 ): Promise<T> {
   try {
-    return await databases.createDocument(
+    return (await databases.createDocument(
       DATABASE_ID,
       collectionId,
       documentId,
-      data
-    ) as T;
+      data,
+    )) as T;
   } catch (error) {
     console.error(`Error creating document in ${collectionId}:`, error);
     throw error;
@@ -186,15 +187,15 @@ export async function createDocument<T>(
 export async function updateDocument<T>(
   collectionId: string,
   documentId: string,
-  data: object
+  data: object,
 ): Promise<T> {
   try {
-    return await databases.updateDocument(
+    return (await databases.updateDocument(
       DATABASE_ID,
       collectionId,
       documentId,
-      data
-    ) as T;
+      data,
+    )) as T;
   } catch (error) {
     console.error(`Error updating document ${documentId} in ${collectionId}:`, error);
     throw error;
@@ -206,14 +207,10 @@ export async function updateDocument<T>(
  */
 export async function deleteDocument(
   collectionId: string,
-  documentId: string
+  documentId: string,
 ): Promise<void> {
   try {
-    await databases.deleteDocument(
-      DATABASE_ID,
-      collectionId,
-      documentId
-    );
+    await databases.deleteDocument(DATABASE_ID, collectionId, documentId);
   } catch (error) {
     console.error(`Error deleting document ${documentId} from ${collectionId}:`, error);
     throw error;
@@ -225,16 +222,11 @@ export const storageService = {
   /**
    * Upload a file to storage
    */
-  async uploadFile(file: File, permissions: string[] = ['*']) {
+  async uploadFile(file: File, permissions: string[] = ["*"]) {
     try {
-      return await storage.createFile(
-        BUCKET_ID,
-        ID.unique(),
-        file,
-        permissions
-      );
+      return await storage.createFile(BUCKET_ID, ID.unique(), file, permissions);
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error("Error uploading file:", error);
       throw error;
     }
   },
@@ -244,14 +236,9 @@ export const storageService = {
    */
   getFilePreview(fileId: string, width?: number, height?: number) {
     try {
-      return storage.getFilePreview(
-        BUCKET_ID,
-        fileId,
-        width,
-        height
-      );
+      return storage.getFilePreview(BUCKET_ID, fileId, width, height);
     } catch (error) {
-      console.error('Error getting file preview:', error);
+      console.error("Error getting file preview:", error);
       throw error;
     }
   },
@@ -261,13 +248,10 @@ export const storageService = {
    */
   async deleteFile(fileId: string) {
     try {
-      await storage.deleteFile(
-        BUCKET_ID,
-        fileId
-      );
+      await storage.deleteFile(BUCKET_ID, fileId);
     } catch (error) {
-      console.error('Error deleting file:', error);
+      console.error("Error deleting file:", error);
       throw error;
     }
-  }
-} 
+  },
+};

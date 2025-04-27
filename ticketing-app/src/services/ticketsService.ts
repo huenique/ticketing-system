@@ -110,12 +110,7 @@ export const ticketsService = {
         console.warn(`Ticket ${ticketId} is missing required relationship IDs`, ticket);
       }
 
-      // Helper function to determine if a value is an object with $id
-      interface IObjectWithId {
-        $id: string;
-      }
-
-      const isObjectWithId = (value: unknown): value is IObjectWithId => {
+      const isObjectWithId = (value: unknown): value is Status => {
         return typeof value === "object" && value !== null && "$id" in value;
       };
 
@@ -124,7 +119,7 @@ export const ticketsService = {
       if (typeof ticket.status_id === "string") {
         statusId = ticket.status_id;
       } else if (isObjectWithId(ticket.status_id)) {
-        statusId = (ticket.status_id as IObjectWithId).$id;
+        statusId = (ticket.status_id as Status).$id;
       }
 
       // Get the customer_id as a string if possible
@@ -132,7 +127,7 @@ export const ticketsService = {
       if (typeof ticket.customer_id === "string") {
         customerId = ticket.customer_id;
       } else if (isObjectWithId(ticket.customer_id)) {
-        customerId = (ticket.customer_id as IObjectWithId).$id;
+        customerId = (ticket.customer_id as Status).$id;
       }
 
       // Process assignee IDs to ensure they're strings
@@ -141,7 +136,7 @@ export const ticketsService = {
         assigneeIds = ticket.assignee_ids
           .map((id) => {
             if (typeof id === "string") return id;
-            if (isObjectWithId(id)) return (id as IObjectWithId).$id;
+            if (isObjectWithId(id)) return (id as Status).$id;
             return null;
           })
           .filter((id) => id !== null) as string[];

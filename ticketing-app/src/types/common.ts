@@ -57,4 +57,4 @@ export interface Ticket {
   customer?: Customer;
   status?: Status;
   assignees?: User[];
-} 
+}

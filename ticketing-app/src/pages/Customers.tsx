@@ -1,7 +1,8 @@
-import { Edit, Plus, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { Edit, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -18,12 +20,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Customer as CommonCustomer } from "@/types/common";
-import { Customer as AppwriteCustomer, CustomerContact, customersService } from "@/services/customersService";
 import { useAppwriteCustomers } from "@/hooks/useAppwriteCustomers";
+import {
+  Customer as AppwriteCustomer,
+  CustomerContact,
+  customersService,
+} from "@/services/customersService";
+import { Customer as CommonCustomer } from "@/types/common";
 
 function Customers() {
   const {
@@ -74,7 +78,7 @@ function Customers() {
   // Helper function to get customer ID regardless of type
   const getCustomerId = (customer: CustomerType): string => {
     // Check if it's an Appwrite customer (has $id)
-    if ('$id' in customer) {
+    if ("$id" in customer) {
       return customer.$id;
     }
     // Otherwise assume it's a common Customer type
@@ -100,7 +104,9 @@ function Customers() {
     customerId: "",
   });
 
-  const [editContactFormData, setEditContactFormData] = useState<Partial<ContactFormData>>({});
+  const [editContactFormData, setEditContactFormData] = useState<
+    Partial<ContactFormData>
+  >({});
 
   // Fetch customers when component mounts
   useEffect(() => {
@@ -111,15 +117,18 @@ function Customers() {
         console.error("Error loading customers data:", err);
       }
     };
-    
+
     loadData();
   }, [fetchCustomers]);
 
   // Function to handle contact operations
-  const addContact = async (customerId: string, contactData: Omit<ContactFormData, "customerId">) => {
+  const addContact = async (
+    customerId: string,
+    contactData: Omit<ContactFormData, "customerId">,
+  ) => {
     try {
       console.log(`Adding contact for customer ID: ${customerId}`);
-      
+
       // Format the data for Appwrite
       const appwriteContactData = {
         customer_id: customerId,
@@ -127,42 +136,49 @@ function Customers() {
         last_name: contactData.last_name,
         position: contactData.position || "",
         contact_number: contactData.contact_number,
-        email: contactData.email
+        email: contactData.email,
       };
-      
-      console.log('Contact data to send:', appwriteContactData);
+
+      console.log("Contact data to send:", appwriteContactData);
       const result = await customersService.createCustomerContact(appwriteContactData);
-      console.log('Contact created successfully:', result);
-      
+      console.log("Contact created successfully:", result);
+
       await fetchCustomerContacts(customerId);
     } catch (error) {
       console.error("Error adding contact:", error);
       throw error;
     }
   };
-  
-  const updateContact = async (contactId: string, updates: Partial<ContactFormData>) => {
+
+  const updateContact = async (
+    contactId: string,
+    updates: Partial<ContactFormData>,
+  ) => {
     try {
       console.log(`Updating contact with ID: ${contactId}`, updates);
-      
+
       // Format the data for Appwrite
       const appwriteContactData: any = {
         first_name: updates.first_name,
         last_name: updates.last_name,
         position: updates.position || "",
         contact_number: updates.contact_number,
-        email: updates.email
+        email: updates.email,
       };
-      
+
       // Remove undefined values
-      Object.keys(appwriteContactData).forEach(key => 
-        appwriteContactData[key] === undefined && delete appwriteContactData[key]
+      Object.keys(appwriteContactData).forEach(
+        (key) =>
+          appwriteContactData[key] === undefined && delete appwriteContactData[key],
       );
-      
-      console.log('Contact update data to send:', appwriteContactData);
-      const result = await customersService.updateCustomerContact(contactId, appwriteContactData);
-      console.log('Contact updated successfully:', result);
-      
+
+      console.log("Contact update data to send:", appwriteContactData);
+      const result = await customersService.updateCustomerContact(
+        contactId,
+        appwriteContactData,
+      );
+      console.log("Contact updated successfully:", result);
+
       if (selectedCustomer) {
         await fetchCustomerContacts(getCustomerId(selectedCustomer));
       }
@@ -171,7 +187,7 @@ function Customers() {
       throw error;
     }
   };
-  
+
   const deleteContact = async (contactId: string) => {
     try {
       await customersService.deleteCustomerContact(contactId);
@@ -196,7 +212,9 @@ function Customers() {
       setSelectedContacts(contacts);
     } catch (error) {
       console.error("Error fetching contacts:", error);
-      setContactsError(error instanceof Error ? error : new Error("Failed to fetch contacts"));
+      setContactsError(
+        error instanceof Error ? error : new Error("Failed to fetch contacts"),
+      );
     } finally {
       setContactsLoading(false);
     }
@@ -224,10 +242,10 @@ function Customers() {
   const handleViewContactsClick = (customer: CustomerType) => {
     setSelectedCustomer(customer);
     setIsContactsDialogOpen(true);
-    
+
     // Get customer ID using the helper function
     const customerId = getCustomerId(customer);
-    
+
     // Fetch the contacts from Appwrite collection
     fetchCustomerContacts(customerId);
   };
@@ -236,23 +254,23 @@ function Customers() {
     setSelectedCustomer(customer);
     // Get customer ID using the helper function
     const customerId = getCustomerId(customer);
-    
-    setNewContactData(prev => ({
+
+    setNewContactData((prev) => ({
       ...prev,
-      customerId
+      customerId,
     }));
     setIsAddContactDialogOpen(true);
   };
 
   const handleEditContactClick = (contact: Contact) => {
-    console.log('Edit contact:', contact);
+    console.log("Edit contact:", contact);
     setSelectedContact(contact);
     setEditContactFormData({
       first_name: contact.first_name,
       last_name: contact.last_name,
       contact_number: contact.contact_number,
       email: contact.email,
-      position: contact.position || '',
+      position: contact.position || "",
     });
     setIsEditContactDialogOpen(true);
   };
@@ -331,12 +349,12 @@ function Customers() {
 
   const handleSubmitNewContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (selectedCustomer) {
       try {
         // Get customer ID using the helper function
         const customerId = getCustomerId(selectedCustomer);
-        
+
         await addContact(customerId, {
           first_name: newContactData.first_name,
           last_name: newContactData.last_name,
@@ -344,7 +362,7 @@ function Customers() {
           email: newContactData.email,
           position: newContactData.position,
         });
-        
+
         setIsAddContactDialogOpen(false);
         setNewContactData({
           first_name: "",
@@ -363,12 +381,12 @@ function Customers() {
 
   const handleSubmitEditContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (selectedContact) {
       try {
         const contactId = selectedContact.$id;
         await updateContact(contactId, editContactFormData);
-        
+
         setIsEditContactDialogOpen(false);
         setSelectedContact(null);
         setEditContactFormData({});
@@ -383,10 +401,10 @@ function Customers() {
     if (window.confirm("Are you sure you want to delete this contact?")) {
       try {
         await deleteContact(contactId);
-        
+
         // Update the UI
-        setAppwriteContacts(prev => prev.filter(c => c.$id !== contactId));
-        setSelectedContacts(prev => prev.filter(c => c.$id !== contactId));
+        setAppwriteContacts((prev) => prev.filter((c) => c.$id !== contactId));
+        setSelectedContacts((prev) => prev.filter((c) => c.$id !== contactId));
       } catch (error) {
         console.error("Error deleting contact:", error);
         toast.error("Failed to delete contact. Please try again.");
@@ -396,7 +414,7 @@ function Customers() {
 
   // Helper function to get updated timestamp regardless of customer type
   const getUpdatedTimestamp = (customer: CustomerType): string | undefined => {
-    if ('$updatedAt' in customer) {
+    if ("$updatedAt" in customer) {
       return customer.$updatedAt;
     }
     return customer.updatedAt;
@@ -405,15 +423,15 @@ function Customers() {
   // Helper function to format date
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return "N/A";
-    
+
     try {
       const date = new Date(dateString);
-      return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       }).format(date);
     } catch (e) {
       console.error("Error formatting date:", e);
@@ -436,9 +454,11 @@ function Customers() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-red-600">Error loading customers</h2>
+          <h2 className="text-xl font-semibold mb-2 text-red-600">
+            Error loading customers
+          </h2>
           <p className="text-neutral-500 mb-4">{error.message}</p>
-          <button 
+          <button
             onClick={() => fetchCustomers()}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
@@ -568,7 +588,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_contact_name" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_contact_name"
+                  className="text-right text-sm font-medium"
+                >
                   Primary Contact
                 </label>
                 <Input
@@ -580,7 +603,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_contact_number" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_contact_number"
+                  className="text-right text-sm font-medium"
+                >
                   Contact Number
                 </label>
                 <Input
@@ -592,7 +618,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_email" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_email"
+                  className="text-right text-sm font-medium"
+                >
                   Email
                 </label>
                 <Input
@@ -661,7 +690,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_contact_name" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_contact_name"
+                  className="text-right text-sm font-medium"
+                >
                   Primary Contact
                 </label>
                 <Input
@@ -674,7 +706,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_contact_number" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_contact_number"
+                  className="text-right text-sm font-medium"
+                >
                   Contact Number
                 </label>
                 <Input
@@ -687,7 +722,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="primary_email" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="primary_email"
+                  className="text-right text-sm font-medium"
+                >
                   Email
                 </label>
                 <Input
@@ -741,7 +779,7 @@ function Customers() {
                 </button>
               )}
             </div>
-            
+
             {contactsLoading ? (
               <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -750,10 +788,13 @@ function Customers() {
             ) : contactsError ? (
               <div className="text-center py-8 text-red-500">
                 <p>Error loading contacts: {contactsError.message}</p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-2"
-                  onClick={() => selectedCustomer && fetchCustomerContacts(getCustomerId(selectedCustomer))}
+                  onClick={() =>
+                    selectedCustomer &&
+                    fetchCustomerContacts(getCustomerId(selectedCustomer))
+                  }
                 >
                   Try Again
                 </Button>
@@ -798,7 +839,9 @@ function Customers() {
                               <Edit size={16} />
                             </button>
                             <button
-                              onClick={() => handleDeleteContactFromAppwrite(contact.$id)}
+                              onClick={() =>
+                                handleDeleteContactFromAppwrite(contact.$id)
+                              }
                               className="p-1 text-red-600 hover:text-red-800"
                               title="Delete Contact"
                             >
@@ -869,7 +912,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="contact_number" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="contact_number"
+                  className="text-right text-sm font-medium"
+                >
                   Contact Number
                 </label>
                 <Input
@@ -950,7 +996,10 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="contact_number" className="text-right text-sm font-medium">
+                <label
+                  htmlFor="contact_number"
+                  className="text-right text-sm font-medium"
+                >
                   Contact Number
                 </label>
                 <Input

@@ -39,7 +39,7 @@ export default function useTicketDialogHandlers(
     description: "",
     billableHours: 0,
     totalHours: 0,
-    assigneeIds: []
+    assigneeIds: [],
   });
 
   // Attachments State
@@ -248,12 +248,16 @@ export default function useTicketDialogHandlers(
       description: ticket.cells["col-4"] || "",
       billableHours: parseFloat(ticket.cells["col-9"] || "0"),
       totalHours: parseFloat(ticket.cells["col-8"] || "0"),
-      assigneeIds: ticket.cells["assignee_ids"] ? JSON.parse(ticket.cells["assignee_ids"]) : [],
-      
+      assigneeIds: ticket.cells["assignee_ids"]
+        ? JSON.parse(ticket.cells["assignee_ids"])
+        : [],
+
       // Appwrite relationship fields
       status_id: ticket.cells["status_id"] || ticket.cells["col-7"] || "New",
       customer_id: ticket.cells["customer_id"] || "",
-      assignee_ids: ticket.cells["assignee_ids"] ? JSON.parse(ticket.cells["assignee_ids"]) : []
+      assignee_ids: ticket.cells["assignee_ids"]
+        ? JSON.parse(ticket.cells["assignee_ids"])
+        : [],
     });
 
     // Reset uploaded images
@@ -466,10 +470,13 @@ export default function useTicketDialogHandlers(
         // Ensure assignee_ids is properly formatted
         assignee_ids: ticketForm.assigneeIds,
       };
-      
+
       // Log the data being saved for debugging
-      console.log("Saving ticket with Appwrite relationship fields:", appwriteTicketData);
-      
+      console.log(
+        "Saving ticket with Appwrite relationship fields:",
+        appwriteTicketData,
+      );
+
       // Call saveTicketChanges from tablesStore
       useTablesStore.getState().saveTicketChanges(
         currentTicket,
@@ -503,7 +510,11 @@ export default function useTicketDialogHandlers(
         if (hasEngineeringPreset) {
           // For Engineering preset tabs, save to Engineering-specific key
           saveToLS<LayoutStorage>("engineering-layouts", completeState);
-          console.log("Saved Engineering widget layout with", widgets.length, "widgets");
+          console.log(
+            "Saved Engineering widget layout with",
+            widgets.length,
+            "widgets",
+          );
         } else {
           // For non-Engineering tabs, save to tab-specific key
           const tabSpecificLayoutKey = `tab-${activeTab}`;

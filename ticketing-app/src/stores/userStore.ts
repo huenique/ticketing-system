@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
-import { AuthUser, LoginCredentials, UserRole } from "@/types/auth";
 import { authService } from "@/lib/appwrite";
+import { AuthUser, LoginCredentials, UserRole } from "@/types/auth";
 
 import { persist } from "./middleware";
 
@@ -32,24 +32,24 @@ const useUserStore = create<UserState>()(
           // Use Appwrite authentication
           await authService.login(credentials.email, credentials.password);
           const user = await authService.getCurrentUser();
-          
+
           if (!user) {
             throw new Error("Failed to get user data after login");
           }
-          
+
           // Check if user has admin label
           const isAdmin = user.labels?.includes("admin") || false;
-          
+
           // Convert Appwrite user to AuthUser format
           const authUser: AuthUser = {
             id: user.$id,
             name: user.name,
             email: user.email,
-            username: user.email.split('@')[0], // Default username based on email
+            username: user.email.split("@")[0], // Default username based on email
             role: isAdmin ? "admin" : "user", // Set role based on labels
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`, // Generate avatar
           };
-          
+
           set({ currentUser: authUser, isLoading: false });
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
@@ -61,13 +61,17 @@ const useUserStore = create<UserState>()(
         set({ isLoading: true, error: null });
         try {
           // Register new user with Appwrite
-          await authService.createAccount(credentials.email, credentials.password, credentials.name);
-          
+          await authService.createAccount(
+            credentials.email,
+            credentials.password,
+            credentials.name,
+          );
+
           // Login after registration
-          await get().login({ 
-            email: credentials.email, 
+          await get().login({
+            email: credentials.email,
             password: credentials.password,
-            username: credentials.email // Keep username for compatibility
+            username: credentials.email, // Keep username for compatibility
           });
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
@@ -92,13 +96,13 @@ const useUserStore = create<UserState>()(
           if (user) {
             // Check if user has admin label
             const isAdmin = user.labels?.includes("admin") || false;
-            
+
             // Convert Appwrite user to AuthUser format
             const authUser: AuthUser = {
               id: user.$id,
               name: user.name,
               email: user.email,
-              username: user.email.split('@')[0],
+              username: user.email.split("@")[0],
               role: isAdmin ? "admin" : "user", // Set role based on labels
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
             };

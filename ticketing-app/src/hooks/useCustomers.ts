@@ -1,5 +1,11 @@
 import { useCallback } from "react";
-import useCustomersStore, { Customer, CustomerContact, CustomerInput, CustomerContactInput } from "@/stores/customersStore";
+
+import useCustomersStore, {
+  Customer,
+  CustomerContact,
+  CustomerContactInput,
+  CustomerInput,
+} from "@/stores/customersStore";
 
 interface UseCustomersProps {
   initialFetch?: boolean;
@@ -17,11 +23,16 @@ interface UseCustomersReturn {
   fetchCustomerContacts: (customerId: string) => Promise<void>;
   getCustomerContacts: (customerId: string) => CustomerContact[];
   addCustomerContact: (contactData: CustomerContactInput) => Promise<void>;
-  updateCustomerContact: (id: string, updates: Partial<CustomerContactInput>) => Promise<void>;
+  updateCustomerContact: (
+    id: string,
+    updates: Partial<CustomerContactInput>,
+  ) => Promise<void>;
   deleteCustomerContact: (id: string) => Promise<void>;
 }
 
-export function useCustomers({ initialFetch = true }: UseCustomersProps = {}): UseCustomersReturn {
+export function useCustomers({
+  initialFetch = true,
+}: UseCustomersProps = {}): UseCustomersReturn {
   const {
     customers,
     loading,
@@ -34,7 +45,7 @@ export function useCustomers({ initialFetch = true }: UseCustomersProps = {}): U
     addCustomerContact,
     updateCustomerContact,
     deleteCustomerContact,
-    getCustomerContacts
+    getCustomerContacts,
   } = useCustomersStore();
 
   // Wrap the initial fetch in a callback
@@ -52,7 +63,7 @@ export function useCustomers({ initialFetch = true }: UseCustomersProps = {}): U
     (id: string): Customer | undefined => {
       return customers.find((customer) => customer.$id === id);
     },
-    [customers]
+    [customers],
   );
 
   // Return the values and functions
@@ -69,8 +80,8 @@ export function useCustomers({ initialFetch = true }: UseCustomersProps = {}): U
     getCustomerContacts,
     addCustomerContact,
     updateCustomerContact,
-    deleteCustomerContact
+    deleteCustomerContact,
   };
 }
 
-export default useCustomers; 
+export default useCustomers;

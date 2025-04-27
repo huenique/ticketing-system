@@ -35,6 +35,7 @@ export interface Customer {
 
 // User interface based on Appwrite schema
 export interface User {
+  $id: string;
   id: string;
   first_name: string;
   last_name: string;

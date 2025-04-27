@@ -1,12 +1,13 @@
+import { Layouts } from "react-grid-layout";
+
+import { Customer, Row, Status, Ticket, User } from "@/types/tickets";
+
 import {
   MOCK_ASSIGNEES,
   MOCK_CUSTOMERS,
   MOCK_PARTS,
   MOCK_STATUSES,
 } from "../constants/tickets";
-import { Layouts } from "react-grid-layout";
-
-import { Customer, Row, Status, Ticket, User } from "@/types/tickets";
 
 /**
  * Generate mock data for a table row
@@ -291,7 +292,7 @@ export function getScrollbarStyles(): string {
  * Convert an Appwrite Ticket with relationships to a Row for display
  */
 export function convertTicketToRow(
-  ticket: any // Use 'any' temporarily to handle the unexpected response structure
+  ticket: any, // Use 'any' temporarily to handle the unexpected response structure
 ): Row {
   // Format timestamps if they exist
   const dateCreated = new Date().toLocaleDateString("en-US", {
@@ -299,26 +300,30 @@ export function convertTicketToRow(
     month: "short",
     day: "numeric",
   });
-  
+
   // Handle the case where relationship fields are already expanded objects
-  const status = typeof ticket.status_id === 'object' ? ticket.status_id : ticket.status;
-  const customer = typeof ticket.customer_id === 'object' ? ticket.customer_id : ticket.customer;
-  
+  const status =
+    typeof ticket.status_id === "object" ? ticket.status_id : ticket.status;
+  const customer =
+    typeof ticket.customer_id === "object" ? ticket.customer_id : ticket.customer;
+
   // Handle assignees - could be expanded objects in assignee_ids or separate assignees field
   let assigneesList = ticket.assignees || [];
   if (Array.isArray(ticket.assignee_ids) && ticket.assignee_ids.length > 0) {
     // If assignee_ids contains objects (expanded relation), use those
-    if (typeof ticket.assignee_ids[0] === 'object') {
+    if (typeof ticket.assignee_ids[0] === "object") {
       assigneesList = ticket.assignee_ids;
     }
   }
-  
+
   // Format assignee names
   let assigneeNames = "";
   if (assigneesList && assigneesList.length > 0) {
     assigneeNames = assigneesList
-      .map((user: any) => user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '')
-      .filter((name: string) => name !== '')
+      .map((user: any) =>
+        user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "",
+      )
+      .filter((name: string) => name !== "")
       .join(", ");
   }
 
@@ -327,17 +332,17 @@ export function convertTicketToRow(
   if (ticket.attachments) {
     try {
       // Handle different possible formats of attachments
-      const attachmentsArray = Array.isArray(ticket.attachments) 
-        ? ticket.attachments 
-        : typeof ticket.attachments === 'string'
-          ? ticket.attachments.split(',').map((id: string) => id.trim())
+      const attachmentsArray = Array.isArray(ticket.attachments)
+        ? ticket.attachments
+        : typeof ticket.attachments === "string"
+          ? ticket.attachments.split(",").map((id: string) => id.trim())
           : [ticket.attachments];
-      
+
       // Filter out empty or invalid attachment IDs
       attachmentsStr = attachmentsArray
-        .filter((attachment: any) => attachment && String(attachment).trim() !== '')
+        .filter((attachment: any) => attachment && String(attachment).trim() !== "")
         .join(", ");
-        
+
       // If we have attachment metadata in the original ticket, use it
       if (ticket.attachment_metadata && Array.isArray(ticket.attachment_metadata)) {
         const metadataMap = new Map();
@@ -346,12 +351,12 @@ export function convertTicketToRow(
             metadataMap.set(metadata.id, metadata.name);
           }
         });
-        
+
         // If we have metadata for at least one attachment, use a more descriptive format
         // with both ID and name
         if (metadataMap.size > 0) {
           attachmentsStr = attachmentsArray
-            .filter((attachment: any) => attachment && String(attachment).trim() !== '')
+            .filter((attachment: any) => attachment && String(attachment).trim() !== "")
             .map((id: string) => {
               const name = metadataMap.get(id);
               return name ? `${id}:${name}` : id;
@@ -368,7 +373,7 @@ export function convertTicketToRow(
 
   // Use $id for Appwrite's document ID if available
   const documentId = ticket.$id || ticket.id || `generated-${Date.now()}`;
-  
+
   return {
     id: documentId,
     completed: status?.label === "Completed" || status?.label === "Done",
@@ -384,6 +389,6 @@ export function convertTicketToRow(
       "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
       "col-10": dateCreated, // Last Modified (reuse date created for now)
       "col-11": "action_buttons", // Actions
-    }
+    },
   };
 }

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Edit, Plus, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -19,15 +19,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import useUsersStore, { User, UserType, UserInput } from "@/stores/usersStore";
+import useUsersStore, { User, UserInput, UserType } from "@/stores/usersStore";
 
 function Users() {
-  const { users, userTypes, loading, error, fetchUsers, fetchUserTypes, updateUser, deleteUser, addUser } = useUsersStore();
+  const {
+    users,
+    userTypes,
+    loading,
+    error,
+    fetchUsers,
+    fetchUserTypes,
+    updateUser,
+    deleteUser,
+    addUser,
+  } = useUsersStore();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<UserInput>>({});
-  
+
   // Define a simpler type for the new user form data
   type NewUserFormData = {
     first_name: string;
@@ -35,7 +45,7 @@ function Users() {
     username: string;
     user_type_id: string; // Just store the ID as a string in the form
   };
-  
+
   const [newUserData, setNewUserData] = useState<NewUserFormData>({
     first_name: "",
     last_name: "",
@@ -55,7 +65,7 @@ function Users() {
         console.error("Error loading data:", err);
       }
     };
-    
+
     loadData();
   }, [fetchUsers, fetchUserTypes]);
 
@@ -80,7 +90,7 @@ function Users() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    
+
     if (name === "user_type_id") {
       // For user_type_id, we store the ID directly
       setEditFormData((prev) => ({
@@ -116,18 +126,20 @@ function Users() {
 
   const handleSubmitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       // For the API call, we need to convert the form data to the format expected by Appwrite
-      const selectedUserType = userTypes.find(type => type.$id === newUserData.user_type_id);
-      
+      const selectedUserType = userTypes.find(
+        (type) => type.$id === newUserData.user_type_id,
+      );
+
       if (!selectedUserType) {
         toast.warning("Please select a valid user type");
         return;
       }
-      
-      console.log('Selected user type:', selectedUserType);
-      
+
+      console.log("Selected user type:", selectedUserType);
+
       // Submit the form with the user type ID
       await addUser({
         first_name: newUserData.first_name,
@@ -135,7 +147,7 @@ function Users() {
         username: newUserData.username,
         user_type_id: newUserData.user_type_id, // Send the ID string
       });
-      
+
       setIsAddDialogOpen(false);
       setNewUserData({
         first_name: "",
@@ -143,7 +155,6 @@ function Users() {
         username: "",
         user_type_id: "",
       });
-      
     } catch (error) {
       console.error("Failed to add user:", error);
       toast.error("Failed to add user. Please check the console for details.");
@@ -163,20 +174,20 @@ function Users() {
   // Get user type label by ID
   const getUserTypeLabel = (userType: any) => {
     // Check if userType exists
-    if (!userType) return 'Unknown';
-    
+    if (!userType) return "Unknown";
+
     // If userType is a string, try to find the label from userTypes
-    if (typeof userType === 'string') {
-      const foundType = userTypes.find(ut => ut.$id === userType);
-      return foundType?.label || 'Unknown';
+    if (typeof userType === "string") {
+      const foundType = userTypes.find((ut) => ut.$id === userType);
+      return foundType?.label || "Unknown";
     }
-    
+
     // If userType is an object with a label property
-    if (typeof userType === 'object' && userType.label) {
+    if (typeof userType === "object" && userType.label) {
       return String(userType.label);
     }
-    
-    return 'Unknown';
+
+    return "Unknown";
   };
 
   // Ensure the empty state has a key
@@ -203,9 +214,11 @@ function Users() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-red-600">Error loading users</h2>
+          <h2 className="text-xl font-semibold mb-2 text-red-600">
+            Error loading users
+          </h2>
           <p className="text-neutral-500 mb-4">{error.message}</p>
-          <button 
+          <button
             onClick={() => fetchUsers()}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
@@ -248,7 +261,7 @@ function Users() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.length === 0 
+            {users.length === 0
               ? renderEmptyState()
               : users.map((user) => (
                   <TableRow key={user.$id || `user-${Math.random()}`}>
@@ -275,8 +288,7 @@ function Users() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-            }
+                ))}
           </TableBody>
         </Table>
       </div>
@@ -343,21 +355,28 @@ function Users() {
               <select
                 id="user_type_id"
                 name="user_type_id"
-                value={typeof editFormData.user_type_id === 'string' 
-                  ? editFormData.user_type_id 
-                  : editFormData.user_type_id?.$id || ""}
+                value={
+                  typeof editFormData.user_type_id === "string"
+                    ? editFormData.user_type_id
+                    : editFormData.user_type_id?.$id || ""
+                }
                 onChange={handleEditFormChange}
                 className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
               >
                 <option value="">Select a user type</option>
                 {userTypes && userTypes.length > 0 ? (
-                  userTypes.map(type => (
-                    <option key={type.$id || `type-${Math.random()}`} value={type.$id || ""}>
+                  userTypes.map((type) => (
+                    <option
+                      key={type.$id || `type-${Math.random()}`}
+                      value={type.$id || ""}
+                    >
                       {type.label ? String(type.label) : "Unknown type"}
                     </option>
                   ))
                 ) : (
-                  <option value="" disabled>No user types available</option>
+                  <option value="" disabled>
+                    No user types available
+                  </option>
                 )}
               </select>
             </div>
@@ -454,13 +473,18 @@ function Users() {
               >
                 <option value="">Select a user type</option>
                 {userTypes && userTypes.length > 0 ? (
-                  userTypes.map(type => (
-                    <option key={type.$id || `type-${Math.random()}`} value={type.$id || ""}>
+                  userTypes.map((type) => (
+                    <option
+                      key={type.$id || `type-${Math.random()}`}
+                      value={type.$id || ""}
+                    >
                       {type.label ? String(type.label) : "Unknown type"}
                     </option>
                   ))
                 ) : (
-                  <option value="" disabled>No user types available</option>
+                  <option value="" disabled>
+                    No user types available
+                  </option>
                 )}
               </select>
             </div>

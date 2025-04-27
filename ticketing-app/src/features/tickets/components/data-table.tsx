@@ -41,12 +41,12 @@ export function DataTable<TData, TValue>({
   // Apply status filter if provided
   useEffect(() => {
     if (!columns || columns.length === 0) return;
-  
+
     const hasCol7 = columns.some(
-      (col) => "accessorKey" in col && col.accessorKey === "cells.col-7"
+      (col) => "accessorKey" in col && col.accessorKey === "cells.col-7",
     );
     if (!hasCol7) return;
-  
+
     if (statusFilter) {
       setColumnFilters([
         {
@@ -57,8 +57,8 @@ export function DataTable<TData, TValue>({
     } else {
       setColumnFilters([]);
     }
-  }, [statusFilter, columns]);  
-  
+  }, [statusFilter, columns]);
+
   const table = useReactTable({
     data,
     columns,

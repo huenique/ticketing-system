@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
-import { Ticket } from "@/types/tickets";
+import { useCallback, useEffect, useState } from "react";
+
 import { ticketsService } from "@/services";
+import { Ticket } from "@/types/tickets";
 
 interface UseAppwriteTicketsProps {
   initialFetch?: boolean;
@@ -17,7 +18,9 @@ interface UseAppwriteTicketsReturn {
   deleteTicket: (id: string) => Promise<void>;
 }
 
-export function useAppwriteTickets({ initialFetch = true }: UseAppwriteTicketsProps = {}): UseAppwriteTicketsReturn {
+export function useAppwriteTickets({
+  initialFetch = true,
+}: UseAppwriteTicketsProps = {}): UseAppwriteTicketsReturn {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -25,7 +28,7 @@ export function useAppwriteTickets({ initialFetch = true }: UseAppwriteTicketsPr
   const fetchTickets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const fetchedTickets = await ticketsService.getAllTickets();
       setTickets(fetchedTickets);
@@ -46,29 +49,35 @@ export function useAppwriteTickets({ initialFetch = true }: UseAppwriteTicketsPr
     }
   }, []);
 
-  const createTicket = useCallback(async (ticketData: Omit<Ticket, "id">): Promise<Ticket> => {
-    try {
-      const newTicket = await ticketsService.createTicket(ticketData);
-      setTickets((prevTickets) => [...prevTickets, newTicket]);
-      return newTicket;
-    } catch (err) {
-      console.error("Error creating ticket:", err);
-      throw err;
-    }
-  }, []);
+  const createTicket = useCallback(
+    async (ticketData: Omit<Ticket, "id">): Promise<Ticket> => {
+      try {
+        const newTicket = await ticketsService.createTicket(ticketData);
+        setTickets((prevTickets) => [...prevTickets, newTicket]);
+        return newTicket;
+      } catch (err) {
+        console.error("Error creating ticket:", err);
+        throw err;
+      }
+    },
+    [],
+  );
 
-  const updateTicket = useCallback(async (id: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
-    try {
-      const updatedTicket = await ticketsService.updateTicket(id, ticketData);
-      setTickets((prevTickets) =>
-        prevTickets.map((ticket) => (ticket.id === id ? updatedTicket : ticket))
-      );
-      return updatedTicket;
-    } catch (err) {
-      console.error(`Error updating ticket ${id}:`, err);
-      throw err;
-    }
-  }, []);
+  const updateTicket = useCallback(
+    async (id: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
+      try {
+        const updatedTicket = await ticketsService.updateTicket(id, ticketData);
+        setTickets((prevTickets) =>
+          prevTickets.map((ticket) => (ticket.id === id ? updatedTicket : ticket)),
+        );
+        return updatedTicket;
+      } catch (err) {
+        console.error(`Error updating ticket ${id}:`, err);
+        throw err;
+      }
+    },
+    [],
+  );
 
   const deleteTicket = useCallback(async (id: string): Promise<void> => {
     try {
@@ -96,4 +105,4 @@ export function useAppwriteTickets({ initialFetch = true }: UseAppwriteTicketsPr
     updateTicket,
     deleteTicket,
   };
-} 
+}

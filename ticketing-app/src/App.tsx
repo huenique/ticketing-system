@@ -19,7 +19,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     // Check if user is authenticated on mount
     if (!currentUser) {
       // Handle async checkAuth
-      checkAuth().catch(error => {
+      checkAuth().catch((error) => {
         console.error("Authentication check failed:", error);
       });
     }

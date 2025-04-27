@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Layouts } from "react-grid-layout";
+
+import { ticketsService } from "@/services";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../constants/tickets";
 import {
@@ -7,13 +9,12 @@ import {
   Row,
   Tab,
   Table,
+  Ticket,
   TicketForm,
   TimeEntry,
   Widget,
-  Ticket,
 } from "../types/tickets";
 import { generateMockRowData, getSavedTabsData } from "../utils/ticketUtils";
-import { ticketsService } from "@/services";
 
 interface UseTicketsProps {
   initialFetch?: boolean;
@@ -69,7 +70,9 @@ interface UseTicketsReturn {
 /**
  * Custom hook to manage ticket state and actions
  */
-export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTicketsReturn {
+export function useTickets({
+  initialFetch = true,
+}: UseTicketsProps = {}): UseTicketsReturn {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -77,7 +80,7 @@ export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTi
   const fetchTickets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const fetchedTickets = await ticketsService.getAllTickets();
       setTickets(fetchedTickets);
@@ -98,29 +101,35 @@ export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTi
     }
   }, []);
 
-  const createTicket = useCallback(async (ticketData: Omit<Ticket, "id">): Promise<Ticket> => {
-    try {
-      const newTicket = await ticketsService.createTicket(ticketData);
-      setTickets((prevTickets) => [...prevTickets, newTicket]);
-      return newTicket;
-    } catch (err) {
-      console.error("Error creating ticket:", err);
-      throw err;
-    }
-  }, []);
+  const createTicket = useCallback(
+    async (ticketData: Omit<Ticket, "id">): Promise<Ticket> => {
+      try {
+        const newTicket = await ticketsService.createTicket(ticketData);
+        setTickets((prevTickets) => [...prevTickets, newTicket]);
+        return newTicket;
+      } catch (err) {
+        console.error("Error creating ticket:", err);
+        throw err;
+      }
+    },
+    [],
+  );
 
-  const updateTicket = useCallback(async (id: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
-    try {
-      const updatedTicket = await ticketsService.updateTicket(id, ticketData);
-      setTickets((prevTickets) =>
-        prevTickets.map((ticket) => (ticket.id === id ? updatedTicket : ticket))
-      );
-      return updatedTicket;
-    } catch (err) {
-      console.error(`Error updating ticket ${id}:`, err);
-      throw err;
-    }
-  }, []);
+  const updateTicket = useCallback(
+    async (id: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
+      try {
+        const updatedTicket = await ticketsService.updateTicket(id, ticketData);
+        setTickets((prevTickets) =>
+          prevTickets.map((ticket) => (ticket.id === id ? updatedTicket : ticket)),
+        );
+        return updatedTicket;
+      } catch (err) {
+        console.error(`Error updating ticket ${id}:`, err);
+        throw err;
+      }
+    },
+    [],
+  );
 
   const deleteTicket = useCallback(async (id: string): Promise<void> => {
     try {
@@ -378,7 +387,7 @@ export function useTickets({ initialFetch = true }: UseTicketsProps = {}): UseTi
       description: ticket.cells["col-4"] || "",
       billableHours: ticket.cells["col-9"] || "0.0",
       totalHours: ticket.cells["col-8"] || "0.0",
-      assigneeIds: []
+      assigneeIds: [],
     } as any);
 
     // Reset uploaded images

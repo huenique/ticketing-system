@@ -41,11 +41,9 @@ export const usersService = {
    */
   getAllUsers: async (): Promise<User[]> => {
     try {
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        USERS_COLLECTION,
-        [Query.limit(100)]
-      );
+      const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION, [
+        Query.limit(100),
+      ]);
       return response.documents as User[];
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -61,7 +59,7 @@ export const usersService = {
       const response = await databases.listDocuments(
         DATABASE_ID,
         USER_TYPES_COLLECTION,
-        [Query.limit(100)]
+        [Query.limit(100)],
       );
       return response.documents as UserType[];
     } catch (error) {
@@ -75,11 +73,7 @@ export const usersService = {
    */
   getUser: async (id: string): Promise<User> => {
     try {
-      const user = await databases.getDocument(
-        DATABASE_ID,
-        USERS_COLLECTION,
-        id
-      );
+      const user = await databases.getDocument(DATABASE_ID, USERS_COLLECTION, id);
       return user as User;
     } catch (error) {
       console.error(`Error fetching user ${id}:`, error);
@@ -92,28 +86,31 @@ export const usersService = {
    */
   createUser: async (userData: NewUser): Promise<User> => {
     try {
-      console.log('Creating user with data:', JSON.stringify(userData, null, 2));
-      
+      console.log("Creating user with data:", JSON.stringify(userData, null, 2));
+
       // Make a copy of the userData to modify
-      let dataToSend: any = { ...userData };
-      
+      const dataToSend: any = { ...userData };
+
       // Ensure user_type_id is properly formatted
-      if (userData.user_type_id && typeof userData.user_type_id === 'object') {
+      if (userData.user_type_id && typeof userData.user_type_id === "object") {
         // Make sure we're only sending the $id for the relationship
         // This is critical for Appwrite to properly handle the relationship
         dataToSend.user_type_id = userData.user_type_id.$id;
       }
-      
-      console.log('Formatted user data for Appwrite:', JSON.stringify(dataToSend, null, 2));
-      
+
+      console.log(
+        "Formatted user data for Appwrite:",
+        JSON.stringify(dataToSend, null, 2),
+      );
+
       const user = await databases.createDocument(
         DATABASE_ID,
         USERS_COLLECTION,
         ID.unique(),
-        dataToSend
+        dataToSend,
       );
-      
-      console.log('User created successfully:', JSON.stringify(user, null, 2));
+
+      console.log("User created successfully:", JSON.stringify(user, null, 2));
       return user as User;
     } catch (error) {
       console.error("Error creating user:", error);
@@ -130,7 +127,7 @@ export const usersService = {
         DATABASE_ID,
         USERS_COLLECTION,
         id,
-        userData
+        userData,
       );
       return user as User;
     } catch (error) {
@@ -144,11 +141,7 @@ export const usersService = {
    */
   deleteUser: async (id: string): Promise<void> => {
     try {
-      await databases.deleteDocument(
-        DATABASE_ID,
-        USERS_COLLECTION,
-        id
-      );
+      await databases.deleteDocument(DATABASE_ID, USERS_COLLECTION, id);
     } catch (error) {
       console.error(`Error deleting user ${id}:`, error);
       throw error;
@@ -160,7 +153,7 @@ export const usersService = {
    */
   getUserFullName: (user: User): string => {
     return `${user.first_name} ${user.last_name}`;
-  }
+  },
 };
 
-export default usersService; 
+export default usersService;
