@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { AppwriteException,Client, Databases } from 'node-appwrite';
+import { AppwriteException, Client, Databases, Permission, Role } from 'node-appwrite';
 
 dotenv.config();
 
@@ -35,7 +35,17 @@ async function createCollectionIfNotExists(collectionId: string, name: string) {
   } catch (error) {
     if (error instanceof AppwriteException && error.code === 404) {
       console.log(`➕ Creating collection '${collectionId}'...`);
-      await databases.createCollection(dbId, collectionId, name);
+      await databases.createCollection(
+        dbId,
+        collectionId,
+        name,
+        [
+          Permission.read(Role.users()),
+          Permission.create(Role.users()),
+          Permission.update(Role.users()),
+          Permission.delete(Role.users()),
+        ]
+      );
     } else {
       throw error;
     }
@@ -103,8 +113,9 @@ async function createCollections() {
   await createAttributeSafe('tickets', 'float', 'billable_hours', true);
   await createAttributeSafe('tickets', 'float', 'total_hours', true);
   await createAttributeSafe('tickets', 'string', 'description', 1000, true);
-  await createAttributeSafe('tickets', 'string', 'assignee_ids', 255, true, '[]', true);
-  await createAttributeSafe('tickets', 'string', 'attachments', 255, false, '[]', true);
+  // 🛠 Fixed: no default when array = true
+  await createAttributeSafe('tickets', 'string', 'assignee_ids', 255, false, undefined, true);
+  await createAttributeSafe('tickets', 'string', 'attachments', 255, false, undefined, true);
 
   // Users
   await createCollectionIfNotExists('users', 'Users');
