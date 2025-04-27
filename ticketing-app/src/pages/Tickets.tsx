@@ -101,11 +101,7 @@ function Tickets() {
 
     resetTabs,
     createNewTable,
-
   } = useTablesStore();
-
-  // Settings Store
-  const { statusOptions, fetchStatusOptions } = useSettingsStore();
 
   // Widgets Store
   const {
@@ -131,6 +127,61 @@ function Tickets() {
     }
   })();
 
+  // Auto-rebuild missing tabs from Appwrite statuses on page load
+  useEffect(() => {
+    const restoreTabsFromStatuses = async () => {
+      try {
+        const tabsStore = useTabsStore.getState();
+        const settingsStore = useSettingsStore.getState();
+
+        const statuses = await statusesService.getAllStatuses();
+        const statusLabels = statuses.map((s) => s.label);
+
+        const existingTabs = tabsStore.tabs;
+        const filteredTabs = [];
+
+        // Always keep "All Tickets" tab
+        if (!existingTabs.some((tab) => tab.title === "All Tickets")) {
+          filteredTabs.push({
+            id: "tab-all-tickets",
+            title: "All Tickets",
+          });
+        } else {
+          filteredTabs.push(existingTabs.find((tab) => tab.title === "All Tickets")!);
+        }
+
+        // Add tabs only for valid statuses
+        statusLabels.forEach((status) => {
+          const existingTab = existingTabs.find((tab) => tab.title === status);
+          if (existingTab) {
+            filteredTabs.push(existingTab); // reuse existing tab
+          } else {
+            filteredTabs.push({
+              id: `tab-${status.toLowerCase().replace(/\s+/g, "-")}`,
+              title: status,
+              status: status,
+            });
+          }
+        });
+
+        // Update the Zustand tabs
+        tabsStore.setTabs(filteredTabs);
+
+        // Make sure we have an active tab
+        if (!tabsStore.activeTab && filteredTabs.length > 0) {
+          tabsStore.setActiveTab(filteredTabs[0].id);
+        }
+
+        // Update local status options store too
+        settingsStore.setStatusOptions(statusLabels);
+      } catch (error) {
+        console.error("Failed to restore tabs from statuses:", error);
+      }
+    };
+
+    restoreTabsFromStatuses();
+  }, []);
+
   // Load tables from localStorage on initial render
   useEffect(() => {
     const savedTables = localStorage.getItem("ticket-tables");
@@ -150,11 +201,6 @@ function Tickets() {
   const hasEngineeringPreset = useCallback(() => {
     return tabs.some((tab) => tab.appliedPreset === "Engineering");
   }, [tabs]);
-
-  // Fetch status options from Appwrite when component mounts
-  useEffect(() => {
-    fetchStatusOptions();
-  }, [fetchStatusOptions]);
 
   // Fetch tickets data only if engineering preset is already initiated
   useEffect(() => {
@@ -203,58 +249,94 @@ function Tickets() {
     // Removed 'tabs' from dependency array to avoid infinite loop
   }, [hasEngineeringPreset, ticketsRefreshCounter, tabs]);
 
-  // Enhanced applyEngineeringPreset function that creates tabs based on statusOptions and uses real data
+  // Creates tabs based on statusOptions and uses real data
   const applyEngineeringPreset = async () => {
     try {
-      // Start loading
       setTicketsLoading(true);
       setTicketsError(null);
 
-      // Fetch tickets with relationships from Appwrite
+      const settingsStore = useSettingsStore.getState();
+      const tabsStore = useTabsStore.getState();
+
+      const engineeringPresetStatuses = [
+        "New Tickets",
+        "Awaiting Customer Response",
+        "Awaiting for Parts",
+        "Open Tickets",
+        "In-Progress Tickets",
+        "Completed Tickets",
+        "Declined Tickets",
+      ];
+
+      // STEP 1: Get current statuses fresh from backend (NOT from store yet)
+      const statusesFromBackend = await statusesService.getAllStatuses();
+      const existingStatusLabels = statusesFromBackend.map((status) => status.label);
+
+      // STEP 2: Add missing statuses
+      const missingStatuses = engineeringPresetStatuses.filter(
+        (preset) => !existingStatusLabels.includes(preset),
+      );
+
+      if (missingStatuses.length > 0) {
+        await Promise.all(
+          missingStatuses.map((status) =>
+            statusesService.createStatus({ label: status }),
+          ),
+        );
+      }
+
+      // STEP 3: Fetch statuses again freshly (after adding)
+      const updatedStatuses = await statusesService.getAllStatuses();
+      const updatedStatusLabels = updatedStatuses.map((status) => status.label);
+
+      // STEP 4: Fetch tickets
       const ticketsWithRelationships =
         await ticketsService.getTicketsWithRelationships();
 
-      // Clear existing tabs and tables
-      const tabsStore = useTabsStore.getState();
+      // STEP 5: Build tabs
+      const existingTabs = tabsStore.tabs;
+      const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
-      // First create an "All Tickets" tab - with no specific status filter
-      const allTicketsTab = {
-        id: "tab-all-tickets",
-        title: "All Tickets",
-        // No status property - this tab will show everything
-      };
+      const tabsToAdd = [];
 
-      // Use all status options to create tabs
-      const statusTabs = statusOptions.map((status, index) => ({
-        id: `tab-${index + 1}`,
-        title: status,
-        status: status, // Add status attribute to track which status this tab represents
-      }));
+      if (!existingTabTitles.has("All Tickets")) {
+        tabsToAdd.push({
+          id: "tab-all-tickets",
+          title: "All Tickets",
+        });
+      }
 
-      // Combine All Tickets tab with status tabs
-      const newTabs = [allTicketsTab, ...statusTabs];
+      updatedStatusLabels.forEach((status) => {
+        if (!existingTabTitles.has(status)) {
+          tabsToAdd.push({
+            id: `tab-${status.toLowerCase().replace(/\s+/g, "-")}`,
+            title: status,
+            status: status,
+          });
+        }
+      });
 
-      // Reset all tabs first
-      tabsStore.setTabs([]);
+      tabsStore.setTabs([...existingTabs, ...tabsToAdd]);
 
-      // Set the new tabs
-      tabsStore.setTabs(newTabs);
+      if (!tabsStore.activeTab && tabsToAdd.length > 0) {
+        tabsStore.setActiveTab("tab-all-tickets");
+      }
 
-      // Set active tab to the All Tickets tab
-      tabsStore.setActiveTab(allTicketsTab.id);
-
-      // Convert tickets to rows
+      // STEP 6: Create tables
       const allTicketRows = ticketsWithRelationships.map((ticket) =>
         convertTicketToRow(ticket),
       );
 
-      // Create All Tickets tab with all tickets
-      createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
-
-      // Then create filtered tables for each status tab
-      statusTabs.forEach((tab) => {
-        createFilteredTable(tab.id, tab.status, allTicketRows);
+      tabsToAdd.forEach((tab) => {
+        if (tab.title === "All Tickets") {
+          createTicketsTableForAllTickets(tab.id, allTicketRows);
+        } else {
+          createFilteredTable(tab.id, tab.title, allTicketRows);
+        }
       });
+
+      // Finally, update the Zustand store statuses too
+      settingsStore.setStatusOptions(updatedStatusLabels);
 
       setTicketsLoading(false);
     } catch (error) {
@@ -609,15 +691,9 @@ function Tickets() {
     total_hours: 0,
     assignee_ids: [] as string[],
   });
-  const [statuses, setStatuses] = useState<
-    Status[]
-  >([]);
-  const [customers, setCustomers] = useState<
-    Customer[]
-  >([]);
-  const [users, setUsers] = useState<
-    User[]
-  >([]);
+  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
 
   // Fetch statuses, customers, and users when component mounts or dialog opens
