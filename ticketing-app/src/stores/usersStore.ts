@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
+import { authService } from "@/lib/appwrite";
 import { User, usersService, UserType } from "@/services/usersService";
+import useUserStore from "./userStore";
 
 import { persist } from "./middleware";
 
@@ -13,6 +15,7 @@ interface UserInput {
   last_name: string;
   username: string;
   user_type_id: RelationshipInput;
+  auth_user_id?: string; // Optional as it will be automatically set in some cases
 }
 
 // State interface
@@ -78,6 +81,8 @@ const useUsersStore = create<UsersState>()(
                 : user.user_type_id.$id,
           };
 
+          console.log("Creating user with auth_user_id:", user.auth_user_id);
+          
           const newUser = await usersService.createUser(userData as any);
           set((state) => ({
             users: [...state.users, newUser],
@@ -143,5 +148,5 @@ const useUsersStore = create<UsersState>()(
   ),
 );
 
-export type { User, UserInput, UserType };
 export default useUsersStore;
+export type { User, UserInput, UserType };

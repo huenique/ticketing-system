@@ -27,7 +27,8 @@ export const authService = {
   // Create a new user account
   async createAccount(email: string, password: string, name: string) {
     try {
-      return await account.create(ID.unique(), email, password, name);
+      const user = await account.create(ID.unique(), email, password, name);
+      return user;
     } catch (error) {
       console.error("Error creating account:", error);
       throw error;

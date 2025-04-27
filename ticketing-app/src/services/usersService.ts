@@ -24,6 +24,7 @@ export interface User extends DocumentMetadata {
     $id: string;
     label: string;
   } & Partial<DocumentMetadata>;
+  auth_user_id?: string;
 }
 
 // User type interface
@@ -32,7 +33,13 @@ export interface UserType extends DocumentMetadata {
 }
 
 // Type for creating a new user (without metadata fields)
-export type NewUser = Omit<User, keyof DocumentMetadata>;
+export type NewUser = {
+  first_name: string;
+  last_name: string;
+  username: string;
+  user_type_id: string | { $id: string; label: string };
+  auth_user_id?: string;
+};
 
 // Users service object
 export const usersService = {
@@ -96,6 +103,11 @@ export const usersService = {
         // Make sure we're only sending the $id for the relationship
         // This is critical for Appwrite to properly handle the relationship
         dataToSend.user_type_id = userData.user_type_id.$id;
+      }
+
+      // Keep the auth_user_id if provided
+      if (userData.auth_user_id) {
+        dataToSend.auth_user_id = userData.auth_user_id;
       }
 
       console.log(

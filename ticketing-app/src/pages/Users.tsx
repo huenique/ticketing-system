@@ -19,7 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { authService } from "@/lib/appwrite";
 import useUsersStore, { User, UserInput, UserType } from "@/stores/usersStore";
+import useUserStore from "@/stores/userStore";
 
 function Users() {
   const {
@@ -33,24 +35,35 @@ function Users() {
     deleteUser,
     addUser,
   } = useUsersStore();
+  
+  // Get current auth user
+  const { currentUser } = useUserStore();
+  
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<UserInput>>({});
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Define a simpler type for the new user form data
   type NewUserFormData = {
     first_name: string;
     last_name: string;
     username: string;
-    user_type_id: string; // Just store the ID as a string in the form
+    user_type_id: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
   };
 
   const [newUserData, setNewUserData] = useState<NewUserFormData>({
     first_name: "",
     last_name: "",
     username: "",
-    user_type_id: "", // Just the ID string
+    user_type_id: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
   });
 
   // Fetch users and user types when component mounts
@@ -126,38 +139,67 @@ function Users() {
 
   const handleSubmitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsCreatingUser(true);
 
     try {
-      // For the API call, we need to convert the form data to the format expected by Appwrite
+      // Password validation
+      if (newUserData.password !== newUserData.confirmPassword) {
+        toast.error("Passwords do not match");
+        setIsCreatingUser(false);
+        return;
+      }
+
+      // User type validation
       const selectedUserType = userTypes.find(
         (type) => type.$id === newUserData.user_type_id,
       );
 
       if (!selectedUserType) {
         toast.warning("Please select a valid user type");
+        setIsCreatingUser(false);
         return;
       }
 
-      console.log("Selected user type:", selectedUserType);
+      // Step 1: Create auth user
+      console.log("Creating auth user with email:", newUserData.email);
+      const authUser = await authService.createAccount(
+        newUserData.email,
+        newUserData.password,
+        `${newUserData.first_name} ${newUserData.last_name}`
+      );
 
-      // Submit the form with the user type ID
+      if (!authUser || !authUser.$id) {
+        throw new Error("Failed to create authentication account");
+      }
+
+      console.log("Auth user created with ID:", authUser.$id);
+
+      // Step 2: Create database user linked to the auth user
       await addUser({
         first_name: newUserData.first_name,
         last_name: newUserData.last_name,
         username: newUserData.username,
-        user_type_id: newUserData.user_type_id, // Send the ID string
+        user_type_id: newUserData.user_type_id,
+        auth_user_id: authUser.$id // Set the auth user ID from the newly created auth user
       });
 
+      toast.success(`User created successfully and linked to new auth account: ${authUser.$id}`);
+      
       setIsAddDialogOpen(false);
       setNewUserData({
         first_name: "",
         last_name: "",
         username: "",
         user_type_id: "",
+        email: "",
+        password: "",
+        confirmPassword: ""
       });
     } catch (error) {
       console.error("Failed to add user:", error);
-      toast.error("Failed to add user. Please check the console for details.");
+      toast.error(`Failed to add user: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -256,7 +298,8 @@ function Users() {
               <TableHead>Last Name</TableHead>
               <TableHead>Username</TableHead>
               <TableHead>User Type</TableHead>
-              <TableHead>Last Modified</TableHead>
+              <TableHead>Auth Link</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -270,7 +313,17 @@ function Users() {
                     <TableCell>{user.last_name}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{getUserTypeLabel(user.user_type_id)}</TableCell>
-                    <TableCell>{formatDate(user.$updatedAt)}</TableCell>
+                    <TableCell>
+                      {user.auth_user_id ? 
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          Linked
+                        </span> : 
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                          Not linked
+                        </span>
+                      }
+                    </TableCell>
+                    <TableCell>{formatDate(user.$createdAt)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <button
@@ -381,6 +434,12 @@ function Users() {
               </select>
             </div>
 
+            {selectedUser?.auth_user_id && (
+              <div className="p-2 bg-blue-50 text-blue-700 rounded-md text-sm">
+                This user is linked to authentication ID: {selectedUser.auth_user_id}
+              </div>
+            )}
+
             <DialogFooter className="flex justify-end space-x-2 pt-4">
               <button
                 type="button"
@@ -407,11 +466,64 @@ function Users() {
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">Add New User</DialogTitle>
             <DialogDescription>
-              Fill out the form below to add a new user to the system.
+              Fill out the form to create a new user account and system user record.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitNewUser} className="space-y-5">
+            <div className="space-y-1">
+              <label htmlFor="email" className="text-sm font-medium block">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={newUserData.email}
+                onChange={handleNewUserFormChange}
+                required
+                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                placeholder="user@example.com"
+              />
+              <p className="text-xs text-neutral-500 mt-1">
+                This email will be used for authentication login
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label htmlFor="password" className="text-sm font-medium block">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={newUserData.password}
+                  onChange={handleNewUserFormChange}
+                  required
+                  minLength={8}
+                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="confirmPassword" className="text-sm font-medium block">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={newUserData.confirmPassword}
+                  onChange={handleNewUserFormChange}
+                  required
+                  minLength={8}
+                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label htmlFor="first_name" className="text-sm font-medium block">
@@ -457,6 +569,9 @@ function Users() {
                 required
                 className="w-full rounded-md border border-gray-300 p-2 text-sm"
               />
+              <p className="text-xs text-neutral-500 mt-1">
+                Username for the user within the system
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -489,20 +604,29 @@ function Users() {
               </select>
             </div>
 
+            <div className="p-2 bg-blue-50 text-blue-700 rounded-md text-sm">
+              <p className="font-medium">This will create:</p>
+              <ol className="list-decimal ml-5 mt-1">
+                <li>A new authentication user with the provided email/password</li>
+                <li>A new system user record linked to that authentication account</li>
+              </ol>
+            </div>
+
             <DialogFooter className="flex justify-end space-x-2 pt-4">
               <button
                 type="button"
                 onClick={() => setIsAddDialogOpen(false)}
                 className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium"
+                disabled={isCreatingUser}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
-                disabled={loading}
+                disabled={isCreatingUser}
               >
-                {loading ? "Adding..." : "Add User"}
+                {isCreatingUser ? "Creating User..." : "Add User"}
               </button>
             </DialogFooter>
           </form>

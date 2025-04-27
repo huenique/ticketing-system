@@ -80,7 +80,7 @@ function Tickets() {
   const [ticketsRefreshCounter, setTicketsRefreshCounter] = useState(0);
   
   // Get user permission state
-  const { hasPermission } = useUserStore();
+  const { hasPermission, currentUser } = useUserStore();
   const isAdmin = hasPermission("admin");
 
   // ===== Zustand Stores =====
@@ -216,12 +216,17 @@ function Tickets() {
           setTicketsLoading(true);
           setTicketsError(null);
 
-          // Fetch tickets with relationships from Appwrite
-          const ticketsWithRelationships =
-            await ticketsService.getTicketsWithRelationships();
+          // Fetch tickets and users with relationships from Appwrite
+          const [ticketsWithRelationships, users] = await Promise.all([
+            ticketsService.getTicketsWithRelationships(),
+            usersService.getAllUsers()
+          ]);
+            
+          // Filter tickets based on user permissions
+          const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
 
           // Convert tickets to rows
-          const allTicketRows = ticketsWithRelationships.map((ticket) =>
+          const allTicketRows = filteredTickets.map((ticket) =>
             convertTicketToRow(ticket),
           );
 
@@ -253,7 +258,94 @@ function Tickets() {
     fetchTicketsIfPresetExists();
     // Only run when hasEngineeringPreset changes or ticketsRefreshCounter changes
     // Removed 'tabs' from dependency array to avoid infinite loop
-  }, [hasEngineeringPreset, ticketsRefreshCounter, tabs]);
+  }, [hasEngineeringPreset, ticketsRefreshCounter, tabs, isAdmin, currentUser]);
+
+  // Function to filter tickets based on user permissions
+  const filterTicketsByUserPermission = (tickets: Ticket[], users: User[]) => {
+    // If user is admin, show all tickets
+    if (isAdmin) {
+      console.log(`User is admin, showing all ${tickets.length} tickets`);
+      return tickets;
+    }
+    
+    // For debugging: log the current user info
+    console.log("Current user:", currentUser);    // For debugging: log the current user info
+    console.log("Current user:", currentUser);
+    
+    if (!currentUser) {
+      console.log("No current user detected, showing no tickets");
+      return [];
+    }
+    
+    // For debugging: log auth user ID
+    console.log("Auth user ID:", currentUser.id);
+    
+    // Create a mapping of auth_user_id to user documents
+    const usersByAuthId = new Map<string, User>();
+    const usersById = new Map<string, User>();
+    
+    users.forEach(user => {
+      // Map by database ID
+      usersById.set(user.$id || user.id || '', user);
+      
+      // Map by auth_user_id if it exists
+      if ((user as any).auth_user_id) {
+        usersByAuthId.set((user as any).auth_user_id, user);
+      }
+    });
+    
+    // Find the database user that matches the current auth user
+    const currentDbUser = usersByAuthId.get(currentUser.id);
+    
+    console.log("Current DB user found:", currentDbUser);
+    
+    if (!currentDbUser) {
+      console.log(`No database user record found for auth user ID ${currentUser.id}`);
+      return [];
+    }
+    
+    // Get the database user ID
+    const currentDbUserId = currentDbUser.$id || currentDbUser.id;
+    
+    if (!currentDbUserId) {
+      console.log("Database user has no ID");
+      return [];
+    }
+    
+    console.log(`Current user maps to database user ID: ${currentDbUserId}`);
+    
+    // If not admin, only show tickets assigned to the current user
+    const filteredTickets = tickets.filter((ticket) => {
+      // Skip filtering if no assignee_ids or if ticket has no assignments
+      if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
+        return false;
+      }
+      
+      // For debugging: log the assignee IDs for this ticket
+      const ticketId = ticket.id || (ticket as any).$id;
+      console.log(`Checking ticket ${ticketId} with assignees:`, ticket.assignee_ids);
+      
+      // Check if the current DB user ID is in the assignees list
+      return ticket.assignee_ids.some(assignee => {
+        if (typeof assignee === 'string') {
+          // If it's just a string ID, compare directly with the DB user ID
+          const matches = assignee === currentDbUserId;
+          console.log(`Comparing assignee ID ${assignee} with user DB ID ${currentDbUserId}: ${matches}`);
+          return matches;
+        } else if (typeof assignee === 'object' && assignee !== null) {
+          // If it's an object, it should have an $id property to compare
+          const assigneeId = (assignee as any).$id || '';
+          const matches = assigneeId === currentDbUserId;
+          console.log(`Comparing assignee object ID ${assigneeId} with user DB ID ${currentDbUserId}: ${matches}`);
+          return matches;
+        }
+        return false;
+      });
+    });
+    
+    console.log(`Filtered ${tickets.length} tickets down to ${filteredTickets.length} for user ${currentUser.name}`);
+    return filteredTickets;
+  };
 
   // Creates tabs based on statusOptions and uses real data
   const applyEngineeringPreset = async () => {
@@ -295,9 +387,14 @@ function Tickets() {
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
 
-      // STEP 4: Fetch tickets
-      const ticketsWithRelationships =
-        await ticketsService.getTicketsWithRelationships();
+      // STEP 4: Fetch tickets and users
+      const [ticketsWithRelationships, users] = await Promise.all([
+        ticketsService.getTicketsWithRelationships(),
+        usersService.getAllUsers()
+      ]);
+        
+      // STEP 4.5: Filter tickets based on user permissions
+      const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // STEP 5: Build tabs
       const existingTabs = tabsStore.tabs;
@@ -329,7 +426,7 @@ function Tickets() {
       }
 
       // STEP 6: Create tables
-      const allTicketRows = ticketsWithRelationships.map((ticket) =>
+      const allTicketRows = filteredTickets.map((ticket) =>
         convertTicketToRow(ticket),
       );
 
