@@ -10,17 +10,20 @@ import {
 // Define interfaces based on Appwrite schema
 export interface Ticket {
   id: string;
-  status_id: string;  // Relationship field to statuses collection
+  status_id: string; // Relationship field to statuses collection
   customer_id: string; // Relationship field to customers collection
   billable_hours: number;
   total_hours: number;
   description: string;
   assignee_ids: string[]; // Relationship field to users collection
   attachments?: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 // Customer interface based on Appwrite schema
 export interface Customer {
+  $id: string;
   id: string;
   name: string;
   address: string;
@@ -41,6 +44,7 @@ export interface User {
 
 // Status interface (already defined in ticketsService.ts)
 export interface Status {
+  $id: string;
   id: string;
   label: string;
 }
@@ -84,7 +88,7 @@ export interface TicketForm {
   billableHours: number;
   totalHours: number;
   assigneeIds: string[];
-  
+
   // Appwrite relationship fields (optional since they're derived)
   status_id?: string;
   customer_id?: string;

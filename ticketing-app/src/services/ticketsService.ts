@@ -1,12 +1,13 @@
-import { Customer, Ticket, User } from "@/types/tickets";
-import { 
-  getCollection, 
-  getDocument, 
-  createDocument, 
-  updateDocument, 
-  deleteDocument 
-} from "@/lib/appwrite";
 import { ID } from "appwrite";
+
+import {
+  createDocument,
+  deleteDocument,
+  getCollection,
+  getDocument,
+  updateDocument,
+} from "@/lib/appwrite";
+import { Customer, Ticket, User } from "@/types/tickets";
 
 // Collection ID constants
 const TICKETS_COLLECTION = "tickets";
@@ -39,29 +40,30 @@ export const ticketsService = {
   getTicketsWithRelationships: async () => {
     try {
       // Get tickets from collection
-      const ticketsResponse = await getCollection<any>(TICKETS_COLLECTION);
+      const ticketsResponse = await getCollection<Ticket>(TICKETS_COLLECTION);
       const tickets = ticketsResponse.documents;
-      
+
       // Check if relationships are already expanded
-      const hasExpandedRelationships = tickets.length > 0 && 
-        (typeof tickets[0].status_id === 'object' || 
-         typeof tickets[0].customer_id === 'object' ||
-         (Array.isArray(tickets[0].assignee_ids) && 
-          tickets[0].assignee_ids.length > 0 && 
-          typeof tickets[0].assignee_ids[0] === 'object'));
-      
+      const hasExpandedRelationships =
+        tickets.length > 0 &&
+        (typeof tickets[0].status_id === "object" ||
+          typeof tickets[0].customer_id === "object" ||
+          (Array.isArray(tickets[0].assignee_ids) &&
+            tickets[0].assignee_ids.length > 0 &&
+            typeof tickets[0].assignee_ids[0] === "object"));
+
       if (hasExpandedRelationships) {
         console.log("Using already expanded relationships from Appwrite");
         // Relationships are already expanded, just return the tickets as is
         return tickets;
       }
-      
+
       // If relationships are not already expanded, load them manually
       console.log("Loading relationships manually");
       const [statusesResponse, customersResponse, usersResponse] = await Promise.all([
         getCollection<Status>(STATUSES_COLLECTION),
         getCollection<Customer>(CUSTOMERS_COLLECTION),
-        getCollection<User>(USERS_COLLECTION)
+        getCollection<User>(USERS_COLLECTION),
       ]);
 
       const statuses = statusesResponse.documents;
@@ -69,17 +71,19 @@ export const ticketsService = {
       const users = usersResponse.documents;
 
       // Create lookup maps for quick reference
-      const statusMap = new Map(statuses.map(status => [status.id, status]));
-      const customerMap = new Map(customers.map(customer => [customer.id, customer]));
-      const userMap = new Map(users.map(user => [user.id, user]));
+      const statusMap = new Map(statuses.map((status) => [status.id, status]));
+      const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
+      const userMap = new Map(users.map((user) => [user.id, user]));
 
       // Return enhanced ticket objects with all related data
-      return tickets.map(ticket => ({
+      return tickets.map((ticket) => ({
         ...ticket,
         // Add related data
         status: statusMap.get(ticket.status_id),
         customer: customerMap.get(ticket.customer_id),
-        assignees: ticket.assignee_ids?.map((id: string) => userMap.get(id)).filter(Boolean) || []
+        assignees:
+          ticket.assignee_ids?.map((id: string) => userMap.get(id)).filter(Boolean) ||
+          [],
       }));
     } catch (error) {
       console.error("Error fetching tickets with relationships:", error);
@@ -100,60 +104,68 @@ export const ticketsService = {
   getTicketWithRelationships: async (ticketId: string) => {
     try {
       const ticket = await getDocument<Ticket>(TICKETS_COLLECTION, ticketId);
-      
+
       // Check if we have valid IDs for the related entities
       if (!ticket.status_id && !ticket.customer_id) {
         console.warn(`Ticket ${ticketId} is missing required relationship IDs`, ticket);
       }
-      
+
       // Helper function to determine if a value is an object with $id
-      const isObjectWithId = (value: any): boolean => {
-        return typeof value === 'object' && value !== null && '$id' in value;
+      interface IObjectWithId {
+        $id: string;
+      }
+
+      const isObjectWithId = (value: unknown): value is IObjectWithId => {
+        return typeof value === "object" && value !== null && "$id" in value;
       };
-      
+
       // Get the status_id as a string if possible
       let statusId = null;
-      if (typeof ticket.status_id === 'string') {
+      if (typeof ticket.status_id === "string") {
         statusId = ticket.status_id;
       } else if (isObjectWithId(ticket.status_id)) {
-        statusId = (ticket.status_id as any).$id;
+        statusId = (ticket.status_id as IObjectWithId).$id;
       }
-      
+
       // Get the customer_id as a string if possible
       let customerId = null;
-      if (typeof ticket.customer_id === 'string') {
+      if (typeof ticket.customer_id === "string") {
         customerId = ticket.customer_id;
       } else if (isObjectWithId(ticket.customer_id)) {
-        customerId = (ticket.customer_id as any).$id;
+        customerId = (ticket.customer_id as IObjectWithId).$id;
       }
-      
+
       // Process assignee IDs to ensure they're strings
       let assigneeIds: string[] = [];
       if (Array.isArray(ticket.assignee_ids)) {
-        assigneeIds = ticket.assignee_ids.map(id => {
-          if (typeof id === 'string') return id;
-          if (isObjectWithId(id)) return (id as any).$id;
-          return null;
-        }).filter(id => id !== null) as string[];
+        assigneeIds = ticket.assignee_ids
+          .map((id) => {
+            if (typeof id === "string") return id;
+            if (isObjectWithId(id)) return (id as IObjectWithId).$id;
+            return null;
+          })
+          .filter((id) => id !== null) as string[];
       }
-      
+
       // Fetch related data in parallel
       const [status, customer, users] = await Promise.all([
         statusId ? getDocument<Status>(STATUSES_COLLECTION, statusId) : null,
         customerId ? getDocument<Customer>(CUSTOMERS_COLLECTION, customerId) : null,
-        Promise.all(assigneeIds.map(id => 
-          getDocument<User>(USERS_COLLECTION, id).catch(err => {
-            console.warn(`Failed to get user with ID ${id}`, err);
-            return null;
-          })
-        ))
+        Promise.all(
+          assigneeIds.map((id) =>
+            getDocument<User>(USERS_COLLECTION, id).catch((err) => {
+              console.warn(`Failed to get user with ID ${id}`, err);
+              return null;
+            }),
+          ),
+        ),
       ]);
 
       return {
         ...ticket,
         status,
         customer,
-        assignees: users.filter(Boolean) // Filter out any failed user fetches
+        assignees: users.filter(Boolean), // Filter out any failed user fetches
       };
     } catch (error) {
       console.error(`Error fetching ticket ${ticketId} with relationships:`, error);
@@ -168,65 +180,93 @@ export const ticketsService = {
     try {
       // Generate a unique ID for the document
       const documentId = ID.unique();
-      
+
       // Create a copy of the ticketData to modify
-      let formattedTicketData: any = { ...ticketData };
-      
+      const formattedTicketData = { ...ticketData };
+
       // Process status_id (many-to-one relationship)
       if (formattedTicketData.status_id) {
-        if (typeof formattedTicketData.status_id === 'object' && '$id' in formattedTicketData.status_id) {
+        if (
+          typeof formattedTicketData.status_id === "object" &&
+          "$id" in formattedTicketData.status_id
+        ) {
           // If it's an object with $id, extract the ID
-          formattedTicketData.status_id = formattedTicketData.status_id.$id;
+          formattedTicketData.status_id = (
+            formattedTicketData.status_id as {
+              $id: string;
+            }
+          ).$id;
         }
         // If it's already a string, keep it as is
       }
-      
+
       // Process customer_id (many-to-one relationship)
       if (formattedTicketData.customer_id) {
-        if (typeof formattedTicketData.customer_id === 'object' && '$id' in formattedTicketData.customer_id) {
+        if (
+          typeof formattedTicketData.customer_id === "object" &&
+          "$id" in formattedTicketData.customer_id
+        ) {
           // If it's an object with $id, extract the ID
-          formattedTicketData.customer_id = formattedTicketData.customer_id.$id;
+          formattedTicketData.customer_id = (
+            formattedTicketData.customer_id as {
+              $id: string;
+            }
+          ).$id;
         }
         // If it's already a string, keep it as is
       }
-      
+
       // Process assignee_ids (many-to-many relationship)
       if (formattedTicketData.assignee_ids) {
         if (Array.isArray(formattedTicketData.assignee_ids)) {
           // Make sure all array elements are strings (not objects)
-          formattedTicketData.assignee_ids = formattedTicketData.assignee_ids.map((item: any) => 
-            typeof item === 'string' ? item : (item.$id || '')
+          formattedTicketData.assignee_ids = formattedTicketData.assignee_ids.map(
+            (item: string | { $id: string }) =>
+              typeof item === "string" ? item : item.$id || "",
           );
-        } else if (typeof formattedTicketData.assignee_ids === 'string') {
+        } else if (typeof formattedTicketData.assignee_ids === "string") {
           // If it's a single string ID, convert to array
           formattedTicketData.assignee_ids = [formattedTicketData.assignee_ids];
-        } else if (typeof formattedTicketData.assignee_ids === 'object' && '$id' in formattedTicketData.assignee_ids) {
+        } else if (
+          typeof formattedTicketData.assignee_ids === "object" &&
+          "$id" in formattedTicketData.assignee_ids
+        ) {
           // If it's an object with $id, extract the ID and convert to array
-          formattedTicketData.assignee_ids = [formattedTicketData.assignee_ids.$id];
+          formattedTicketData.assignee_ids = [
+            (formattedTicketData.assignee_ids as { $id: string }).$id,
+          ];
         }
       } else {
         // Ensure we have an empty array if no assignees
         formattedTicketData.assignee_ids = [];
       }
-      
-      console.log("Creating ticket with formatted data:", JSON.stringify(formattedTicketData, null, 2));
-      
+
+      // Add ticket created_at and updated_at timestamps
+      formattedTicketData.created_at = new Date().toISOString();
+      formattedTicketData.updated_at = new Date().toISOString();
+
+      console.log(
+        "Creating ticket with formatted data:",
+        JSON.stringify(formattedTicketData, null, 2),
+      );
+
       // Create the document with the generated ID
       const createdTicket = await createDocument<Ticket>(
-        TICKETS_COLLECTION, 
+        TICKETS_COLLECTION,
         formattedTicketData,
-        documentId
+        documentId,
       );
-      
+
       // Ensure the returned document has an id property
       // Appwrite returns documents with $id property that we need to map to our id property
-      const ticket = createdTicket as unknown as (Ticket & { $id?: string });
+      const ticket = createdTicket as unknown as Ticket & { $id?: string };
       if (!ticket.id && ticket.$id) {
         ticket.id = ticket.$id;
       }
-      
+
       console.log("Created ticket:", ticket);
-      return ticket as Ticket;
+
+      return ticket;
     } catch (error) {
       console.error("Error creating ticket:", error);
       throw error;
@@ -236,49 +276,79 @@ export const ticketsService = {
   /**
    * Update an existing ticket
    */
-  updateTicket: async (ticketId: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
+  updateTicket: async (
+    ticketId: string,
+    ticketData: Partial<Ticket>,
+  ): Promise<Ticket> => {
     try {
       // Create a copy of the ticketData to modify
-      let formattedTicketData: any = { ...ticketData };
-      
+      const formattedTicketData = { ...ticketData };
+
       // Process status_id (many-to-one relationship) if included in the update
       if (formattedTicketData.status_id !== undefined) {
-        if (typeof formattedTicketData.status_id === 'object' && '$id' in formattedTicketData.status_id) {
-          // If it's an object with $id, extract the ID
-          formattedTicketData.status_id = formattedTicketData.status_id.$id;
+        if (
+          typeof formattedTicketData.status_id === "object" &&
+          "$id" in formattedTicketData.status_id
+        ) {
+          // If it's an object with $id, extract the ID safely
+          formattedTicketData.status_id = (
+            formattedTicketData.status_id as {
+              $id: string;
+            }
+          ).$id;
         }
         // If it's already a string, keep it as is
       }
-      
+
       // Process customer_id (many-to-one relationship) if included in the update
       if (formattedTicketData.customer_id !== undefined) {
-        if (typeof formattedTicketData.customer_id === 'object' && '$id' in formattedTicketData.customer_id) {
+        if (
+          typeof formattedTicketData.customer_id === "object" &&
+          "$id" in formattedTicketData.customer_id
+        ) {
           // If it's an object with $id, extract the ID
-          formattedTicketData.customer_id = formattedTicketData.customer_id.$id;
+          formattedTicketData.customer_id = (
+            formattedTicketData.customer_id as {
+              $id: string;
+            }
+          ).$id;
         }
         // If it's already a string, keep it as is
       }
-      
+
       // Process assignee_ids (many-to-many relationship) if included in the update
       if (formattedTicketData.assignee_ids !== undefined) {
         if (Array.isArray(formattedTicketData.assignee_ids)) {
           // Make sure all array elements are strings (not objects)
-          formattedTicketData.assignee_ids = formattedTicketData.assignee_ids.map((item: any) => 
-            typeof item === 'string' ? item : (item.$id || '')
+          formattedTicketData.assignee_ids = formattedTicketData.assignee_ids.map(
+            (item: string | { $id: string }) =>
+              typeof item === "string" ? item : item.$id || "",
           );
-        } else if (typeof formattedTicketData.assignee_ids === 'string') {
+        } else if (typeof formattedTicketData.assignee_ids === "string") {
           // If it's a single string ID, convert to array
           formattedTicketData.assignee_ids = [formattedTicketData.assignee_ids];
-        } else if (typeof formattedTicketData.assignee_ids === 'object' && '$id' in formattedTicketData.assignee_ids) {
+        } else if (
+          typeof formattedTicketData.assignee_ids === "object" &&
+          "$id" in formattedTicketData.assignee_ids
+        ) {
           // If it's an object with $id, extract the ID and convert to array
-          formattedTicketData.assignee_ids = [formattedTicketData.assignee_ids.$id];
+          formattedTicketData.assignee_ids = [
+            (formattedTicketData.assignee_ids as { $id: string }).$id,
+          ];
         }
       }
-      
-      console.log("Updating ticket with formatted data:", JSON.stringify(formattedTicketData, null, 2));
-      
-      const updatedTicket = await updateDocument<Ticket>(TICKETS_COLLECTION, ticketId, formattedTicketData);
-      
+
+      console.log(
+        "Updating ticket with formatted data:",
+        JSON.stringify(formattedTicketData, null, 2),
+      );
+
+      const updatedTicket = await updateDocument<Ticket>(
+        TICKETS_COLLECTION,
+        ticketId,
+        formattedTicketData,
+      );
+
       return updatedTicket;
     } catch (error) {
       console.error(`Error updating ticket ${ticketId}:`, error);
@@ -291,7 +361,7 @@ export const ticketsService = {
    */
   deleteTicket: async (ticketId: string): Promise<void> => {
     return deleteDocument(TICKETS_COLLECTION, ticketId);
-  }
+  },
 };
 
 // Status service
@@ -303,34 +373,34 @@ export const statusesService = {
     const response = await getCollection<Status>(STATUSES_COLLECTION);
     return response.documents;
   },
-  
+
   /**
    * Get a single status by ID
    */
   getStatus: async (id: string): Promise<Status> => {
     return getDocument<Status>(STATUSES_COLLECTION, id);
   },
-  
+
   /**
    * Create a new status
    */
   createStatus: async (data: Omit<Status, "id">): Promise<Status> => {
     return createDocument<Status>(STATUSES_COLLECTION, data);
   },
-  
+
   /**
    * Update an existing status
    */
   updateStatus: async (id: string, data: Partial<Status>): Promise<Status> => {
     return updateDocument<Status>(STATUSES_COLLECTION, id, data);
   },
-  
+
   /**
    * Delete a status
    */
   deleteStatus: async (id: string): Promise<void> => {
     return deleteDocument(STATUSES_COLLECTION, id);
-  }
+  },
 };
 
 // Customer service
@@ -369,7 +439,7 @@ export const customersService = {
    */
   deleteCustomer: async (id: string): Promise<void> => {
     return deleteDocument(CUSTOMERS_COLLECTION, id);
-  }
+  },
 };
 
 // User service
@@ -385,8 +455,8 @@ export const usersService = {
   /**
    * Get all user types
    */
-  getAllUserTypes: async (): Promise<any[]> => {
-    const response = await getCollection<any>(USER_TYPES_COLLECTION);
+  getAllUserTypes: async (): Promise<never[]> => {
+    const response = await getCollection<never>(USER_TYPES_COLLECTION);
     return response.documents;
   },
 
@@ -423,5 +493,5 @@ export const usersService = {
    */
   getUserFullName: (user: User): string => {
     return `${user.first_name} ${user.last_name}`;
-  }
-}; 
+  },
+};
