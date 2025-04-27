@@ -439,6 +439,22 @@ export default function useTicketDialogHandlers(
           console.log("No saved tab-specific layout, showing empty customize view");
           setWidgets([]);
           setWidgetLayouts({});
+
+          // NEW: Auto-generate default widgets if none exist (for non-Engineering tabs too)
+          setTimeout(() => {
+            if (ticket) {
+              addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+              addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+              addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+              addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+              addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+              addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+              addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+              addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+              addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+              addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
+            }
+          }, 100);
         }
       }
     }
@@ -455,9 +471,6 @@ export default function useTicketDialogHandlers(
 
       // Get the current status of the assignees
       const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
-
-      // Extract the real ticket ID (not the display ID)
-      const ticketId = currentTicket.id;
 
       // Prepare Appwrite relationship fields
       // Map the form data to the correct Appwrite field names
@@ -556,7 +569,7 @@ export default function useTicketDialogHandlers(
 
       // Filter rows for this tab based on its status
       const filteredRows = allTicketsRows.filter(
-        (row: { cells: { [x: string]: string | undefined } }) =>
+        (row: { cells: { [x: string]: string | undefined; }; }) =>
           row.cells["col-7"] === tab.status,
       );
 
