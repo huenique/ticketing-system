@@ -1,15 +1,15 @@
-import { create } from "zustand";
-import { persist } from "./middleware";
-import { Status, statusesService } from "@/services/ticketsService";
 import { toast } from "sonner";
+import { create } from "zustand";
+
+import { statusesService } from "@/services/ticketsService";
+
+import { persist } from "./middleware";
 
 interface SettingsState {
-  // Status widget configuration
   statusOptions: string[];
   statusesLoading: boolean;
   statusesError: Error | null;
 
-  // Actions
   fetchStatusOptions: () => Promise<void>;
   setStatusOptions: (options: string[]) => void;
   addStatusOption: (option: string) => void;
@@ -18,7 +18,6 @@ interface SettingsState {
   resetStatusOptions: () => void;
 }
 
-// Fallback default status options (only used if API fetch fails)
 const DEFAULT_STATUS_OPTIONS = [
   "New",
   "Awaiting Customer Response",
@@ -32,36 +31,33 @@ const DEFAULT_STATUS_OPTIONS = [
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
-      // State
       statusOptions: [],
       statusesLoading: false,
       statusesError: null,
 
-      // Actions
       fetchStatusOptions: async () => {
         set({ statusesLoading: true, statusesError: null });
-        
+
         try {
           const statuses = await statusesService.getAllStatuses();
-          // Extract the labels from the statuses objects
-          const statusLabels = statuses.map(status => status.label);
-          
-          // Only update if we got results
+          const statusLabels = statuses.map((status) => status.label);
+
+          // Only update if there are statuses
           if (statusLabels.length > 0) {
             set({ statusOptions: statusLabels });
           } else {
-            console.warn("No statuses found in the database. Using default values.");
-            set({ statusOptions: DEFAULT_STATUS_OPTIONS });
+            console.warn("No statuses found in the database.");
+            set({ statusOptions: [] });
           }
-          
+
           set({ statusesLoading: false });
         } catch (error) {
           console.error("Error fetching statuses:", error);
-          set({ 
-            statusesError: error instanceof Error ? error : new Error("Failed to fetch statuses"),
+          set({
+            statusesError:
+              error instanceof Error ? error : new Error("Failed to fetch statuses"),
             statusesLoading: false,
-            // Fall back to defaults if API fails
-            statusOptions: DEFAULT_STATUS_OPTIONS
+            statusOptions: [], // no fallback defaults on error
           });
         }
       },
@@ -70,19 +66,17 @@ export const useSettingsStore = create<SettingsState>()(
 
       addStatusOption: async (option) => {
         const { statusOptions } = get();
-        // Prevent duplicates
         if (!statusOptions.includes(option)) {
-          // First update local state for immediate UI feedback
           set({ statusOptions: [...statusOptions, option] });
-          
-          // Then try to add to the backend
+
           try {
             await statusesService.createStatus({ label: option });
             toast.success(`Status "${option}" successfully added`);
           } catch (err) {
-            console.error("Error adding status to backend:", err);
-            toast.error(`Failed to add status: ${err instanceof Error ? err.message : 'Unknown error'}`);
-            // Consider if you want to revert the local state on error
+            console.error("Error adding status:", err);
+            toast.error(
+              `Failed to add status: ${err instanceof Error ? err.message : "Unknown error"}`,
+            );
           }
         } else {
           toast.warning(`Status "${option}" already exists`);
@@ -91,35 +85,25 @@ export const useSettingsStore = create<SettingsState>()(
 
       removeStatusOption: async (option) => {
         const { statusOptions } = get();
-        
-        // First update local state for immediate UI feedback
-        set({
-          statusOptions: statusOptions.filter((item) => item !== option),
-        });
-        
-        // Then try to delete from backend
+        set({ statusOptions: statusOptions.filter((item) => item !== option) });
+
         try {
-          // Need to find the ID for the status with this label
           const statuses = await statusesService.getAllStatuses();
-          const statusToDelete = statuses.find(status => status.label === option);
-          
+          const statusToDelete = statuses.find((status) => status.label === option);
+
           if (statusToDelete) {
-            // Check which ID property is available and use that
             const documentId = statusToDelete.$id || statusToDelete.id;
-            
             if (!documentId) {
-              console.error(`Cannot delete status: No ID found for status "${option}"`, statusToDelete);
+              console.error(`No ID found for status "${option}"`);
               return;
             }
-            
-            console.log(`Deleting status with ID: ${documentId}`);
+
             await statusesService.deleteStatus(documentId);
           } else {
             console.warn(`Status "${option}" not found in the database`);
           }
         } catch (err) {
-          console.error("Error removing status from backend:", err);
-          // Consider if you want to revert the local state on error
+          console.error("Error removing status:", err);
         }
       },
 
@@ -129,43 +113,30 @@ export const useSettingsStore = create<SettingsState>()(
         const [movedItem] = newStatusOptions.splice(fromIndex, 1);
         newStatusOptions.splice(toIndex, 0, movedItem);
         set({ statusOptions: newStatusOptions });
-        
-        // Note: Backend doesn't currently support order, so we're not syncing this
       },
 
       resetStatusOptions: async () => {
-        // First update local state for immediate UI feedback
         set({ statusOptions: DEFAULT_STATUS_OPTIONS });
-        
-        // This is a more complex operation for the backend
-        // You might want to delete all existing statuses and recreate them
-        // Or implement a different strategy based on your requirements
+
         try {
-          // Get all existing statuses
           const existingStatuses = await statusesService.getAllStatuses();
-          
-          // Delete all existing statuses
           for (const status of existingStatuses) {
-            // Check which ID property is available and use that
             const documentId = status.$id || status.id;
-            
-            if (!documentId) {
-              console.error(`Cannot delete status: No ID found for status "${status.label}"`, status);
-              continue; // Skip this status and try to delete others
+            if (documentId) {
+              await statusesService.deleteStatus(documentId);
             }
-            
-            await statusesService.deleteStatus(documentId);
           }
-          
-          // Create default statuses
+
           for (const label of DEFAULT_STATUS_OPTIONS) {
             await statusesService.createStatus({ label });
           }
-          
+
           toast.success("Status options have been reset to defaults");
         } catch (err) {
-          console.error("Error resetting statuses in backend:", err);
-          toast.error(`Failed to reset statuses: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          console.error("Error resetting statuses:", err);
+          toast.error(
+            `Failed to reset statuses: ${err instanceof Error ? err.message : "Unknown error"}`,
+          );
         }
       },
     }),
