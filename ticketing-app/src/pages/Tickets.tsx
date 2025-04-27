@@ -48,6 +48,7 @@ import { useSettingsStore } from "../stores/settingsStore";
 import useTablesStore from "../stores/tablesStore";
 import useTabsStore from "../stores/tabsStore";
 import useWidgetsStore from "../stores/widgetsStore";
+import useUserStore from "../stores/userStore";
 import { uploadFile } from "@/services/storageService";
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
@@ -77,6 +78,10 @@ function Tickets() {
   const [ticketsError, setTicketsError] = useState<Error | null>(null);
   // State for forcing UI refreshes
   const [ticketsRefreshCounter, setTicketsRefreshCounter] = useState(0);
+  
+  // Get user permission state
+  const { hasPermission } = useUserStore();
+  const isAdmin = hasPermission("admin");
 
   // ===== Zustand Stores =====
   // Tabs Store
@@ -867,12 +872,14 @@ function Tickets() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold mr-2">Tickets</h1>
         <div className="flex space-x-2">
-          <Button
-            onClick={() => setIsAddTicketDialogOpen(true)}
-            className="flex items-center gap-1 bg-green-500 text-white rounded-md hover:bg-green-600"
-          >
-            <Plus size={16} /> Add Ticket
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setIsAddTicketDialogOpen(true)}
+              className="flex items-center gap-1 bg-green-500 text-white rounded-md hover:bg-green-600"
+            >
+              <Plus size={16} /> Add Ticket
+            </Button>
+          )}
           <Button
             onClick={applyEngineeringPreset}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
