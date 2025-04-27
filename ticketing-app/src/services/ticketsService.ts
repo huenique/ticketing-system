@@ -236,10 +236,6 @@ export const ticketsService = {
         formattedTicketData.assignee_ids = [];
       }
 
-      // Add ticket created_at and updated_at timestamps
-      formattedTicketData.created_at = new Date().toISOString();
-      formattedTicketData.updated_at = new Date().toISOString();
-
       console.log(
         "Creating ticket with formatted data:",
         JSON.stringify(formattedTicketData, null, 2),

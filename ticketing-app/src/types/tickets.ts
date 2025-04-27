@@ -17,8 +17,6 @@ export interface Ticket {
   description: string;
   assignee_ids: string[]; // Relationship field to users collection
   attachments?: string[];
-  created_at: string;
-  updated_at: string;
 }
 
 // Customer interface based on Appwrite schema

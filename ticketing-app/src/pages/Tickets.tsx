@@ -48,6 +48,7 @@ import { useSettingsStore } from "../stores/settingsStore";
 import useTablesStore from "../stores/tablesStore";
 import useTabsStore from "../stores/tabsStore";
 import useWidgetsStore from "../stores/widgetsStore";
+import { uploadFile } from "@/services/storageService";
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
 
@@ -451,8 +452,6 @@ function Tickets() {
         total_hours: ticketData.total_hours || 0,
         assignee_ids: ticketData.assignee_ids || [],
         attachments: ticketData.attachments || [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       console.log("Formatted ticket data for creation:", {
@@ -690,11 +689,13 @@ function Tickets() {
     billable_hours: 0,
     total_hours: 0,
     assignee_ids: [] as string[],
+    attachments: [] as string[],
   });
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   // Fetch statuses, customers, and users when component mounts or dialog opens
   useEffect(() => {
@@ -761,29 +762,63 @@ function Tickets() {
     });
   };
 
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newFiles = Array.from(files).map(file => file);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  // Handle file removal
+  const removeUploadedFile = (index: number) => {
+    const newFiles = uploadedFiles.filter((_, i) => i !== index);
+    setUploadedFiles(newFiles);
+  };
+
   // Handle submit new ticket
   const handleSubmitNewTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     try {
       // Set loading state
       setTicketsLoading(true);
-
+      
+      // Upload files if any
+      const uploadedFileIds: string[] = [];
+      
+      if (uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          try {
+            // Upload file to Appwrite storage
+            const result = await uploadFile(file);
+            if (result && result.$id) {
+              uploadedFileIds.push(result.$id);
+            }
+          } catch (error) {
+            console.error(`Error uploading file ${file.name}:`, error);
+          }
+        }
+      }
+      
       // Create new ticket with form data
       const ticketData = {
         ...newTicketData,
         assignee_ids: selectedAssignees,
+        attachments: uploadedFileIds // Use the file IDs from storage
       };
-
+      
       console.log("Creating ticket with relationship fields:", {
         status_id: ticketData.status_id,
         customer_id: ticketData.customer_id,
         assignee_ids: ticketData.assignee_ids,
+        attachments: ticketData.attachments
       });
-
+      
       // Create the ticket and update the UI
       await handleCreateTicket(ticketData);
-
+      
       // Reset form data
       setNewTicketData({
         status_id: "",
@@ -792,11 +827,14 @@ function Tickets() {
         billable_hours: 0,
         total_hours: 0,
         assignee_ids: [],
+        attachments: []
       });
       setSelectedAssignees([]);
-
+      setUploadedFiles([]);
+      
       // Close dialog
       setIsAddTicketDialogOpen(false);
+      
     } catch (error) {
       console.error("Error creating new ticket:", error);
     } finally {
@@ -816,8 +854,10 @@ function Tickets() {
         billable_hours: 0,
         total_hours: 0,
         assignee_ids: [],
+        attachments: []
       });
       setSelectedAssignees([]);
+      setUploadedFiles([]);
       console.log("Form data reset when dialog opened");
     }
   }, [isAddTicketDialogOpen]);
@@ -1068,6 +1108,42 @@ function Tickets() {
                   className="col-span-3"
                   required
                 />
+              </div>
+
+              {/* File Attachments */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label htmlFor="attachments" className="text-right text-sm font-medium pt-2">
+                  Attachments
+                </label>
+                <div className="col-span-3">
+                  <Input
+                    id="attachments"
+                    type="file"
+                    className="col-span-3"
+                    multiple
+                    onChange={handleFileUpload}
+                    disabled={ticketsLoading}
+                  />
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs">
+                          <span>{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeUploadedFile(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">
+                    Select one or more files to attach to this ticket
+                  </p>
+                </div>
               </div>
 
               {/* Hours */}

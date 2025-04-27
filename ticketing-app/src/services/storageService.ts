@@ -21,7 +21,7 @@ export type ImageFormat = "jpeg" | "jpg" | "png" | "gif" | "webp";
 /**
  * Upload a file to storage
  */
-export const uploadFile = async (file: File, permissions: string[] = ["*"]) => {
+export const uploadFile = async (file: File, permissions: string[] = ['read("any")', 'write("any")', 'update("any")', 'delete("any")']) => {
   try {
     return await storage.createFile(BUCKET_ID, ID.unique(), file, permissions);
   } catch (error) {

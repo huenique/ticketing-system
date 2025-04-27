@@ -191,7 +191,8 @@ export const columns: ColumnDef<Row>[] = [
     },
   },
   {
-    accessorKey: "cells.col-7",
+    id: "cells.col-7",
+    accessorFn: (row) => row.cells["col-7"],
     header: "Status",
     cell: ({ row }) => {
       // Access status directly from cells object for reliability
