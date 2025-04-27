@@ -122,6 +122,16 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Hide scrollbar for all elements with no-scrollbar class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
