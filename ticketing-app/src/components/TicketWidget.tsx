@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
+import AttachmentsWidget from "./widgets/AttachmentsWidget";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -120,7 +121,11 @@ function TicketWidget({
               <div className="h-full flex items-center">
                 <StatusWidget
                   value={
-                    ticketForm[widget.field as keyof typeof ticketForm] || widget.value
+                    typeof ticketForm[widget.field as keyof typeof ticketForm] === "string" 
+                      ? ticketForm[widget.field as keyof typeof ticketForm] as string
+                      : typeof ticketForm[widget.field as keyof typeof ticketForm] === "number"
+                        ? (ticketForm[widget.field as keyof typeof ticketForm] as number).toString()
+                        : (widget.value as string) || ""
                   }
                   onChange={(value) => {
                     // Call handleFieldChange to update the form state
@@ -185,24 +190,82 @@ function TicketWidget({
         }
 
         case "number":
-          return (
-            <div className="h-full flex items-center">
-              <input
-                type="number"
-                id={widget.field}
-                value={
-                  typeof ticketForm[widget.field as keyof typeof ticketForm] ===
-                  "undefined"
-                    ? (widget.value as string) || ""
-                    : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
-                }
-                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-                className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                step="0.1"
-                min="0"
-              />
-            </div>
-          );
+          // Check if this is a billable hours or total hours field
+          if (widget.field === "billableHours") {
+            return (
+              <div className="h-full flex items-center">
+                <input
+                  type="number"
+                  id={widget.field}
+                  value={typeof ticketForm.billableHours === 'number' ? ticketForm.billableHours : 0}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    
+                    // Call handleFieldChange to update the form state with string value
+                    handleFieldChange(widget.field || "", e.target.value);
+                    
+                    // Also update the ticketForm state directly
+                    if (setTicketForm) {
+                      setTicketForm({
+                        ...ticketForm,
+                        billableHours: value
+                      });
+                    }
+                  }}
+                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  step="0.1"
+                  min="0"
+                />
+              </div>
+            );
+          } else if (widget.field === "totalHours") {
+            return (
+              <div className="h-full flex items-center">
+                <input
+                  type="number"
+                  id={widget.field}
+                  value={typeof ticketForm.totalHours === 'number' ? ticketForm.totalHours : 0}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    
+                    // Call handleFieldChange to update the form state with string value
+                    handleFieldChange(widget.field || "", e.target.value);
+                    
+                    // Also update the ticketForm state directly
+                    if (setTicketForm) {
+                      setTicketForm({
+                        ...ticketForm,
+                        totalHours: value
+                      });
+                    }
+                  }}
+                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  step="0.1"
+                  min="0"
+                />
+              </div>
+            );
+          } else {
+            // Default number input for other fields
+            return (
+              <div className="h-full flex items-center">
+                <input
+                  type="number"
+                  id={widget.field}
+                  value={
+                    typeof ticketForm[widget.field as keyof typeof ticketForm] ===
+                    "undefined"
+                      ? (widget.value as string) || ""
+                      : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
+                  }
+                  onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
+                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  step="0.1"
+                  min="0"
+                />
+              </div>
+            );
+          }
 
         case "textarea":
           return (
@@ -780,80 +843,45 @@ function TicketWidget({
 
         case "gallery":
           if (widget.type === "field_attachments_gallery") {
-            // Return an attachment/images gallery widget
-            return (
-              <div className="overflow-auto">
-                <div className="mb-3 flex justify-end items-center">
-                  <div>
-                    <label className="cursor-pointer bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs hover:bg-blue-100">
-                      Upload Files
-                      <input
-                        type="file"
-                        className="hidden"
-                        multiple
-                        onChange={handleImageUpload}
-                        accept="image/*"
-                      />
-                    </label>
-                  </div>
+            // Check if we have the necessary props
+            if (!uploadedImages || !handleImageUpload || !setUploadedImages) {
+              return (
+                <div className="p-4 text-center text-neutral-500">
+                  Attachments widget requires additional configuration
                 </div>
+              );
+            }
 
-                {uploadedImages && uploadedImages.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
-                    {uploadedImages.map((image, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={image}
-                          alt={`Uploaded ${index + 1}`}
-                          className="h-40 w-full object-cover rounded-md"
-                        />
-                        <button
-                          onClick={() =>
-                            setUploadedImages &&
-                            setUploadedImages(
-                              uploadedImages.filter((_, i) => i !== index),
-                            )
-                          }
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
-                          title="Remove Image"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-neutral-500 text-sm bg-neutral-50 rounded-md">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 mx-auto mb-2 text-neutral-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    No images uploaded yet.
-                  </div>
-                )}
+            // Handle removing an attachment
+            const handleRemoveAttachment = (fileId: string) => {
+              if (setUploadedImages) {
+                setUploadedImages(
+                  uploadedImages.filter((id) => id !== fileId)
+                );
+                
+                // Also update the ticket form
+                if (setTicketForm && ticketForm.attachments) {
+                  setTicketForm({
+                    ...ticketForm,
+                    attachments: ticketForm.attachments.filter((id: string) => id !== fileId)
+                  });
+                }
+              }
+            };
+
+            // Determine if any files are currently uploading
+            const isUploading = uploadedImages.some(id => id === "uploading...");
+            
+            return (
+              <div className="h-full">
+                <AttachmentsWidget
+                  attachments={uploadedImages}
+                  onAddAttachments={handleImageUpload}
+                  onRemoveAttachment={handleRemoveAttachment}
+                  isReadOnly={!isEditMode}
+                  isUploading={isUploading}
+                  uploadProgress={60} // This would ideally be dynamic based on actual upload progress
+                />
               </div>
             );
           }
@@ -905,10 +933,21 @@ function TicketWidget({
                   <input
                     type="number"
                     id="billableHours"
-                    value={ticketForm.billableHours}
-                    onChange={(e) =>
-                      setTicketForm({ ...ticketForm, billableHours: e.target.value })
-                    }
+                    value={typeof ticketForm.billableHours === 'number' ? ticketForm.billableHours : 0}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      
+                      // Call handleFieldChange to update the form state with string value
+                      handleFieldChange(widget.field || "", e.target.value);
+                      
+                      // Also update the ticketForm state directly
+                      if (setTicketForm) {
+                        setTicketForm({
+                          ...ticketForm,
+                          billableHours: value
+                        });
+                      }
+                    }}
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"
@@ -918,10 +957,21 @@ function TicketWidget({
                   <input
                     type="number"
                     id="totalHours"
-                    value={ticketForm.totalHours}
-                    onChange={(e) =>
-                      setTicketForm({ ...ticketForm, totalHours: e.target.value })
-                    }
+                    value={typeof ticketForm.totalHours === 'number' ? ticketForm.totalHours : 0}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      
+                      // Call handleFieldChange to update the form state with string value
+                      handleFieldChange(widget.field || "", e.target.value);
+                      
+                      // Also update the ticketForm state directly
+                      if (setTicketForm) {
+                        setTicketForm({
+                          ...ticketForm,
+                          totalHours: value
+                        });
+                      }
+                    }}
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
                     min="0"

@@ -79,14 +79,15 @@ export interface TimeEntry {
   remarks: string;
 }
 
+// Ticket Form Structure
 export interface TicketForm {
-  // UI fields
   status: string;
   customerId: string;
   description: string;
   billableHours: number;
   totalHours: number;
   assigneeIds: string[];
+  attachments?: string[]; // Add attachments property
 
   // Appwrite relationship fields (optional since they're derived)
   status_id?: string;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layouts } from "react-grid-layout";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
@@ -13,7 +13,9 @@ import {
   TimeEntry,
   Widget,
 } from "../../../types/tickets";
-import { getFromLS, saveToLS } from "../../../utils/ticketUtils";
+import { convertTicketToRow, getFromLS, saveToLS } from "../../../utils/ticketUtils";
+import { ticketsService, statusesService, customersService } from "../../../services/ticketsService";
+import { uploadFile } from "../../../services/storageService";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
@@ -40,6 +42,7 @@ export default function useTicketDialogHandlers(
     billableHours: 0,
     totalHours: 0,
     assigneeIds: [],
+    attachments: [], // Initialize attachments array
   });
 
   // Attachments State
@@ -66,10 +69,48 @@ export default function useTicketDialogHandlers(
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // In a real app, you would upload these files to a server
-    // For demo purposes, we'll just create URLs for the images
-    const newImages = Array.from(files).map((file) => URL.createObjectURL(file));
-    setUploadedImages((prev) => [...prev, ...newImages]);
+    // Set uploading state if needed
+    setUploadedImages((prevImages) => [...prevImages, "uploading..."]);
+
+    // Upload files to Appwrite storage
+    const uploadPromises = Array.from(files).map(async (file) => {
+      try {
+        // Upload to Appwrite storage
+        const uploadResult = await uploadFile(file);
+        
+        if (uploadResult && uploadResult.$id) {
+          console.log(`File uploaded successfully with ID: ${uploadResult.$id}`);
+          return uploadResult.$id;
+        } else {
+          console.error("File upload failed: No ID returned");
+          return null;
+        }
+      } catch (error) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        return null;
+      }
+    });
+
+    // Process all uploads
+    Promise.all(uploadPromises).then((fileIds) => {
+      // Filter out any failed uploads
+      const successfulFileIds = fileIds.filter(id => id !== null) as string[];
+      
+      // Update state with the successful uploads
+      setUploadedImages((prevImages) => {
+        // Remove the "uploading..." placeholder
+        const filteredPrevImages = prevImages.filter(img => img !== "uploading...");
+        return [...filteredPrevImages, ...successfulFileIds];
+      });
+      
+      // If we have a current ticket, update the attachments in the form
+      if (currentTicket && successfulFileIds.length > 0) {
+        setTicketForm(prev => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), ...successfulFileIds]
+        }));
+      }
+    });
   };
 
   // Assignee Handlers
@@ -472,32 +513,96 @@ export default function useTicketDialogHandlers(
       // Get the current status of the assignees
       const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
 
+      // Get the ticket ID from the currentTicket
+      const ticketDisplayId = currentTicket.cells["col-1"];
+      
+      // Extract the actual Appwrite document ID by removing the "TK-" prefix
+      // The Appwrite document ID is the actual ID without the "TK-" prefix
+      const ticketId = currentTicket.id;
+      
+      console.log(`Updating ticket with ID: ${ticketId} (display ID: ${ticketDisplayId})`);
+      
+      // Lookup the actual status_id from the status label
+      let statusId = "";
+      try {
+        // First get all statuses from Appwrite
+        const statuses = await statusesService.getAllStatuses();
+        // Find the status object that matches the label in ticketForm.status
+        const statusObj = statuses.find(status => status.label === ticketForm.status);
+        // Get the Appwrite document ID of that status
+        statusId = statusObj ? (statusObj.$id || statusObj.id) : "";
+        
+        console.log(`Found status ID ${statusId} for label "${ticketForm.status}"`);
+      } catch (error) {
+        console.error("Error looking up status ID:", error);
+      }
+      
+      // Lookup the customer_id if one is specified
+      let customerId = ticketForm.customerId || "";
+      if (customerId) {
+        try {
+          const customers = await customersService.getAllCustomers();
+          const customerObj = customers.find(customer => customer.name === customerId);
+          if (customerObj) {
+            customerId = customerObj.$id || customerObj.id || "";
+            console.log(`Found customer ID ${customerId} for name "${ticketForm.customerId}"`);
+          }
+        } catch (error) {
+          console.error("Error looking up customer ID:", error);
+        }
+      }
+      
+      // Get assignee IDs - ensure we're saving actual user document IDs
+      // This assumes assignees contains the correct Appwrite document IDs
+      // If you're storing user IDs instead of names in assigneeIds, use this directly
+      const assigneeIds = ticketForm.assigneeIds || [];
+      
+      console.log("Using assignee IDs:", assigneeIds);
+      
+      // If attachments were uploaded, include them in the ticket update
+      // Filter out any 'uploading...' placeholders and ensure all attachment IDs are valid
+      const attachmentsToSave = uploadedImages
+        .filter(img => img !== "uploading...")
+        .filter(img => typeof img === 'string' && img.trim() !== '');
+      
+      console.log("Saving attachments:", attachmentsToSave);
+
       // Prepare Appwrite relationship fields
       // Map the form data to the correct Appwrite field names
       const appwriteTicketData = {
-        ...ticketForm,
-        // Map status field to status_id for Appwrite
-        status_id: ticketForm.status,
-        // Map customerId field to customer_id for Appwrite
-        customer_id: ticketForm.customerId,
-        // Ensure assignee_ids is properly formatted
-        assignee_ids: ticketForm.assigneeIds,
+        // Data to save to Appwrite
+        status_id: statusId || undefined, // Use the looked up status ID
+        customer_id: customerId || undefined, // Use the looked up customer ID
+        description: ticketForm.description,
+        billable_hours: parseFloat(ticketForm.billableHours.toString()),
+        total_hours: parseFloat(ticketForm.totalHours.toString()),
+        assignee_ids: assigneeIds.length > 0 ? assigneeIds : undefined, // Only include if we have assignees
+        attachments: attachmentsToSave.length > 0 ? attachmentsToSave : undefined, // Only include if we have attachments
       };
 
       // Log the data being saved for debugging
       console.log(
         "Saving ticket with Appwrite relationship fields:",
-        appwriteTicketData,
+        JSON.stringify(appwriteTicketData, null, 2),
       );
 
-      // Call saveTicketChanges from tablesStore
+      // First, update the UI tables
       useTablesStore.getState().saveTicketChanges(
         currentTicket,
-        appwriteTicketData,
+        {
+          ...ticketForm,
+          status: ticketForm.status,
+          customerId: ticketForm.customerId,
+          assigneeIds: assigneeIds,
+        },
         setViewDialogOpen,
         activeTab,
         hasCompletedAssignees, // Pass the completion status to be saved
       );
+
+      // Then, update the actual data in Appwrite
+      const updatedTicket = await ticketsService.updateTicket(ticketId, appwriteTicketData);
+      console.log(`Ticket ${ticketId} updated successfully in Appwrite:`, updatedTicket);
 
       // If the ticket's status was changed, refresh all status-based tabs
       const allTicketsTab = "tab-all-tickets";
@@ -505,7 +610,7 @@ export default function useTicketDialogHandlers(
       const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
 
       // Refresh all status tabs to maintain consistency
-      refreshStatusTabs(allTicketsRows);
+      await refreshStatusTabs(allTicketsRows);
 
       // Save widget layouts to localStorage
       if (currentTicket && widgets.length > 0) {
@@ -552,37 +657,115 @@ export default function useTicketDialogHandlers(
   };
 
   // Function to refresh all status-based tabs based on updated All Tickets data
-  const refreshStatusTabs = (allTicketsRows: Row[]) => {
-    // Get a reference to the tables store
-    const tablesStore = useTablesStore.getState();
-    const currentTables = tablesStore.tables;
-    const updatedTables = { ...currentTables };
-
-    // Loop through all tabs
-    tabs.forEach((tab) => {
-      // Skip the All Tickets tab
-      if (tab.id === "tab-all-tickets" || !tab.status) return;
-
-      // Get the preset table structure
-      const presetTable = PRESET_TABLES["Engineering"];
-      if (!presetTable) return;
-
-      // Filter rows for this tab based on its status
-      const filteredRows = allTicketsRows.filter(
-        (row: { cells: { [x: string]: string | undefined; }; }) =>
-          row.cells["col-7"] === tab.status,
-      );
-
-      // Update this tab's table with filtered rows
-      updatedTables[tab.id] = {
-        ...updatedTables[tab.id],
-        columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
-        rows: filteredRows,
-      };
-    });
-
-    // Update all tables at once
-    tablesStore.setTables(updatedTables);
+  const refreshStatusTabs = async (allTicketsRows: Row[]) => {
+    try {
+      // First, fetch the latest tickets from Appwrite to get up-to-date data
+      console.log("Fetching latest tickets from Appwrite for tab refresh");
+      const latestTickets = await ticketsService.getTicketsWithRelationships();
+      console.log(`Retrieved ${latestTickets.length} tickets from Appwrite`);
+      
+      // Convert the Appwrite tickets to table rows
+      const ticketsAsRows: Row[] = latestTickets.map(ticket => convertTicketToRow(ticket));
+      console.log(`Converted ${ticketsAsRows.length} tickets to table rows`);
+      
+      // Get a reference to the tables store
+      const tablesStore = useTablesStore.getState();
+      const currentTables = tablesStore.tables;
+      
+      // Debug: List available tabs to help find the correct ID
+      console.log("Available tabs:", Object.keys(currentTables));
+      
+      // Find the "All Tickets" tab - try different possible IDs
+      const possibleAllTicketTabIds = ["tab-all-tickets", "all-tickets", "tab1", "tab-1"];
+      let allTicketsTable = null;
+      let allTicketsTabId = null;
+      
+      // Try each possible ID
+      for (const tabId of possibleAllTicketTabIds) {
+        if (currentTables[tabId]) {
+          allTicketsTable = currentTables[tabId];
+          allTicketsTabId = tabId;
+          console.log(`Found All Tickets tab with ID: ${tabId}`);
+          break;
+        }
+      }
+      
+      // If still not found, look for a tab with "all" in the name
+      if (!allTicketsTable) {
+        for (const tabId of Object.keys(currentTables)) {
+          if (tabId.toLowerCase().includes('all')) {
+            allTicketsTable = currentTables[tabId];
+            allTicketsTabId = tabId;
+            console.log(`Found possible All Tickets tab with ID: ${tabId}`);
+            break;
+          }
+        }
+      }
+      
+      // If still not found, just use the first available tab
+      if (!allTicketsTable && Object.keys(currentTables).length > 0) {
+        const firstTabId = Object.keys(currentTables)[0];
+        allTicketsTable = currentTables[firstTabId];
+        allTicketsTabId = firstTabId;
+        console.log(`Using first available tab as fallback: ${firstTabId}`);
+      }
+      
+      if (!allTicketsTable) {
+        console.error("Cannot refresh status tabs: All Tickets tab not found");
+        console.log("Available table IDs:", Object.keys(currentTables));
+        return;
+      }
+      
+      const updatedTables = { ...currentTables };
+      
+      // Update the All Tickets tab with the latest data
+      if (allTicketsTabId) {
+        updatedTables[allTicketsTabId] = {
+          ...allTicketsTable,
+          rows: ticketsAsRows,
+        };
+      }
+      
+      // Loop through all tabs
+      tabs.forEach((tab) => {
+        // Skip the All Tickets tab
+        if (tab.id === allTicketsTabId || !tab.status) return;
+        
+        console.log(`Refreshing tab: ${tab.id} for status "${tab.status}"`);
+        
+        // Get the preset table structure or use the structure from the all tickets tab
+        const presetTable = PRESET_TABLES["Engineering"] || { 
+          columns: allTicketsTable.columns 
+        };
+        
+        if (!presetTable) {
+          console.warn(`Cannot find preset table for tab ${tab.id}`);
+          return;
+        }
+        
+        // Filter rows for this tab based on its status
+        const filteredRows = ticketsAsRows.filter(
+          (row) => row.cells["col-7"] === tab.status
+        );
+        
+        console.log(`Found ${filteredRows.length} tickets with status "${tab.status}"`);
+        
+        // Update this tab's table with filtered rows
+        if (currentTables[tab.id]) {
+          updatedTables[tab.id] = {
+            ...currentTables[tab.id],
+            columns: currentTables[tab.id]?.columns || [...presetTable.columns],
+            rows: filteredRows,
+          };
+        }
+      });
+      
+      // Update all tables at once
+      tablesStore.setTables(updatedTables);
+      console.log("All status tabs have been refreshed");
+    } catch (error) {
+      console.error("Error refreshing status tabs:", error);
+    }
   };
 
   return {
