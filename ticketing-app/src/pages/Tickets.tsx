@@ -140,6 +140,9 @@ function Tickets() {
         const tabsStore = useTabsStore.getState();
         const settingsStore = useSettingsStore.getState();
 
+        // Fetch the status options from the settings store
+        await settingsStore.fetchStatusOptions();
+
         const statuses = await statusesService.getAllStatuses();
         const statusLabels = statuses.map((s) => s.label);
 
@@ -356,22 +359,15 @@ function Tickets() {
       const settingsStore = useSettingsStore.getState();
       const tabsStore = useTabsStore.getState();
 
-      const engineeringPresetStatuses = [
-        "New Tickets",
-        "Awaiting Customer Response",
-        "Awaiting for Parts",
-        "Open Tickets",
-        "In-Progress Tickets",
-        "Completed Tickets",
-        "Declined Tickets",
-      ];
+      // Get status options from settings store instead of hardcoded array
+      const statusesFromSettings = settingsStore.statusOptions;
 
       // STEP 1: Get current statuses fresh from backend (NOT from store yet)
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
 
       // STEP 2: Add missing statuses
-      const missingStatuses = engineeringPresetStatuses.filter(
+      const missingStatuses = statusesFromSettings.filter(
         (preset) => !existingStatusLabels.includes(preset),
       );
 
