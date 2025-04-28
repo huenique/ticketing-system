@@ -115,7 +115,6 @@ async function createCollections() {
   await createAttributeSafe("tickets", "float", "billable_hours", true);
   await createAttributeSafe("tickets", "float", "total_hours", true);
   await createAttributeSafe("tickets", "string", "description", 1000, true);
-  // 🛠 Fixed: no default when array = true
   await createAttributeSafe(
     "tickets",
     "string",
@@ -167,6 +166,33 @@ async function createCollections() {
   await createAttributeSafe("customer_contacts", "string", "position", 255, false);
   await createAttributeSafe("customer_contacts", "string", "contact_number", 255, true);
   await createAttributeSafe("customer_contacts", "string", "email", 255, true);
+
+  // Ticket Assignments
+  await createCollectionIfNotExists("ticket_assignments", "Ticket Assignments");
+  await createAttributeSafe("ticket_assignments", "string", "ticket_id", 255, true);
+  await createAttributeSafe("ticket_assignments", "string", "user_id", 255, true);
+  await createAttributeSafe("ticket_assignments", "string", "work_description", 1000, false);
+  await createAttributeSafe("ticket_assignments", "float", "estimated_time", true);
+  await createAttributeSafe("ticket_assignments", "float", "actual_time", true);
+  await createAttributeSafe("ticket_assignments", "string", "status_id", 255, true);
+
+  // Time Entries
+  await createCollectionIfNotExists("time_entries", "Time Entries");
+  await createAttributeSafe("time_entries", "string", "ticket_id", 255, true);
+  await createAttributeSafe("time_entries", "string", "user_id", 255, true);
+  await createAttributeSafe("time_entries", "datetime", "start_time", true);
+  await createAttributeSafe("time_entries", "datetime", "stop_time", true);
+  await createAttributeSafe("time_entries", "float", "total_duration", true);
+  await createAttributeSafe("time_entries", "string", "remarks", 1000, false);
+  await createAttributeSafe(
+    "time_entries",
+    "string",
+    "files",
+    255,
+    false,
+    undefined,
+    true,
+  );
 }
 
 createCollections()
