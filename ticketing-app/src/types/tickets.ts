@@ -84,8 +84,8 @@ export interface TicketForm {
   status: string;
   customerId: string;
   description: string;
-  billableHours: number;
-  totalHours: number;
+  billableHours: number | null;
+  totalHours: number | null;
   assigneeIds: string[];
   attachments?: string[]; // Add attachments property
 

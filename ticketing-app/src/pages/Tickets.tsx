@@ -654,9 +654,14 @@ function Tickets() {
   };
 
   // Custom handleFieldChange to handle ticket status updates
-  const handleFieldChange = (field: string, value: string) => {
+  const handleFieldChange = (field: string, value: string | number) => {
     // First, update the widget value in the widgets store
-    useWidgetsStore.getState().handleFieldChange(field, value);
+    // Check if this is a number field and value is empty string, convert to "0" instead of null
+    const processedValue = (field === 'billable_hours' || field === 'total_hours') && value === '' 
+      ? "0" // Convert empty string to "0" as a string to maintain type compatibility
+      : value;
+    
+    useWidgetsStore.getState().handleFieldChange(field, processedValue.toString());
 
     // If this is a status change and we have a current ticket, update it in all tables
     if (field === "status" && ticketDialogHandlers.currentTicket) {
@@ -674,7 +679,7 @@ function Tickets() {
                 ...row,
                 cells: {
                   ...row.cells,
-                  "col-7": value, // Update Status column
+                  "col-7": processedValue.toString(), // Update Status column
                 },
               };
             }
@@ -692,7 +697,7 @@ function Tickets() {
                 ...row,
                 cells: {
                   ...row.cells,
-                  "col-7": value, // Update Status column
+                  "col-7": processedValue.toString(), // Update Status column
                 },
               };
             }

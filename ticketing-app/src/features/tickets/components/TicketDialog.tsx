@@ -1,5 +1,6 @@
 import React from "react";
 import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
+import { toast } from "sonner";
 
 import useUserStore from "@/stores/userStore";
 
@@ -708,7 +709,25 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             Cancel
           </button>
           <button
-            onClick={handleSaveTicketChanges}
+            onClick={() => {
+              // Validate required fields before saving
+              if (ticketForm.billableHours === null || ticketForm.billableHours === undefined) {
+                toast.error("Validation Error", {
+                  description: "Billable Hours cannot be empty"
+                });
+                return;
+              }
+
+              if (ticketForm.totalHours === null || ticketForm.totalHours === undefined) {
+                toast.error("Validation Error", {
+                  description: "Total Hours cannot be empty"
+                });
+                return;
+              }
+
+              // If validation passes, proceed with saving
+              handleSaveTicketChanges();
+            }}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
           >
             Save Changes

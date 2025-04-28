@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -197,12 +198,12 @@ function TicketWidget({
                 <input
                   type="number"
                   id={widget.field}
-                  value={typeof ticketForm.billableHours === 'number' ? ticketForm.billableHours : 0}
+                  value={ticketForm.billableHours === null || ticketForm.billableHours === undefined ? '' : ticketForm.billableHours}
                   onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
+                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
                     
                     // Call handleFieldChange to update the form state with string value
-                    handleFieldChange(widget.field || "", e.target.value);
+                    handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
                     
                     // Also update the ticketForm state directly
                     if (setTicketForm) {
@@ -212,9 +213,17 @@ function TicketWidget({
                       });
                     }
                   }}
+                  onBlur={(e) => {
+                    if (e.target.value === '') {
+                      toast.error("Billable Hours cannot be empty", {
+                        description: "Please enter a valid number",
+                        duration: 3000
+                      });
+                    }
+                  }}
                   className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                   step="0.1"
-                  min="0"
+                  required
                 />
               </div>
             );
@@ -224,12 +233,12 @@ function TicketWidget({
                 <input
                   type="number"
                   id={widget.field}
-                  value={typeof ticketForm.totalHours === 'number' ? ticketForm.totalHours : 0}
+                  value={ticketForm.totalHours === null || ticketForm.totalHours === undefined ? '' : ticketForm.totalHours}
                   onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
+                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
                     
                     // Call handleFieldChange to update the form state with string value
-                    handleFieldChange(widget.field || "", e.target.value);
+                    handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
                     
                     // Also update the ticketForm state directly
                     if (setTicketForm) {
@@ -239,9 +248,17 @@ function TicketWidget({
                       });
                     }
                   }}
+                  onBlur={(e) => {
+                    if (e.target.value === '') {
+                      toast.error("Total Hours cannot be empty", {
+                        description: "Please enter a valid number",
+                        duration: 3000
+                      });
+                    }
+                  }}
                   className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                   step="0.1"
-                  min="0"
+                  required
                 />
               </div>
             );
@@ -256,12 +273,25 @@ function TicketWidget({
                     typeof ticketForm[widget.field as keyof typeof ticketForm] ===
                     "undefined"
                       ? (widget.value as string) || ""
-                      : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
+                      : ticketForm[widget.field as keyof typeof ticketForm] === null
+                        ? ""
+                        : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
                   }
-                  onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? null : e.target.value;
+                    handleFieldChange(widget.field || "", value === null ? '' : value);
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '') {
+                      toast.error(`${widget.title} cannot be empty`, {
+                        description: "Please enter a valid number",
+                        duration: 3000
+                      });
+                    }
+                  }}
                   className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                   step="0.1"
-                  min="0"
+                  required
                 />
               </div>
             );
@@ -374,7 +404,6 @@ function TicketWidget({
                             }
                             className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                             step="0.1"
-                            min="0"
                           />
                         </div>
                         <div>
@@ -392,7 +421,6 @@ function TicketWidget({
                             }
                             className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                             step="0.1"
-                            min="0"
                           />
                         </div>
                       </div>
@@ -515,7 +543,6 @@ function TicketWidget({
                                   }
                                   className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                   step="0.1"
-                                  min="0"
                                 />
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
@@ -532,7 +559,6 @@ function TicketWidget({
                                   }
                                   className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                   step="0.1"
-                                  min="0"
                                 />
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
@@ -933,12 +959,12 @@ function TicketWidget({
                   <input
                     type="number"
                     id="billableHours"
-                    value={typeof ticketForm.billableHours === 'number' ? ticketForm.billableHours : 0}
+                    value={ticketForm.billableHours === null || ticketForm.billableHours === undefined ? '' : ticketForm.billableHours}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
+                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
                       
                       // Call handleFieldChange to update the form state with string value
-                      handleFieldChange(widget.field || "", e.target.value);
+                      handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
                       
                       // Also update the ticketForm state directly
                       if (setTicketForm) {
@@ -948,21 +974,29 @@ function TicketWidget({
                         });
                       }
                     }}
+                    onBlur={(e) => {
+                      if (e.target.value === '') {
+                        toast.error("Billable Hours cannot be empty", {
+                          description: "Please enter a valid number",
+                          duration: 3000
+                        });
+                      }
+                    }}
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
-                    min="0"
+                    required
                   />
                 </div>
                 <div className="h-[38px]">
                   <input
                     type="number"
                     id="totalHours"
-                    value={typeof ticketForm.totalHours === 'number' ? ticketForm.totalHours : 0}
+                    value={ticketForm.totalHours === null || ticketForm.totalHours === undefined ? '' : ticketForm.totalHours}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
+                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
                       
                       // Call handleFieldChange to update the form state with string value
-                      handleFieldChange(widget.field || "", e.target.value);
+                      handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
                       
                       // Also update the ticketForm state directly
                       if (setTicketForm) {
@@ -972,9 +1006,17 @@ function TicketWidget({
                         });
                       }
                     }}
+                    onBlur={(e) => {
+                      if (e.target.value === '') {
+                        toast.error("Total Hours cannot be empty", {
+                          description: "Please enter a valid number",
+                          duration: 3000
+                        });
+                      }
+                    }}
                     className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                     step="0.1"
-                    min="0"
+                    required
                   />
                 </div>
               </div>
@@ -1084,7 +1126,6 @@ function TicketWidget({
                         }
                         className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                         step="0.1"
-                        min="0"
                       />
                     </div>
                     <div>
@@ -1099,7 +1140,6 @@ function TicketWidget({
                         }
                         className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                         step="0.1"
-                        min="0"
                       />
                     </div>
                   </div>
@@ -1244,7 +1284,6 @@ function TicketWidget({
                           }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                           step="0.1"
-                          min="0"
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900">
@@ -1256,7 +1295,6 @@ function TicketWidget({
                           }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                           step="0.1"
-                          min="0"
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">

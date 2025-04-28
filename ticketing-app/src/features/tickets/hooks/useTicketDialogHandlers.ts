@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Layouts } from "react-grid-layout";
+import { toast } from "sonner";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
@@ -506,6 +507,21 @@ export default function useTicketDialogHandlers(
     if (!currentTicket) return;
 
     try {
+      // Validate required fields
+      if (ticketForm.billableHours === null || ticketForm.billableHours === undefined) {
+        toast.error("Validation Error", {
+          description: "Billable Hours cannot be empty"
+        });
+        return;
+      }
+
+      if (ticketForm.totalHours === null || ticketForm.totalHours === undefined) {
+        toast.error("Validation Error", {
+          description: "Total Hours cannot be empty"
+        });
+        return;
+      }
+
       // Find the corresponding tab
       const currentTabData = tabs.find((tab) => tab.id === activeTab);
       if (!currentTabData) return;
@@ -574,8 +590,8 @@ export default function useTicketDialogHandlers(
         status_id: statusId || undefined, // Use the looked up status ID
         customer_id: customerId || undefined, // Use the looked up customer ID
         description: ticketForm.description,
-        billable_hours: parseFloat(ticketForm.billableHours.toString()),
-        total_hours: parseFloat(ticketForm.totalHours.toString()),
+        billable_hours: ticketForm.billableHours, // Now guaranteed to be non-null by validation
+        total_hours: ticketForm.totalHours, // Now guaranteed to be non-null by validation
         assignee_ids: assigneeIds.length > 0 ? assigneeIds : undefined, // Only include if we have assignees
         attachments: attachmentsToSave.length > 0 ? attachmentsToSave : undefined, // Only include if we have attachments
       };
