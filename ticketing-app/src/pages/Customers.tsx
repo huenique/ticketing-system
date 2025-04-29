@@ -565,7 +565,7 @@ function Customers() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="name" className="text-right text-sm font-medium">
-                  Company Name
+                  Name
                 </label>
                 <Input
                   id="name"
@@ -665,7 +665,7 @@ function Customers() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="name" className="text-right text-sm font-medium">
-                  Company Name
+                  Name
                 </label>
                 <Input
                   id="name"

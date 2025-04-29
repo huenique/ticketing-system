@@ -1,204 +1,232 @@
-import * as dotenv from "dotenv";
-import { AppwriteException, Client, Databases, Permission, Role } from "node-appwrite";
+import { Client, Databases } from 'node-appwrite';
+import dotenv from 'dotenv';
 
+// Load environment variables
 dotenv.config();
 
-const {
-  VITE_APPWRITE_ENDPOINT,
-  VITE_APPWRITE_PROJECT_ID,
-  VITE_APPWRITE_API_KEY,
-  VITE_APPWRITE_DATABASE_ID,
-} = process.env;
-
-if (
-  !VITE_APPWRITE_ENDPOINT ||
-  !VITE_APPWRITE_PROJECT_ID ||
-  !VITE_APPWRITE_API_KEY ||
-  !VITE_APPWRITE_DATABASE_ID
-) {
-  const missingVars: string[] = [];
-  if (!VITE_APPWRITE_ENDPOINT) missingVars.push("VITE_APPWRITE_ENDPOINT");
-  if (!VITE_APPWRITE_PROJECT_ID) missingVars.push("VITE_APPWRITE_PROJECT_ID");
-  if (!VITE_APPWRITE_API_KEY) missingVars.push("VITE_APPWRITE_API_KEY");
-  if (!VITE_APPWRITE_DATABASE_ID) missingVars.push("VITE_APPWRITE_DATABASE_ID");
-  console.error(`Missing environment variables: ${missingVars.join(", ")}`);
-  process.exit(1);
-}
-
 const client = new Client()
-  .setEndpoint(VITE_APPWRITE_ENDPOINT)
-  .setProject(VITE_APPWRITE_PROJECT_ID)
-  .setKey(VITE_APPWRITE_API_KEY);
+  .setEndpoint(process.env.APPWRITE_ENDPOINT || '')
+  .setProject(process.env.APPWRITE_PROJECT_ID || '')
+  .setKey(process.env.APPWRITE_API_KEY || '');
 
 const databases = new Databases(client);
-const dbId = VITE_APPWRITE_DATABASE_ID;
-
-async function createCollectionIfNotExists(collectionId: string, name: string) {
-  try {
-    await databases.getCollection(dbId, collectionId);
-    console.log(`ℹ️ Collection '${collectionId}' already exists. Skipping.`);
-  } catch (error) {
-    if (error instanceof AppwriteException && error.code === 404) {
-      console.log(`➕ Creating collection '${collectionId}'...`);
-      await databases.createCollection(dbId, collectionId, name, [
-        Permission.read(Role.users()),
-        Permission.create(Role.users()),
-        Permission.update(Role.users()),
-        Permission.delete(Role.users()),
-      ]);
-    } else {
-      throw error;
-    }
-  }
-}
-
-async function createAttributeSafe(
-  collectionId: string,
-  type: "string" | "float" | "datetime",
-  key: string,
-  sizeOrRequired: number | boolean,
-  requiredOrDefault?: boolean | string,
-  defaultOrArray?: string | boolean,
-  array?: boolean,
-) {
-  try {
-    const collection = await databases.getCollection(dbId, collectionId);
-    if (collection.attributes.some((attr) => attr.key === key)) {
-      console.log(
-        `ℹ️ Attribute '${key}' in '${collectionId}' already exists. Skipping.`,
-      );
-      return;
-    }
-  } catch (error) {
-    console.error(`❌ Error checking attributes for '${collectionId}':`, error);
-    throw error;
-  }
-
-  switch (type) {
-    case "string":
-      await databases.createStringAttribute(
-        dbId,
-        collectionId,
-        key,
-        sizeOrRequired as number,
-        requiredOrDefault as boolean,
-        defaultOrArray as string | undefined,
-        array,
-      );
-      break;
-    case "float":
-      await databases.createFloatAttribute(
-        dbId,
-        collectionId,
-        key,
-        sizeOrRequired as boolean,
-      );
-      break;
-    case "datetime":
-      await databases.createDatetimeAttribute(
-        dbId,
-        collectionId,
-        key,
-        sizeOrRequired as boolean,
-      );
-      break;
-  }
-}
+const dbId = process.env.APPWRITE_DATABASE_ID || '';
 
 async function createCollections() {
-  // Tickets
-  await createCollectionIfNotExists("tickets", "Tickets");
-  await createAttributeSafe("tickets", "string", "status_id", 255, true);
-  await createAttributeSafe("tickets", "string", "customer_id", 255, true);
-  await createAttributeSafe("tickets", "datetime", "created_at", true);
-  await createAttributeSafe("tickets", "datetime", "updated_at", true);
-  await createAttributeSafe("tickets", "float", "billable_hours", true);
-  await createAttributeSafe("tickets", "float", "total_hours", true);
-  await createAttributeSafe("tickets", "string", "description", 1000, true);
-  await createAttributeSafe(
-    "tickets",
-    "string",
-    "assignee_ids",
-    255,
-    false,
-    undefined,
-    true,
-  );
-  await createAttributeSafe(
-    "tickets",
-    "string",
-    "attachments",
-    255,
-    false,
-    undefined,
-    true,
+  // Create user_types collection first
+  await databases.createCollection(
+    dbId, 
+    'user_types', 
+    'User Types',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
   );
 
-  // Users
-  await createCollectionIfNotExists("users", "Users");
-  await createAttributeSafe("users", "string", "first_name", 255, true);
-  await createAttributeSafe("users", "string", "last_name", 255, true);
-  await createAttributeSafe("users", "string", "username", 255, true, undefined, false);
-  await createAttributeSafe("users", "string", "user_type_id", 255, true);
-  await createAttributeSafe("users", "string", "auth_user_id", 255, false);
+  // Add attributes to user_types collection
+  await databases.createStringAttribute(dbId, 'user_types', 'label', 255, true);
 
-  // User Types
-  await createCollectionIfNotExists("user_types", "User Types");
-  await createAttributeSafe("user_types", "string", "label", 255, true);
+  // Create users collection
+  await databases.createCollection(
+    dbId, 
+    'users', 
+    'Users',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
 
-  // Statuses
-  await createCollectionIfNotExists("statuses", "Statuses");
-  await createAttributeSafe("statuses", "string", "label", 255, true);
-
-  // Customers
-  await createCollectionIfNotExists("customers", "Customers");
-  await createAttributeSafe("customers", "string", "name", 255, true);
-  await createAttributeSafe("customers", "string", "address", 255, true);
-  await createAttributeSafe("customers", "string", "primary_contact_name", 255, true);
-  await createAttributeSafe("customers", "string", "primary_contact_number", 255, true);
-  await createAttributeSafe("customers", "string", "primary_email", 255, true);
-  await createAttributeSafe("customers", "string", "abn", 255, false);
-
-  // Customer Contacts
-  await createCollectionIfNotExists("customer_contacts", "Customer Contacts");
-  await createAttributeSafe("customer_contacts", "string", "customer_id", 255, true);
-  await createAttributeSafe("customer_contacts", "string", "first_name", 255, true);
-  await createAttributeSafe("customer_contacts", "string", "last_name", 255, true);
-  await createAttributeSafe("customer_contacts", "string", "position", 255, false);
-  await createAttributeSafe("customer_contacts", "string", "contact_number", 255, true);
-  await createAttributeSafe("customer_contacts", "string", "email", 255, true);
-
-  // Ticket Assignments
-  await createCollectionIfNotExists("ticket_assignments", "Ticket Assignments");
-  await createAttributeSafe("ticket_assignments", "string", "ticket_id", 255, true);
-  await createAttributeSafe("ticket_assignments", "string", "user_id", 255, true);
-  await createAttributeSafe("ticket_assignments", "string", "work_description", 1000, false);
-  await createAttributeSafe("ticket_assignments", "float", "estimated_time", true);
-  await createAttributeSafe("ticket_assignments", "float", "actual_time", true);
-  await createAttributeSafe("ticket_assignments", "string", "status_id", 255, true);
-
-  // Time Entries
-  await createCollectionIfNotExists("time_entries", "Time Entries");
-  await createAttributeSafe("time_entries", "string", "ticket_id", 255, true);
-  await createAttributeSafe("time_entries", "string", "user_id", 255, true);
-  await createAttributeSafe("time_entries", "datetime", "start_time", true);
-  await createAttributeSafe("time_entries", "datetime", "stop_time", true);
-  await createAttributeSafe("time_entries", "float", "total_duration", true);
-  await createAttributeSafe("time_entries", "string", "remarks", 1000, false);
-  await createAttributeSafe(
-    "time_entries",
-    "string",
-    "files",
-    255,
+  // Add attributes to users collection
+  await databases.createStringAttribute(dbId, 'users', 'first_name', 255, true);
+  await databases.createStringAttribute(dbId, 'users', 'last_name', 255, true);
+  await databases.createStringAttribute(dbId, 'users', 'username', 255, true);
+  // Changed user_type_id to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'users',
+    'user_types',
+    'manyToOne' as any,
     false,
+    'user_type_id',
     undefined,
-    true,
+    'cascade' as any
+  );
+
+  // Create statuses collection
+  await databases.createCollection(
+    dbId, 
+    'statuses', 
+    'Statuses',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to statuses collection
+  await databases.createStringAttribute(dbId, 'statuses', 'label', 255, true);
+
+  // Create customers collection
+  await databases.createCollection(
+    dbId, 
+    'customers', 
+    'Customers',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to customers collection
+  await databases.createStringAttribute(dbId, 'customers', 'name', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'address', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_contact_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_contact_number', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'primary_email', 255, true);
+  await databases.createStringAttribute(dbId, 'customers', 'abn', 255, false);
+
+  // Create customer_contacts collection
+  await databases.createCollection(
+    dbId, 
+    'customer_contacts', 
+    'Customer Contacts',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to customer_contacts collection
+  // Changed customer_id to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'customer_contacts',
+    'customers',
+    'manyToMany' as any,
+    false,
+    'customer_id',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'first_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'last_name', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'position', 255, false);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'contact_number', 255, true);
+  await databases.createStringAttribute(dbId, 'customer_contacts', 'email', 255, true);
+
+  // Create tickets collection
+  await databases.createCollection(
+    dbId, 
+    'tickets', 
+    'Tickets',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to tickets collection
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'statuses',
+    'manyToOne' as any,
+    false,
+    'status_id',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'customers', 
+    'manyToOne' as any,
+    false,
+    'customer_id',
+    undefined,
+    'cascade' as any
+  );
+  // Changed assignee_ids to relationship attribute
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'users',
+    'manyToMany' as any,
+    false,
+    'assignee_ids',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createFloatAttribute(dbId, 'tickets', 'billable_hours', true);
+  await databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true);
+  await databases.createStringAttribute(dbId, 'tickets', 'description', 1000, true);
+  await databases.createStringAttribute(dbId, 'tickets', 'attachments', 255, false, undefined, true);
+  
+  // Add assignment_id to tickets collection
+  await databases.createRelationshipAttribute(
+    dbId,
+    'tickets',
+    'ticket_assignments',
+    'oneToMany' as any,
+    false,
+    'assignment_id',
+    undefined,
+    'cascade' as any
+  );
+
+  // Create ticket_assignments collection
+  await databases.createCollection(
+    dbId, 
+    'ticket_assignments', 
+    'Ticket Assignments',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to ticket_assignments collection
+  await databases.createStringAttribute(dbId, 'ticket_assignments', 'work_description', 1000, true);
+  await databases.createStringAttribute(dbId, 'ticket_assignments', 'estimated_time', 255, true);
+  await databases.createStringAttribute(dbId, 'ticket_assignments', 'actual_time', 255, true);
+  await databases.createRelationshipAttribute(
+    dbId,
+    'ticket_assignments',
+    'users',
+    'manyToOne' as any,
+    false,
+    'user_id',
+    undefined,
+    'cascade' as any
+  );
+
+  // Create relationship between ticket_assignments and tickets
+  await databases.createRelationshipAttribute(
+    dbId,
+    'ticket_assignments',
+    'tickets',
+    'manyToOne' as any,
+    false,
+    'ticket_id',
+    undefined,
+    'cascade' as any
+  );
+
+  // Create time_entries collection
+  await databases.createCollection(
+    dbId, 
+    'time_entries', 
+    'Time Entries',
+    ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+  );
+
+  // Add attributes to time_entries collection
+  await databases.createStringAttribute(dbId, 'time_entries', 'start_time', 255, true);
+  await databases.createStringAttribute(dbId, 'time_entries', 'stop_time', 255, true);
+  await databases.createStringAttribute(dbId, 'time_entries', 'total_duration', 255, true);
+  await databases.createStringAttribute(dbId, 'time_entries', 'remarks', 1000, true);
+  await databases.createStringAttribute(dbId, 'time_entries', 'files', 255, false, undefined, true);
+  await databases.createRelationshipAttribute(
+    dbId,
+    'time_entries',
+    'tickets',
+    'manyToOne' as any,
+    false,
+    'ticket_id',
+    undefined,
+    'cascade' as any
+  );
+  await databases.createRelationshipAttribute(
+    dbId,
+    'time_entries',
+    'users',
+    'manyToOne' as any,
+    false,
+    'user_id',
+    undefined,
+    'cascade' as any
   );
 }
 
-createCollections()
-  .then(() => console.log("✅ Database setup complete."))
-  .catch((error) => {
-    console.error("❌ Error creating collections:", error);
-    process.exit(1);
-  });
+createCollections().catch(console.error);

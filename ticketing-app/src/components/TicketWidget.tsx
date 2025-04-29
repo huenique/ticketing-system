@@ -391,7 +391,7 @@ function TicketWidget({
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-neutral-700">
-                            Total Hours
+                            Actual Time
                           </label>
                           <input
                             type="number"
@@ -450,7 +450,7 @@ function TicketWidget({
                             Priority
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Total Hours
+                            Actual Time
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                             Est. Time
@@ -551,11 +551,7 @@ function TicketWidget({
                                   value={assignee.estTime}
                                   onChange={(e) =>
                                     handleUpdateAssignee &&
-                                    handleUpdateAssignee(
-                                      assignee.id,
-                                      "estTime",
-                                      e.target.value,
-                                    )
+                                    handleUpdateAssignee(assignee.id, "estTime", e.target.value)
                                   }
                                   className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                                   step="0.1"
@@ -753,6 +749,9 @@ function TicketWidget({
                           <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                             Remarks
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                            Files
+                          </th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
                             Actions
                           </th>
@@ -827,6 +826,23 @@ function TicketWidget({
                                 }
                                 className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                               />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {entry.files && entry.files.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {entry.files.map((file, index) => (
+                                    <span 
+                                      key={index} 
+                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                      title={file}
+                                    >
+                                      File {index + 1}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No files</span>
+                              )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                               {handleRemoveTimeEntry && (
@@ -1116,13 +1132,16 @@ function TicketWidget({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-700">
-                        Total Hours
+                        Actual Time
                       </label>
                       <input
                         type="number"
                         value={newAssignee.totalHours}
                         onChange={(e) =>
-                          setNewAssignee({ ...newAssignee, totalHours: e.target.value })
+                          setNewAssignee({
+                            ...newAssignee,
+                            totalHours: e.target.value,
+                          })
                         }
                         className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                         step="0.1"
@@ -1136,7 +1155,10 @@ function TicketWidget({
                         type="number"
                         value={newAssignee.estTime}
                         onChange={(e) =>
-                          setNewAssignee({ ...newAssignee, estTime: e.target.value })
+                          setNewAssignee({
+                            ...newAssignee,
+                            estTime: e.target.value,
+                          })
                         }
                         className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                         step="0.1"
@@ -1202,7 +1224,7 @@ function TicketWidget({
                       Priority
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Total Hours
+                      Actual Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                       Est. Time
@@ -1230,7 +1252,12 @@ function TicketWidget({
                           type="text"
                           value={assignee.name}
                           onChange={(e) =>
-                            handleUpdateAssignee(assignee.id, "name", e.target.value)
+                            handleUpdateAssignee &&
+                            handleUpdateAssignee(
+                              assignee.id,
+                              "name",
+                              e.target.value,
+                            )
                           }
                           className="w-full bg-transparent border-0 focus:ring-0 p-0"
                         />
@@ -1240,6 +1267,7 @@ function TicketWidget({
                           type="text"
                           value={assignee.workDescription}
                           onChange={(e) =>
+                            handleUpdateAssignee &&
                             handleUpdateAssignee(
                               assignee.id,
                               "workDescription",
@@ -1253,6 +1281,7 @@ function TicketWidget({
                         <select
                           value={assignee.priority || "5"}
                           onChange={(e) =>
+                            handleUpdateAssignee &&
                             handleUpdateAssignee(
                               assignee.id,
                               "priority",
@@ -1276,13 +1305,14 @@ function TicketWidget({
                           type="number"
                           value={assignee.totalHours}
                           onChange={(e) =>
+                            handleUpdateAssignee &&
                             handleUpdateAssignee(
                               assignee.id,
                               "totalHours",
                               e.target.value,
                             )
                           }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                          className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                           step="0.1"
                         />
                       </td>
@@ -1291,9 +1321,10 @@ function TicketWidget({
                           type="number"
                           value={assignee.estTime}
                           onChange={(e) =>
+                            handleUpdateAssignee &&
                             handleUpdateAssignee(assignee.id, "estTime", e.target.value)
                           }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                          className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                           step="0.1"
                         />
                       </td>
@@ -1458,122 +1489,196 @@ function TicketWidget({
         }
 
         return (
-          <div>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-neutral-200">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Assignee
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Start Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Stop Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Remarks
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-neutral-200">
-                  {timeEntries.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-4 text-center text-sm text-neutral-500"
-                      >
-                        No time entries recorded yet
-                      </td>
-                    </tr>
-                  )}
-                  {timeEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-neutral-50">
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        {entry.assigneeName}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        {entry.id.substring(0, 8)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
+          <div className="mt-4">
+            <div className="flex justify-between mb-4">
+              <div className="text-gray-500 text-sm">
+                Record time spent working on this ticket
+              </div>
+              {handleAddTimeEntry && (
+                <Button
+                  onClick={() => handleAddTimeEntry("")}
+                  size="sm"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Add Time Entry
+                </Button>
+              )}
+            </div>
+            
+            {timeEntries && timeEntries.length > 0 ? (
+              <div className="space-y-6">
+                {timeEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="bg-white border border-gray-200 rounded-md p-4 shadow-sm"
+                  >
+                    <div className="flex justify-between mb-2">
+                      <div className="text-sm font-medium">
+                        {entry.assigneeName || "Unassigned"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {entry.dateCreated}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          Start Time
+                        </label>
                         <input
-                          type="time"
+                          type="datetime-local"
                           value={entry.startTime}
                           onChange={(e) =>
-                            handleUpdateTimeEntry(entry.id, "startTime", e.target.value)
+                            handleUpdateTimeEntry &&
+                            handleUpdateTimeEntry(
+                              entry.id,
+                              "startTime",
+                              e.target.value
+                            )
                           }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                          className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          Stop Time
+                        </label>
                         <input
-                          type="time"
+                          type="datetime-local"
                           value={entry.stopTime}
                           onChange={(e) =>
-                            handleUpdateTimeEntry(entry.id, "stopTime", e.target.value)
+                            handleUpdateTimeEntry &&
+                            handleUpdateTimeEntry(
+                              entry.id,
+                              "stopTime",
+                              e.target.value
+                            )
                           }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
+                          className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        {entry.duration} hrs
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        {entry.dateCreated}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Remarks
+                      </label>
+                      <Textarea
+                        value={entry.remarks}
+                        onChange={(e) =>
+                          handleUpdateTimeEntry &&
+                          handleUpdateTimeEntry(
+                            entry.id,
+                            "remarks",
+                            e.target.value
+                          )
+                        }
+                        className="block w-full text-sm"
+                        placeholder="Add your notes here..."
+                      />
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Files
+                      </label>
+                      <div className="flex items-center space-x-2">
                         <input
-                          type="text"
-                          value={entry.remarks}
-                          onChange={(e) =>
-                            handleUpdateTimeEntry(entry.id, "remarks", e.target.value)
-                          }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
-                          placeholder="Add remarks..."
+                          type="file"
+                          id={`file-upload-${entry.id}`}
+                          className="hidden"
+                          multiple
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              // Handle file upload logic here
+                              const fileNames = Array.from(e.target.files).map(f => f.name);
+                              
+                              // Update the time entry with the new files
+                              handleUpdateTimeEntry &&
+                              handleUpdateTimeEntry(
+                                entry.id,
+                                "files",
+                                JSON.stringify(fileNames)
+                              );
+                            }
+                          }}
                         />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
-                        {handleRemoveTimeEntry && (
-                          <button
-                            onClick={() => handleRemoveTimeEntry(entry.id)}
-                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                            title="Remove time entry"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            document.getElementById(`file-upload-${entry.id}`)?.click();
+                          }}
+                        >
+                          Upload Files
+                        </Button>
+                        
+                        {entry.files && entry.files.length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {entry.files.length} file(s) attached
+                          </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      
+                      {entry.files && entry.files.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {entry.files.map((file, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {file.split("/").pop()}
+                              <button
+                                type="button"
+                                className="ml-1 h-4 w-4 rounded-full hover:bg-blue-200 inline-flex items-center justify-center"
+                                onClick={() => {
+                                  // Remove file logic
+                                  const newFiles = [...entry.files || []];
+                                  newFiles.splice(index, 1);
+                                  
+                                  handleUpdateTimeEntry &&
+                                  handleUpdateTimeEntry(
+                                    entry.id,
+                                    "files",
+                                    JSON.stringify(newFiles)
+                                  );
+                                }}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm">
+                        <span className="font-medium">Duration: </span>
+                        {entry.duration} hours
+                      </div>
+                      
+                      {handleRemoveTimeEntry && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemoveTimeEntry(entry.id)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No time entries recorded for this ticket yet.
+              </div>
+            )}
           </div>
         );
 

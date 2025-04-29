@@ -1,52 +1,57 @@
 import React, { Fragment } from "react";
 
-import { Column, Row, Tab } from "../../../types/tickets";
+import { Column, Row, Tab, Table } from "../../../types/tickets";
 
 interface TicketTableProps {
-  activeTab: string;
+  table: Table;
+  filterText: string;
   tabs: Tab[];
-  tables: Record<string, { columns: Column[]; rows: Row[] }>;
-  currentUser: unknown;
-  editingColumn: { tabId: string; columnId: string } | null;
-  editingColumnTitle: string;
-  handleColumnDoubleClick: (tabId: string, columnId: string) => void;
-  handleColumnDragStart: (e: React.DragEvent, tabId: string, columnId: string) => void;
-  handleColumnDragEnd: () => void;
-  handleColumnDragOver: (e: React.DragEvent, tabId: string, columnId: string) => void;
-  handleColumnDrop: (e: React.DragEvent, tabId: string, columnId: string) => void;
-  setEditingColumnTitle: (title: string) => void;
-  saveColumnName: () => void;
-  handleColumnRenameKeyDown: (e: React.KeyboardEvent) => void;
-  removeColumn: (tabId: string, columnId: string) => void;
+  activeTab: string;
+  tables?: Record<string, { columns: Column[]; rows: Row[] }>;
+  currentUser?: unknown;
+  editingColumn?: { tabId: string; columnId: string } | null;
+  editingColumnTitle?: string;
+  handleColumnDoubleClick?: (tabId: string, columnId: string) => void;
+  handleColumnDragStart?: (e: React.DragEvent, tabId: string, columnId: string) => void;
+  handleColumnDragEnd?: () => void;
+  handleColumnDragOver?: (e: React.DragEvent, tabId: string, columnId: string) => void;
+  handleColumnDrop?: (e: React.DragEvent, tabId: string, columnId: string) => void;
+  setEditingColumnTitle?: (title: string) => void;
+  saveColumnName?: () => void;
+  handleColumnRenameKeyDown?: (e: React.KeyboardEvent) => void;
+  removeColumn?: (tabId: string, columnId: string) => void;
+  addRow: (tabId: string) => void;
   addColumn: (tabId: string) => void;
   markTaskAsDone: (tabId: string, rowId: string, completed: boolean) => void;
   handleInitializeTicketDialog: (ticket: Row) => void;
+  viewTicket?: (ticket: Row, tabId: string) => void;
 }
 
 const TicketTable: React.FC<TicketTableProps> = ({
-  activeTab,
+  table,
+  filterText,
   tabs,
-  tables,
-  editingColumn,
-  editingColumnTitle,
-  handleColumnDoubleClick,
-  handleColumnDragStart,
-  handleColumnDragEnd,
-  handleColumnDragOver,
-  handleColumnDrop,
-  setEditingColumnTitle,
-  saveColumnName,
-  handleColumnRenameKeyDown,
-  removeColumn,
+  activeTab,
+  addRow,
   addColumn,
   handleInitializeTicketDialog,
+  viewTicket,
+  // Optional props with defaults
+  editingColumn = null,
+  editingColumnTitle = "",
+  handleColumnDoubleClick = () => {},
+  handleColumnDragStart = () => {},
+  handleColumnDragEnd = () => {},
+  handleColumnDragOver = () => {},
+  handleColumnDrop = () => {},
+  setEditingColumnTitle = () => {},
+  saveColumnName = () => {},
+  handleColumnRenameKeyDown = () => {},
+  removeColumn = () => {},
 }) => {
   const activeTabData = tabs.find((tab) => tab.id === activeTab);
 
   if (!activeTabData) return null;
-
-  const table = tables[activeTab];
-  if (!table) return null;
 
   // Filter rows based on the tab's status if it exists and is not 'all'
   const filteredRows =
@@ -185,7 +190,13 @@ const TicketTable: React.FC<TicketTableProps> = ({
                         <button
                           className="rounded bg-blue-100 p-1 text-blue-700 hover:bg-blue-200"
                           title="View Ticket"
-                          onClick={() => handleInitializeTicketDialog(row)}
+                          onClick={() => {
+                            if (viewTicket) {
+                              viewTicket(row, activeTab);
+                            } else {
+                              handleInitializeTicketDialog(row);
+                            }
+                          }}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"

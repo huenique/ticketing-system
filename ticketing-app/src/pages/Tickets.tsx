@@ -1064,7 +1064,7 @@ function Tickets() {
             <DataTable
               columns={columns}
               data={currentTable.rows}
-              onRowClick={ticketDialogHandlers.handleInitializeTicketDialog}
+              onRowClick={(row) => ticketDialogHandlers.viewTicket(row, activeTab)}
               statusFilter={tabs.find((tab) => tab.id === activeTab)?.status}
             />
           </div>

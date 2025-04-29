@@ -390,5 +390,6 @@ export function convertTicketToRow(
       "col-10": dateCreated, // Last Modified (reuse date created for now)
       "col-11": "action_buttons", // Actions
     },
+    rawData: ticket, // Store the original ticket data
   };
 }

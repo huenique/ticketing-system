@@ -17,6 +17,7 @@ export interface Ticket {
   description: string;
   assignee_ids: string[]; // Relationship field to users collection
   attachments?: string[];
+  assignment_id?: string[]; // Relationship field to ticket_assignments collection
 }
 
 // Customer interface based on Appwrite schema
@@ -52,13 +53,16 @@ export interface Status {
 export interface Assignee {
   id: string;
   name: string;
-  workDescription: string;
-  totalHours: string;
-  estTime: string;
-  priority: string;
-  completed?: boolean;
+  workDescription: string;  // Maps to work_description in database
+  totalHours: string;       // Maps to actual_time in database
+  estTime: string;          // Maps to estimated_time in database
+  priority: string;         // Used for UI sorting
+  completed?: boolean;      // UI state
+  user_id?: string;         // Relationship with Users collection
+  ticket_id?: string;       // Relationship with Tickets collection
 }
 
+// Define Tab interface
 export interface Tab {
   id: string;
   title: string;
@@ -66,6 +70,7 @@ export interface Tab {
   status?: string;
   isDragging?: boolean;
   appliedPreset?: string;
+  isEngineeringPreset?: boolean; // Add this property for Engineering preset tabs
 }
 
 export interface TimeEntry {
@@ -77,6 +82,9 @@ export interface TimeEntry {
   duration: string;
   dateCreated: string;
   remarks: string;
+  files?: string[]; // Added to match our database schema
+  ticket_id?: string; // Relationship with Tickets collection
+  user_id?: string; // Relationship with Users collection
 }
 
 // Ticket Form Structure
@@ -95,10 +103,14 @@ export interface TicketForm {
   assignee_ids?: string[];
 }
 
+// Define Row interface for tables
 export interface Row {
   id: string;
-  cells: Record<string, string>;
-  completed?: boolean;
+  cells: {
+    [key: string]: any;
+  };
+  rawData?: any; // Add rawData property to store original Appwrite data
+  completed?: boolean; // Flag for completed tickets
 }
 
 export interface Widget {
@@ -132,6 +144,16 @@ export interface Table {
 export interface LayoutStorage {
   widgets: Widget[];
   layouts: Layouts;
+}
+
+// Add TicketAssignment interface based on database schema
+export interface TicketAssignment {
+  id: string;
+  work_description: string;
+  estimated_time: string;
+  actual_time: string;
+  user_id: string; // Relationship with Users collection
+  ticket_id?: string; // Relationship with Tickets collection
 }
 
 /**

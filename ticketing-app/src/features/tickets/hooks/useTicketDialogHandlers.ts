@@ -784,6 +784,118 @@ export default function useTicketDialogHandlers(
     }
   };
 
+  const viewTicket = (ticket: Row, tabId: string) => {
+    setCurrentTicket(ticket);
+    setViewDialogOpen(true);
+
+    // Check if this tab has a preset
+    const currentTabData = tabs.find((tab) => tab.id === tabId);
+    const hasEngineeringPreset = currentTabData && currentTabData.isEngineeringPreset;
+    setCurrentTicketPreset(hasEngineeringPreset ? "engineering" : undefined);
+
+    // Get data from ticket
+    const status = ticket.cells["col-7"] || "";
+    const customerId = ticket.cells["col-3"] || "";
+    const ticketId = ticket.id;
+    const description = ticket.cells["col-8"] || "";
+    const createdAt = ticket.cells["col-2"] || "";
+    const lastModified = ticket.cells["col-9"] || "";
+    const billableHoursStr = ticket.cells["col-5"] || "0";
+    const totalHoursStr = ticket.cells["col-6"] || "0";
+    const billableHours = parseFloat(billableHoursStr);
+    const totalHours = parseFloat(totalHoursStr);
+    const attachments = ticket.cells["col-10"] || [];
+
+    // Convert string attachments to array if necessary
+    let attachmentsArray: string[] = [];
+    if (typeof attachments === "string") {
+      attachmentsArray = attachments
+        .split(",")
+        .map((a) => a.trim())
+        .filter((a) => a);
+    } else if (Array.isArray(attachments)) {
+      attachmentsArray = attachments;
+    }
+
+    // Set ticket form data
+    setTicketForm({
+      status,
+      customerId,
+      description,
+      billableHours: isNaN(billableHours) ? 0 : billableHours,
+      totalHours: isNaN(totalHours) ? 0 : totalHours,
+      assigneeIds: [],
+      attachments: attachmentsArray,
+    });
+
+    // Set uploaded images
+    setUploadedImages(attachmentsArray);
+
+    // Check if we have a raw appwrite data in the ticket
+    if (ticket.rawData) {
+      console.log("Using raw Appwrite data to populate ticket fields:", ticket.rawData);
+      
+      // Extract assignee_ids from raw data if available
+      const assigneeIds: string[] = [];
+      if (ticket.rawData.assignee_ids && Array.isArray(ticket.rawData.assignee_ids)) {
+        ticket.rawData.assignee_ids.forEach((assignee: any) => {
+          if (typeof assignee === 'string') {
+            assigneeIds.push(assignee);
+          } else if (assignee && typeof assignee === 'object' && assignee.$id) {
+            assigneeIds.push(assignee.$id);
+          }
+        });
+      }
+
+      // Update ticket form with assignee IDs if found
+      setTicketForm((prev) => ({
+        ...prev,
+        assigneeIds,
+      }));
+
+      // Process assignments from assignment_id if available
+      let newAssignees: Assignee[] = [];
+      
+      if (ticket.rawData.assignment_id && Array.isArray(ticket.rawData.assignment_id)) {
+        newAssignees = ticket.rawData.assignment_id.map((assignment: any) => {
+          // Get user information
+          const userId = assignment.user_id?.$id || assignment.user_id || '';
+          const firstName = assignment.user_id?.first_name || '';
+          const lastName = assignment.user_id?.last_name || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          
+          return {
+            id: assignment.$id || `a-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: fullName,
+            workDescription: assignment.work_description || '',
+            totalHours: assignment.actual_time || '0',
+            estTime: assignment.estimated_time || '0',
+            priority: '1',
+            user_id: userId,
+            completed: false
+          };
+        });
+      }
+
+      // Set assignees if we have any from assignment_id
+      if (newAssignees.length > 0) {
+        setAssignees(newAssignees);
+      } else {
+        // Start with empty assignees for all presets
+        setAssignees([]);
+      }
+    } else {
+      // Without raw data, start with empty assignees
+      setAssignees([]);
+    }
+
+    // Set empty time entries for all presets
+    setTimeEntries([]);
+
+    // Get the saved layout state for this preset/tab
+    // ... existing code ...
+  };
+
   return {
     viewDialogOpen,
     setViewDialogOpen,
@@ -791,31 +903,30 @@ export default function useTicketDialogHandlers(
     setCurrentTicket,
     currentTicketPreset,
     setCurrentTicketPreset,
-    isEditLayoutMode,
-    setIsEditLayoutMode,
     ticketForm,
     setTicketForm,
     uploadedImages,
     setUploadedImages,
     assignees,
     setAssignees,
-    assigneeTableTitle,
-    setAssigneeTableTitle,
-    newAssignee,
-    setNewAssignee,
-    showAssigneeForm,
-    setShowAssigneeForm,
     timeEntries,
     setTimeEntries,
-    handleImageUpload,
+    isEditLayoutMode,
+    setIsEditLayoutMode,
+    showAssigneeForm,
+    setShowAssigneeForm,
+    newAssignee,
+    setNewAssignee,
     handleAddAssignee,
     handleRemoveAssignee,
     handleUpdateAssignee,
     handleAddTimeEntry,
-    handleUpdateTimeEntry,
     handleRemoveTimeEntry,
+    handleUpdateTimeEntry,
+    handleImageUpload,
     markAssigneeCompleted,
     handleInitializeTicketDialog,
     handleSaveTicketChanges,
+    viewTicket,
   };
 }

@@ -1,7 +1,7 @@
 export * from "./commonService";
-export * from "./customerContactsService";
-export * from "./customersService";
-export * from "./ticketsService";
+export { contactsService } from "./customerContactsService";
+export { customersService } from "./customersService";
+export { ticketsService, statusesService } from "./ticketsService";
 
 // For direct import of the Appwrite client functions
 export * from "@/lib/appwrite";
