@@ -140,6 +140,7 @@ async function createCollections() {
   await createAttributeSafe("users", "string", "last_name", 255, true);
   await createAttributeSafe("users", "string", "username", 255, true, undefined, false);
   await createAttributeSafe("users", "string", "user_type_id", 255, true);
+  await createAttributeSafe("users", "string", "auth_user_id", 255, false);
 
   // User Types
   await createCollectionIfNotExists("user_types", "User Types");
