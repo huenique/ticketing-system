@@ -797,14 +797,14 @@ export default function useTicketDialogHandlers(
     const status = ticket.cells["col-7"] || "";
     const customerId = ticket.cells["col-3"] || "";
     const ticketId = ticket.id;
-    const description = ticket.cells["col-8"] || "";
+    const description = ticket.cells["col-4"] || "";
     const createdAt = ticket.cells["col-2"] || "";
-    const lastModified = ticket.cells["col-9"] || "";
-    const billableHoursStr = ticket.cells["col-5"] || "0";
-    const totalHoursStr = ticket.cells["col-6"] || "0";
+    const lastModified = ticket.cells["col-10"] || "";
+    const billableHoursStr = ticket.cells["col-9"] || "0";
+    const totalHoursStr = ticket.cells["col-8"] || "0";
     const billableHours = parseFloat(billableHoursStr);
     const totalHours = parseFloat(totalHoursStr);
-    const attachments = ticket.cells["col-10"] || [];
+    const attachments = ticket.cells["col-6"] || [];
 
     // Convert string attachments to array if necessary
     let attachmentsArray: string[] = [];
