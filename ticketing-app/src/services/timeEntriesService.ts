@@ -1,9 +1,12 @@
 import { databases, ID, Query } from "@/lib/appwrite";
+import { getCurrentUserRole } from "@/lib/userUtils";
 import { TimeEntry } from "@/types/tickets";
+import { authService } from "@/lib/appwrite";
 
 // Collection ID constants
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const TIME_ENTRIES_COLLECTION = "time_entries";
+const USERS_COLLECTION = "users";
 
 // Helper function to map API response to TimeEntry
 const mapToTimeEntry = (document: any): TimeEntry => {
@@ -36,6 +39,31 @@ const mapToTimeEntry = (document: any): TimeEntry => {
   };
 };
 
+// Helper function to get database user ID from auth user ID
+const getDatabaseUserIdFromAuthId = async (authUserId: string): Promise<string | null> => {
+  try {
+    console.log(`Looking up database user for auth user ID: ${authUserId}`);
+    // Query users collection to find the user with matching auth_user_id
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      USERS_COLLECTION,
+      [Query.equal("auth_user_id", authUserId), Query.limit(1)]
+    );
+
+    if (response.documents.length > 0) {
+      const dbUserId = response.documents[0].$id;
+      console.log(`Found database user ID: ${dbUserId} for auth user ID: ${authUserId}`);
+      return dbUserId;
+    }
+    
+    console.warn(`No database user found for auth user ID: ${authUserId}`);
+    return null;
+  } catch (error) {
+    console.error(`Error finding database user for auth user ID ${authUserId}:`, error);
+    return null;
+  }
+};
+
 // Time entries service
 export const timeEntriesService = {
   /**
@@ -59,17 +87,60 @@ export const timeEntriesService = {
 
   /**
    * Get time entries for a specific ticket
+   * If user is admin, return all entries for the ticket
+   * If user is not admin, return only entries created by the current user
+   * Filtering is done client-side after fetching all data for the ticket
    */
   getTimeEntriesForTicket: async (ticketId: string): Promise<TimeEntry[]> => {
     try {
       console.log(`Fetching time entries for ticket: ${ticketId}`);
+      
+      // Fetch all time entries for this ticket
       const response = await databases.listDocuments(
         DATABASE_ID,
         TIME_ENTRIES_COLLECTION,
         [Query.equal("ticket_id", ticketId), Query.limit(100)]
       );
+      
       console.log(`Found ${response.documents.length} time entries for ticket ${ticketId}`);
-      return response.documents.map(mapToTimeEntry);
+      
+      // Map all entries to TimeEntry objects
+      const allEntries = response.documents.map(mapToTimeEntry);
+      
+      // Check user role
+      const userRole = await getCurrentUserRole();
+      console.log(`Current user role: ${userRole}`);
+      
+      // If admin, return all entries
+      if (userRole === "admin") {
+        console.log("User is admin, showing all time entries for ticket");
+        return allEntries;
+      }
+      
+      // Otherwise filter by current user's database ID
+      // First get the auth user
+      const currentUser = await authService.getCurrentUser();
+      
+      if (currentUser && currentUser.$id) {
+        // Convert auth user ID to database user ID
+        const dbUserId = await getDatabaseUserIdFromAuthId(currentUser.$id);
+        
+        if (dbUserId) {
+          console.log(`Filtering time entries for database user ID: ${dbUserId}`);
+          
+          // Filter entries to only include those belonging to the current user's database ID
+          const filteredEntries = allEntries.filter(entry => {
+            // Match entry.user_id against the database user ID
+            return entry.user_id === dbUserId;
+          });
+          
+          console.log(`Filtered to ${filteredEntries.length} entries for database user ID: ${dbUserId}`);
+          return filteredEntries;
+        }
+      }
+      
+      console.warn("Could not get database user ID for filtering time entries");
+      return [];
     } catch (error) {
       console.error(`Error fetching time entries for ticket ${ticketId}:`, error);
       throw error;

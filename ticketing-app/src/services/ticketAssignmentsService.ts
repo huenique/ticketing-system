@@ -7,13 +7,42 @@ import {
   getDocument,
   Query,
   updateDocument,
+  databases,
 } from "@/lib/appwrite";
+import { getCurrentUserRole } from "@/lib/userUtils";
+import { authService } from "@/lib/appwrite";
 import { Assignee, TicketAssignment } from "@/types/tickets";
 import { User } from "@/types/tickets";
 
 // Collection ID constants
+const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const TICKET_ASSIGNMENTS_COLLECTION = "ticket_assignments";
 const USERS_COLLECTION = "users";
+
+// Helper function to get database user ID from auth user ID
+const getDatabaseUserIdFromAuthId = async (authUserId: string): Promise<string | null> => {
+  try {
+    console.log(`Looking up database user for auth user ID: ${authUserId}`);
+    // Query users collection to find the user with matching auth_user_id
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      USERS_COLLECTION,
+      [Query.equal("auth_user_id", authUserId), Query.limit(1)]
+    );
+
+    if (response.documents.length > 0) {
+      const dbUserId = response.documents[0].$id;
+      console.log(`Found database user ID: ${dbUserId} for auth user ID: ${authUserId}`);
+      return dbUserId;
+    }
+    
+    console.warn(`No database user found for auth user ID: ${authUserId}`);
+    return null;
+  } catch (error) {
+    console.error(`Error finding database user for auth user ID ${authUserId}:`, error);
+    return null;
+  }
+};
 
 // Ticket assignments service
 export const ticketAssignmentsService = {
@@ -29,13 +58,68 @@ export const ticketAssignmentsService = {
 
   /**
    * Get ticket assignments by ticket ID
+   * If user is admin, return all assignments for the ticket
+   * If user is not admin, return only assignments for the current user
+   * Filtering is done client-side after fetching all data for the ticket
    */
   getAssignmentsByTicketId: async (ticketId: string): Promise<TicketAssignment[]> => {
-    const response = await getCollection<TicketAssignment>(TICKET_ASSIGNMENTS_COLLECTION, [
-      Query.equal("ticket_id", ticketId),
-      Query.limit(100),
-    ]);
-    return response.documents;
+    try {
+      console.log(`Fetching assignments for ticket: ${ticketId}`);
+      
+      // Fetch all assignments for this ticket
+      const response = await getCollection<TicketAssignment>(TICKET_ASSIGNMENTS_COLLECTION, [
+        Query.equal("ticket_id", ticketId),
+        Query.limit(100),
+      ]);
+      
+      console.log(`Found ${response.documents.length} assignments for ticket ${ticketId}`);
+      
+      // Get all assignments
+      const allAssignments = response.documents;
+      
+      // Check user role
+      const userRole = await getCurrentUserRole();
+      console.log(`Current user role: ${userRole}`);
+      
+      // If admin, return all assignments
+      if (userRole === "admin") {
+        console.log("User is admin, showing all assignments for ticket");
+        return allAssignments;
+      }
+      
+      // Otherwise filter by current user's database ID
+      // First get the auth user
+      const currentUser = await authService.getCurrentUser();
+      
+      if (currentUser && currentUser.$id) {
+        // Convert auth user ID to database user ID
+        const dbUserId = await getDatabaseUserIdFromAuthId(currentUser.$id);
+        
+        if (dbUserId) {
+          console.log(`Filtering assignments for database user ID: ${dbUserId}`);
+          
+          // Filter assignments to only include those assigned to the current user's database ID
+          const filteredAssignments = allAssignments.filter(assignment => {
+            // Get the user_id from the assignment
+            const assignmentUserId = typeof assignment.user_id === 'object'
+              ? (assignment.user_id as any).$id || (assignment.user_id as any).id
+              : assignment.user_id;
+            
+            // Match against the database user ID
+            return assignmentUserId === dbUserId;
+          });
+          
+          console.log(`Filtered to ${filteredAssignments.length} assignments for database user ID: ${dbUserId}`);
+          return filteredAssignments;
+        }
+      }
+      
+      console.warn("Could not get database user ID for filtering assignments");
+      return [];
+    } catch (error) {
+      console.error(`Error fetching assignments for ticket ${ticketId}:`, error);
+      throw error;
+    }
   },
 
   /**
@@ -160,9 +244,11 @@ export const ticketAssignmentsService = {
 
   /**
    * Get all assignments for a ticket and convert them to Assignee objects
+   * Respects role-based access control - regular users only see their own assignments
    */
   getAssigneesForTicket: async (ticketId: string): Promise<Assignee[]> => {
     try {
+      // This will apply the role-based filtering internally
       const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId);
       
       // Convert each assignment to an assignee
@@ -170,6 +256,7 @@ export const ticketAssignmentsService = {
         assignments.map(assignment => ticketAssignmentsService.assignmentToAssignee(assignment))
       );
       
+      console.log(`Converted ${assignees.length} assignments to assignees for ticket ${ticketId}`);
       return assignees;
     } catch (error) {
       console.error(`Error getting assignees for ticket ${ticketId}:`, error);
