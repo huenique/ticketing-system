@@ -57,10 +57,19 @@ const useTablesStore = create<TablesState>()(
         const defaultTables = {};
         set({ tables: defaultTables });
 
-        // Also reset the tabs store
+        // Reset the tabs store - completely clear all tabs and create a fresh "All Tickets" tab
         const tabsStore = useTabsStore.getState();
-        tabsStore.setTabs([{ id: "tab-1", title: "All Tickets", content: "all" }]);
-        tabsStore.setActiveTab("tab-1");
+        
+        // Create a single default tab
+        const defaultTabs = [{
+          id: "tab-all-tickets",
+          title: "All Tickets",
+          content: "all"
+        }];
+        
+        // Set tabs to default and select the All Tickets tab
+        tabsStore.setTabs(defaultTabs);
+        tabsStore.setActiveTab("tab-all-tickets");
       },
 
       createNewTable: (tabId) => {

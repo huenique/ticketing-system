@@ -157,6 +157,11 @@ function Tickets() {
     }
   })();
 
+  // Helper function to check if any tab has the engineering preset applied
+  const hasEngineeringPreset = useCallback(() => {
+    return tabs.some((tab) => tab.appliedPreset === "Engineering");
+  }, [tabs]);
+
   // Auto-rebuild missing tabs from Appwrite statuses on page load
   useEffect(() => {
     const restoreTabsFromStatuses = async () => {
@@ -164,6 +169,28 @@ function Tickets() {
         const tabsStore = useTabsStore.getState();
         const settingsStore = useSettingsStore.getState();
 
+        // Check if engineering preset is applied
+        if (!hasEngineeringPreset()) {
+          // If engineering preset is not applied, only ensure we have an All Tickets tab
+          const existingTabs = tabsStore.tabs;
+          
+          // If we don't have any tabs yet, create just the All Tickets tab
+          if (existingTabs.length === 0) {
+            tabsStore.setTabs([{
+              id: "tab-all-tickets",
+              title: "All Tickets",
+            }]);
+            
+            // Make sure we have an active tab
+            tabsStore.setActiveTab("tab-all-tickets");
+          }
+          
+          // Still fetch and update status options in the settings store
+          await settingsStore.fetchStatusOptions();
+          return;
+        }
+
+        // Below code only runs if engineering preset is applied
         // Fetch the status options from the settings store
         await settingsStore.fetchStatusOptions();
 
@@ -213,7 +240,9 @@ function Tickets() {
     };
 
     restoreTabsFromStatuses();
-  }, []);
+    // Run only once on component mount, and when the preset changes
+    // Using ticketsRefreshCounter to trigger when user resets or applies preset
+  }, [ticketsRefreshCounter]);
 
   // Load tables from localStorage on initial render
   useEffect(() => {
@@ -230,11 +259,6 @@ function Tickets() {
     }
   }, [activeTab, tables, createNewTable]);
 
-  // Helper function to check if any tab has the engineering preset applied
-  const hasEngineeringPreset = useCallback(() => {
-    return tabs.some((tab) => tab.appliedPreset === "Engineering");
-  }, [tabs]);
-
   // Fetch tickets data only if engineering preset is already initiated
   useEffect(() => {
     const fetchTicketsIfPresetExists = async () => {
@@ -243,11 +267,14 @@ function Tickets() {
           setTicketsLoading(true);
           setTicketsError(null);
 
-          // Fetch tickets and users with relationships from Appwrite
+          // Fetch tickets, users, and time entries with relationships from Appwrite
           const [ticketsWithRelationships, users] = await Promise.all([
             ticketsService.getTicketsWithRelationships(),
             usersService.getAllUsers()
           ]);
+          
+          // Also fetch time entries
+          await fetchTimeEntries();
             
           // Filter tickets based on user permissions
           const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
@@ -283,9 +310,9 @@ function Tickets() {
     };
 
     fetchTicketsIfPresetExists();
-    // Only run when hasEngineeringPreset changes or ticketsRefreshCounter changes
-    // Removed 'tabs' from dependency array to avoid infinite loop
-  }, [hasEngineeringPreset, ticketsRefreshCounter, tabs, isAdmin, currentUser]);
+    // Include isAdmin and currentUser since they're used in filterTicketsByUserPermission
+    // Deliberately exclude tabs from the dependency array to avoid the infinite loop
+  }, [hasEngineeringPreset, ticketsRefreshCounter, isAdmin, currentUser]);
 
   // Function to filter tickets based on user permissions
   const filterTicketsByUserPermission = (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
@@ -470,6 +497,9 @@ function Tickets() {
           createFilteredTable(tab.id, tab.title, allTicketRows);
         }
       });
+
+      // STEP 9: Increment the refresh counter to update the component
+      setTicketsRefreshCounter(prev => prev + 1);
 
       setTicketsLoading(false);
     } catch (error) {
@@ -1016,34 +1046,6 @@ function Tickets() {
       return [];
     }
   };
-
-  // Add this to the useEffect that loads ticket data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setTicketsLoading(true);
-        // Fetch tickets with relationships
-        const tickets = await ticketsService.getTicketsWithRelationships();
-        
-        // Fetch users for assignee data
-        const users = await usersService.getAllUsers();
-        
-        // Fetch time entries
-        await fetchTimeEntries();
-        
-        // The rest of your existing code...
-        // ... (existing code for ticket handling) ...
-
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        setTicketsError(error instanceof Error ? error : new Error("Unknown error"));
-      } finally {
-        setTicketsLoading(false);
-      }
-    };
-
-    fetchInitialData();
-  }, [ticketsRefreshCounter]);
 
   return (
     <div className="p-8 max-w-full">
