@@ -1034,6 +1034,46 @@ export default function useTicketDialogHandlers(
 
     // Set uploaded images
     setUploadedImages(attachmentsArray);
+
+    // Fetch ticket assignments for this ticket and convert them to assignees
+    try {
+      if (ticketId) {
+        console.log(`Fetching assignments for ticket ID: ${ticketId}`);
+        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId);
+        console.log(`Retrieved ${assigneeData.length} assignees from ticket_assignments collection`);
+        
+        if (assigneeData.length > 0) {
+          setAssignees(assigneeData);
+        } else {
+          // Reset assignees if none found
+          setAssignees([]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching ticket assignments:", error);
+      toast.error("Failed to load team members for this ticket");
+      setAssignees([]);
+    }
+
+    // Fetch time entries for this ticket
+    try {
+      if (ticketId) {
+        console.log(`Fetching time entries for ticket ID: ${ticketId}`);
+        const timeEntryData = await timeEntriesService.getTimeEntriesForTicket(ticketId);
+        console.log(`Retrieved ${timeEntryData.length} time entries from time_entries collection`);
+        
+        if (timeEntryData.length > 0) {
+          setTimeEntries(timeEntryData);
+        } else {
+          // Reset time entries if none found
+          setTimeEntries([]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching time entries:", error);
+      toast.error("Failed to load time entries for this ticket");
+      setTimeEntries([]);
+    }
   };
 
   // Function to refresh all status-based tabs based on updated All Tickets data
