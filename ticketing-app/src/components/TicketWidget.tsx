@@ -29,7 +29,7 @@ interface TicketWidgetProps {
   handleAddAssignee?: () => void;
   handleRemoveAssignee?: (id: string) => void;
   handleUpdateAssignee?: (id: string, field: string, value: string) => void;
-  handleAddTimeEntry?: (assigneeId: string) => void;
+  handleAddTimeEntry?: (assigneeId: string, userId?: string) => void;
   handleRemoveTimeEntry?: (id: string) => void;
   handleUpdateTimeEntry?: (id: string, field: string, value: string) => void;
   setTicketForm?: (form: TicketForm) => void;
@@ -622,7 +622,7 @@ function TicketWidget({
                                         {handleAddTimeEntry && (
                                           <button
                                             onClick={() =>
-                                              handleAddTimeEntry(assignee.id)
+                                              handleAddTimeEntry(assignee.id, assignee.user_id)
                                             }
                                             className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                             title="Add time entry"
@@ -707,9 +707,23 @@ function TicketWidget({
                                         <>
                                           {handleAddTimeEntry && (
                                             <button
-                                              onClick={() =>
-                                                handleAddTimeEntry(assignee.id)
-                                              }
+                                              onClick={() => {
+                                                console.log("Adding time entry for assignee:", assignee);
+                                                
+                                                // Extract user_id from the assignee
+                                                let userId = assignee.user_id;
+                                                
+                                                if (typeof userId === 'object' && userId !== null) {
+                                                  if ('$id' in userId) {
+                                                    userId = (userId as any).$id;
+                                                  } else if ('id' in userId) {
+                                                    userId = (userId as any).id;
+                                                  }
+                                                }
+                                                
+                                                // Pass both assignee.id and the userId
+                                                handleAddTimeEntry(assignee.id, userId);
+                                              }}
                                               className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                               title="Add time entry"
                                             >
@@ -1405,7 +1419,7 @@ function TicketWidget({
                               <>
                                 {handleAddTimeEntry && (
                                   <button
-                                    onClick={() => handleAddTimeEntry(assignee.id)}
+                                    onClick={() => handleAddTimeEntry(assignee.id, assignee.user_id)}
                                     className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                     title="Add time entry"
                                   >
@@ -1487,7 +1501,23 @@ function TicketWidget({
                                 <>
                                   {handleAddTimeEntry && (
                                     <button
-                                      onClick={() => handleAddTimeEntry(assignee.id)}
+                                      onClick={() => {
+                                        console.log("Adding time entry for assignee:", assignee);
+                                        
+                                        // Extract user_id from the assignee
+                                        let userId = assignee.user_id;
+                                        
+                                        if (typeof userId === 'object' && userId !== null) {
+                                          if ('$id' in userId) {
+                                            userId = (userId as any).$id;
+                                          } else if ('id' in userId) {
+                                            userId = (userId as any).id;
+                                          }
+                                        }
+                                                
+                                        // Pass both assignee.id and the userId
+                                        handleAddTimeEntry(assignee.id, userId);
+                                      }}
                                       className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                       title="Add time entry"
                                     >
@@ -1564,7 +1594,10 @@ function TicketWidget({
               </div>
               {handleAddTimeEntry && (
                 <Button
-                  onClick={() => handleAddTimeEntry("")}
+                  onClick={() => {
+                    // Pass empty assigneeId but current user's ID (if available)
+                    handleAddTimeEntry("", currentUser?.id || "");
+                  }}
                   size="sm"
                   className="bg-blue-500 hover:bg-blue-600 text-white"
                 >

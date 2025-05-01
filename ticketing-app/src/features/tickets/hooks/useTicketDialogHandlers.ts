@@ -21,6 +21,8 @@ import { ticketsService } from "../../../services/ticketsService";
 import { uploadFile } from "../../../services/storageService";
 import { customersService, ticketAssignmentsService } from "../../../services";
 import { statusesService } from "../../../services/ticketsService";
+import { databases } from "@/lib/appwrite";
+import { Query } from "appwrite";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
@@ -238,11 +240,35 @@ export default function useTicketDialogHandlers(
   };
 
   // Time Entry Handlers
-  const handleAddTimeEntry = async (assigneeId: string) => {
+  const handleAddTimeEntry = async (assigneeId: string, directUserId?: string) => {
     try {
-      console.log("Adding new time entry for assignee:", assigneeId);
+      console.log("============ ADD TIME ENTRY DEBUG ============");
+      console.log("Adding new time entry for assignee ID:", assigneeId);
+      console.log("Directly provided user ID:", directUserId);
+      console.log("Current assignees array:", JSON.stringify(assignees, null, 2));
+      
+      // Find the assignee by ID
       const assignee = assignees.find((a) => a.id === assigneeId);
-      if (!assignee && assigneeId !== "") return;
+      console.log("Found assignee:", assignee ? JSON.stringify(assignee, null, 2) : "Not found");
+      
+      // Instead of using the cached assignee, fetch directly from the database
+      // This ensures we have the most up-to-date data
+      let directAssignment;
+      try {
+        if (assigneeId) {
+          console.log("Attempting to fetch ticket assignment directly with ID:", assigneeId);
+          directAssignment = await ticketAssignmentsService.getTicketAssignment(assigneeId);
+          console.log("Direct fetch result:", JSON.stringify(directAssignment, null, 2));
+        }
+      } catch (fetchError) {
+        console.error("Error fetching direct assignment:", fetchError);
+      }
+      
+      // Only proceed if we have a valid assignee (or empty string for standalone entries)
+      if (!assignee && assigneeId !== "") {
+        console.warn("Could not find assignee with ID:", assigneeId);
+        return;
+      }
 
       const now = new Date();
       // Format time as HH:MM:SS for consistency with database
@@ -253,11 +279,76 @@ export default function useTicketDialogHandlers(
       // If assigneeId is empty, create a standalone time entry
       const assigneeName = assignee ? assignee.name : "";
       
-      // Ensure we extract just the user ID if it's an object
-      let userId = assignee ? assignee.user_id : "";
-      if (userId && typeof userId === 'object') {
-        userId = (userId as any).$id || (userId as any).id || "";
+      // CRITICAL FIX: Prioritize directly provided userId
+      let userId = "";
+      
+      // First priority: Use directly provided userId from the function call
+      if (directUserId) {
+        userId = directUserId;
+        console.log(`Using directly provided user_id: ${userId}`);
       }
+      // Second priority: Use directly fetched data
+      else if (directAssignment && directAssignment.user_id) {
+        const fetchedUserId = directAssignment.user_id;
+        console.log("Direct user_id value from fetch:", fetchedUserId);
+        
+        // Handle different formats of the user_id
+        if (typeof fetchedUserId === 'object' && fetchedUserId !== null) {
+          // If it's an expanded relationship (has $id field)
+          if ('$id' in fetchedUserId) {
+            userId = (fetchedUserId as any).$id;
+            console.log(`Using direct user_id.$id: ${userId}`);
+          } 
+          // If it has a regular id field
+          else if ('id' in fetchedUserId) {
+            userId = (fetchedUserId as any).id;
+            console.log(`Using direct user_id.id: ${userId}`);
+          }
+          // If it's just a string ID
+          else {
+            userId = String(fetchedUserId);
+            console.log(`Using string conversion of direct user_id: ${userId}`);
+          }
+        }
+        // If it's already a string, use it directly
+        else if (typeof fetchedUserId === 'string') {
+          userId = fetchedUserId;
+          console.log(`Using direct string user_id: ${userId}`);
+        }
+      } 
+      // Fallback: Use the assignee data from state
+      else if (assignee && assignee.user_id) {
+        console.log("Fallback: Using assignee.user_id:", assignee.user_id);
+        
+        // Check if user_id is an object with an $id field (from Appwrite relation)
+        if (typeof assignee.user_id === 'object' && assignee.user_id !== null) {
+          // Try to access $id first (standard Appwrite format)
+          if ('$id' in assignee.user_id) {
+            userId = (assignee.user_id as any).$id;
+            console.log(`Using user_id.$id: ${userId}`);
+          } 
+          // Fall back to id if $id is not available
+          else if ('id' in assignee.user_id) {
+            userId = (assignee.user_id as any).id;
+            console.log(`Using user_id.id: ${userId}`);
+          }
+          // If it's another format, try to convert to string
+          else {
+            userId = String(assignee.user_id);
+            console.log(`Using string conversion of user_id: ${userId}`);
+          }
+        } 
+        // If it's already a string, use it directly
+        else if (typeof assignee.user_id === 'string') {
+          userId = assignee.user_id;
+          console.log(`Using string user_id: ${userId}`);
+        }
+      } else {
+        console.warn("No user_id found, using empty string");
+      }
+      
+      console.log("Final user_id being used:", userId);
+      console.log("==========================================");
 
       // Prepare the time entry data
       const newTimeEntryData: Omit<TimeEntry, "id"> = {
@@ -270,7 +361,7 @@ export default function useTicketDialogHandlers(
         remarks: "",
         files: [],
         ticket_id: currentTicket?.id || "",
-        user_id: userId || ""
+        user_id: userId
       };
 
       console.log("Time entry data being sent to Appwrite:", newTimeEntryData);
@@ -300,6 +391,13 @@ export default function useTicketDialogHandlers(
       console.error("Error adding time entry:", error);
       toast.error("Failed to add time entry");
     }
+  };
+
+  // Add a new function to debug why assignees aren't displaying correctly
+  const _debugAssignees = () => {
+    console.log("============ ASSIGNEES DEBUG ============");
+    console.log("Current assignees:", JSON.stringify(assignees, null, 2));
+    console.log("==========================================");
   };
 
   // Update the handleUpdateTimeEntry function to only save locally
@@ -976,6 +1074,7 @@ export default function useTicketDialogHandlers(
     }
   };
 
+  // Enhance the viewTicket function to add debugging
   const viewTicket = async (ticket: Row, tabId: string) => {
     setCurrentTicket(ticket);
     setViewDialogOpen(true);
@@ -1041,6 +1140,7 @@ export default function useTicketDialogHandlers(
         console.log(`Fetching assignments for ticket ID: ${ticketId}`);
         const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId);
         console.log(`Retrieved ${assigneeData.length} assignees from ticket_assignments collection`);
+        console.log("Raw assignee data:", JSON.stringify(assigneeData, null, 2));
         
         if (assigneeData.length > 0) {
           setAssignees(assigneeData);
