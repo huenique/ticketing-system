@@ -87,6 +87,10 @@ async function createCollections() {
     'attribute users.username'
   );
   await safe(
+    () => databases.createStringAttribute(dbId, 'users', 'auth_user_id', 255, false),
+    'attribute users.auth_user_id'
+  );
+  await safe(
     () =>
       databases.createRelationshipAttribute(
         dbId,
