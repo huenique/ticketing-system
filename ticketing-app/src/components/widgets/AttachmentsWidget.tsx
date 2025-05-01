@@ -65,7 +65,7 @@ export default function AttachmentsWidget({
               // Skip rendering if it's the uploading placeholder
               if (fileId === "uploading...") {
                 return (
-                  <div key={`uploading-${index}`} className="border rounded-md p-2 flex flex-col items-center">
+                  <div key={`uploading-${index}-${new Date().getTime()}`} className="border rounded-md p-2 flex flex-col items-center">
                     <div className="animate-pulse flex space-x-2 items-center w-full mb-2">
                       <div className="rounded-md bg-slate-200 h-8 w-8"></div>
                       <div className="flex-1 space-y-2">
@@ -82,7 +82,7 @@ export default function AttachmentsWidget({
               const fileType = getFileType(fileId);
               return (
                 <div 
-                  key={fileId} 
+                  key={`file-${fileId}-${index}`} 
                   className="border rounded-md p-2 flex flex-col justify-between transition-all hover:border-blue-300"
                 >
                   <div className="flex items-center mb-2">

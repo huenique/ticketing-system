@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
 import { Layouts } from "react-grid-layout";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
-import {
+import type {
   Assignee,
   LayoutStorage,
   Row,
@@ -15,8 +15,9 @@ import {
   Widget,
 } from "../../../types/tickets";
 import { convertTicketToRow, getFromLS, saveToLS } from "../../../utils/ticketUtils";
-import { ticketsService, statusesService, customersService } from "../../../services/ticketsService";
+import { ticketsService } from "../../../services/ticketsService";
 import { uploadFile } from "../../../services/storageService";
+import { timeEntriesService } from "../../../services/timeEntriesService";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
@@ -51,7 +52,6 @@ export default function useTicketDialogHandlers(
 
   // Assignee State
   const [assignees, setAssignees] = useState<Assignee[]>([]);
-  const [assigneeTableTitle, setAssigneeTableTitle] = useState("Assigned Team Members");
   const [newAssignee, setNewAssignee] = useState<Assignee>({
     id: "",
     name: "",
@@ -95,7 +95,7 @@ export default function useTicketDialogHandlers(
     // Process all uploads
     Promise.all(uploadPromises).then((fileIds) => {
       // Filter out any failed uploads
-      const successfulFileIds = fileIds.filter(id => id !== null) as string[];
+      const successfulFileIds = fileIds.filter((id: string | null) => id !== null) as string[];
       
       // Update state with the successful uploads
       setUploadedImages((prevImages) => {
@@ -154,10 +154,8 @@ export default function useTicketDialogHandlers(
     if (!assignee) return;
 
     const now = new Date();
-    const formattedTime = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    // Format time as HH:MM:SS for consistency with database
+    const formattedTime = now.toTimeString().split(' ')[0];
     const formattedDate = now.toLocaleDateString();
 
     const newTimeEntry: TimeEntry = {
@@ -183,30 +181,35 @@ export default function useTicketDialogHandlers(
           // Recalculate duration if start or stop time changes
           if (field === "startTime" || field === "stopTime") {
             if (updatedEntry.startTime && updatedEntry.stopTime) {
-              // Parse times (assuming format is HH:MM)
-              const [startHours, startMinutes] = updatedEntry.startTime
-                .split(":")
-                .map(Number);
-              const [stopHours, stopMinutes] = updatedEntry.stopTime
-                .split(":")
-                .map(Number);
+              try {
+                // Parse times in HH:MM format from time input
+                const [startHours, startMinutes] = updatedEntry.startTime
+                  .split(":")
+                  .map(Number);
+                const [stopHours, stopMinutes] = updatedEntry.stopTime
+                  .split(":")
+                  .map(Number);
 
-              // Calculate duration in hours
-              let durationHours = stopHours - startHours;
-              let durationMinutes = stopMinutes - startMinutes;
+                // Calculate duration in hours
+                let durationHours = stopHours - startHours;
+                let durationMinutes = stopMinutes - startMinutes;
 
-              if (durationMinutes < 0) {
-                durationHours -= 1;
-                durationMinutes += 60;
+                if (durationMinutes < 0) {
+                  durationHours -= 1;
+                  durationMinutes += 60;
+                }
+
+                if (durationHours < 0) {
+                  // Assuming stop time is next day if it's earlier than start time
+                  durationHours += 24;
+                }
+
+                const totalDuration = durationHours + durationMinutes / 60;
+                updatedEntry.duration = totalDuration.toFixed(1);
+              } catch (error) {
+                console.error("Error calculating duration:", error);
+                // Keep the previous duration if calculation fails
               }
-
-              if (durationHours < 0) {
-                // Assuming stop time is next day if it's earlier than start time
-                durationHours += 24;
-              }
-
-              const totalDuration = durationHours + durationMinutes / 60;
-              updatedEntry.duration = totalDuration.toFixed(1);
             }
           }
 
@@ -304,9 +307,6 @@ export default function useTicketDialogHandlers(
 
     // Reset uploaded images
     setUploadedImages([]);
-
-    // Reset assignee table title
-    setAssigneeTableTitle("Assigned Team Members");
 
     // Check if this tab has the Engineering preset applied
     const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
@@ -507,168 +507,82 @@ export default function useTicketDialogHandlers(
     if (!currentTicket) return;
 
     try {
-      // Validate required fields
-      if (ticketForm.billableHours === null || ticketForm.billableHours === undefined) {
-        toast.error("Validation Error", {
-          description: "Billable Hours cannot be empty"
-        });
-        return;
-      }
-
-      if (ticketForm.totalHours === null || ticketForm.totalHours === undefined) {
-        toast.error("Validation Error", {
-          description: "Total Hours cannot be empty"
-        });
-        return;
-      }
-
-      // Find the corresponding tab
-      const currentTabData = tabs.find((tab) => tab.id === activeTab);
-      if (!currentTabData) return;
-
-      // Get the current status of the assignees
-      const hasCompletedAssignees = assignees.some((assignee) => assignee.completed);
-
-      // Get the ticket ID from the currentTicket
-      const ticketDisplayId = currentTicket.cells["col-1"];
-      
-      // Extract the actual Appwrite document ID by removing the "TK-" prefix
-      // The Appwrite document ID is the actual ID without the "TK-" prefix
+      // Get the ticketId from the current ticket
       const ticketId = currentTicket.id;
       
-      console.log(`Updating ticket with ID: ${ticketId} (display ID: ${ticketDisplayId})`);
-      
-      // Lookup the actual status_id from the status label
-      let statusId = "";
-      try {
-        // First get all statuses from Appwrite
-        const statuses = await statusesService.getAllStatuses();
-        // Find the status object that matches the label in ticketForm.status
-        const statusObj = statuses.find(status => status.label === ticketForm.status);
-        // Get the Appwrite document ID of that status
-        statusId = statusObj ? (statusObj.$id || statusObj.id) : "";
-        
-        console.log(`Found status ID ${statusId} for label "${ticketForm.status}"`);
-      } catch (error) {
-        console.error("Error looking up status ID:", error);
-      }
-      
-      // Lookup the customer_id if one is specified
-      let customerId = ticketForm.customerId || "";
-      if (customerId) {
-        try {
-          const customers = await customersService.getAllCustomers();
-          const customerObj = customers.find(customer => customer.name === customerId);
-          if (customerObj) {
-            customerId = customerObj.$id || customerObj.id || "";
-            console.log(`Found customer ID ${customerId} for name "${ticketForm.customerId}"`);
-          }
-        } catch (error) {
-          console.error("Error looking up customer ID:", error);
-        }
-      }
-      
-      // Get assignee IDs - ensure we're saving actual user document IDs
-      // This assumes assignees contains the correct Appwrite document IDs
-      // If you're storing user IDs instead of names in assigneeIds, use this directly
-      const assigneeIds = ticketForm.assigneeIds || [];
-      
-      console.log("Using assignee IDs:", assigneeIds);
-      
-      // If attachments were uploaded, include them in the ticket update
-      // Filter out any 'uploading...' placeholders and ensure all attachment IDs are valid
-      const attachmentsToSave = uploadedImages
-        .filter(img => img !== "uploading...")
-        .filter(img => typeof img === 'string' && img.trim() !== '');
-      
-      console.log("Saving attachments:", attachmentsToSave);
+      // Show loading toast
+      toast.loading("Saving ticket changes...");
 
-      // Prepare Appwrite relationship fields
-      // Map the form data to the correct Appwrite field names
-      const appwriteTicketData = {
-        // Data to save to Appwrite
-        status_id: statusId || undefined, // Use the looked up status ID
-        customer_id: customerId || undefined, // Use the looked up customer ID
+      // Save ticket update to Appwrite
+      await ticketsService.updateTicket(ticketId, {
+        status_id: ticketForm.status,
+        customer_id: ticketForm.customerId,
         description: ticketForm.description,
-        billable_hours: ticketForm.billableHours, // Now guaranteed to be non-null by validation
-        total_hours: ticketForm.totalHours, // Now guaranteed to be non-null by validation
-        assignee_ids: assigneeIds.length > 0 ? assigneeIds : undefined, // Only include if we have assignees
-        attachments: attachmentsToSave.length > 0 ? attachmentsToSave : undefined, // Only include if we have attachments
-      };
+        billable_hours: ticketForm.billableHours || 0,
+        total_hours: ticketForm.totalHours || 0,
+        attachments: ticketForm.attachments || [],
+      });
 
-      // Log the data being saved for debugging
-      console.log(
-        "Saving ticket with Appwrite relationship fields:",
-        JSON.stringify(appwriteTicketData, null, 2),
-      );
+      console.log("Ticket updated successfully:", ticketId);
 
-      // First, update the UI tables
-      useTablesStore.getState().saveTicketChanges(
-        currentTicket,
-        {
-          ...ticketForm,
-          status: ticketForm.status,
-          customerId: ticketForm.customerId,
-          assigneeIds: assigneeIds,
-        },
-        setViewDialogOpen,
-        activeTab,
-        hasCompletedAssignees, // Pass the completion status to be saved
-      );
+      // Save time entries to Appwrite
+      if (timeEntries && timeEntries.length > 0) {
+        // Update existing time entries and create new ones
+        const saveTimeEntriesPromises = timeEntries.map(async (entry) => {
+          try {
+            // If the entry has an ID that starts with 't', it's a new entry that hasn't been saved to the database
+            if (entry.id.startsWith('t')) {
+              // Prepare entry for saving to database
+              const newEntry = {
+                ...entry,
+                ticket_id: ticketId,
+              };
+              // Save the new time entry
+              return await timeEntriesService.createTimeEntry(newEntry);
+            } else {
+              // Update existing time entry
+              return await timeEntriesService.updateTimeEntry(entry.id, entry);
+            }
+          } catch (error) {
+            console.error("Error saving time entry:", error);
+            return null;
+          }
+        });
 
-      // Then, update the actual data in Appwrite
-      const updatedTicket = await ticketsService.updateTicket(ticketId, appwriteTicketData);
-      console.log(`Ticket ${ticketId} updated successfully in Appwrite:`, updatedTicket);
-
-      // If the ticket's status was changed, refresh all status-based tabs
-      const allTicketsTab = "tab-all-tickets";
-      const tablesStore = useTablesStore.getState();
-      const allTicketsRows = tablesStore.tables[allTicketsTab]?.rows || [];
-
-      // Refresh all status tabs to maintain consistency
-      await refreshStatusTabs(allTicketsRows);
-
-      // Save widget layouts to localStorage
-      if (currentTicket && widgets.length > 0) {
-        // Create a complete widget state object that includes both widget data and layout
-        const completeState = {
-          widgets: widgets,
-          layouts: {},
-        };
-
-        // Find current tab to determine if it has Engineering preset
-        const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
-
-        // Use the appropriate storage key based on tab type
-        const ticketIdDisplay = currentTicket.cells["col-1"];
-        if (hasEngineeringPreset) {
-          // For Engineering preset tabs, save to Engineering-specific key
-          saveToLS<LayoutStorage>("engineering-layouts", completeState);
-          console.log(
-            "Saved Engineering widget layout with",
-            widgets.length,
-            "widgets",
-          );
-        } else {
-          // For non-Engineering tabs, save to tab-specific key
-          const tabSpecificLayoutKey = `tab-${activeTab}`;
-          saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
-          console.log(
-            "Saved tab-specific layout for tab",
-            activeTab,
-            "and ticket:",
-            ticketIdDisplay,
-          );
-        }
+        await Promise.all(saveTimeEntriesPromises);
+        console.log("Time entries saved successfully");
       }
 
-      // Close the dialog
-      setViewDialogOpen(false);
+      // Update the table display
+      const tablesStore = useTablesStore.getState();
+      const currentTables = tablesStore.tables;
 
-      // Reset the current ticket preset
-      setCurrentTicketPreset(undefined);
+      // Look for the All Tickets tab
+      const allTicketsTabId = tabs.find((tab) => tab.title === "All Tickets")?.id;
+      const allTicketsTable = allTicketsTabId ? currentTables[allTicketsTabId] : null;
+
+      if (allTicketsTable) {
+        // Get all tickets from database again to refresh the view
+        const allTickets = await ticketsService.getAllTickets();
+        
+        // Convert tickets to rows
+        const ticketsAsRows = await Promise.all(
+          allTickets.map(async (ticket) => {
+            return await convertTicketToRow(ticket);
+          })
+        );
+        
+        // Refresh all tabs with the latest data
+        await refreshStatusTabs(ticketsAsRows);
+      }
+
+      // Clear loading toast and show success message
+      toast.dismiss();
+      toast.success("Ticket updated successfully!");
     } catch (error) {
       console.error("Error saving ticket changes:", error);
+      toast.dismiss();
+      toast.error("Failed to save ticket changes.");
     }
   };
 
@@ -831,6 +745,22 @@ export default function useTicketDialogHandlers(
     // Set uploaded images
     setUploadedImages(attachmentsArray);
 
+    // Fetch time entries for this ticket
+    const fetchTimeEntries = async () => {
+      try {
+        console.log(`Fetching time entries for ticket: ${ticketId}`);
+        const entries = await timeEntriesService.getTimeEntriesForTicket(ticketId);
+        console.log(`Fetched ${entries.length} time entries for ticket: ${ticketId}`);
+        setTimeEntries(entries);
+      } catch (error) {
+        console.error(`Error fetching time entries for ticket ${ticketId}:`, error);
+        setTimeEntries([]);
+      }
+    };
+
+    // Call fetch time entries
+    fetchTimeEntries();
+
     // Check if we have a raw appwrite data in the ticket
     if (ticket.rawData) {
       console.log("Using raw Appwrite data to populate ticket fields:", ticket.rawData);
@@ -888,9 +818,6 @@ export default function useTicketDialogHandlers(
       // Without raw data, start with empty assignees
       setAssignees([]);
     }
-
-    // Set empty time entries for all presets
-    setTimeEntries([]);
 
     // Get the saved layout state for this preset/tab
     // ... existing code ...

@@ -758,14 +758,14 @@ function TicketWidget({
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-neutral-200">
-                        {timeEntries.map((entry) => (
-                          <tr key={entry.id}>
+                        {timeEntries.map((entry, index) => (
+                          <tr key={`time-entry-${entry.id || index}`}>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {entry.assigneeName}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <input
-                                type="text"
+                                type="time"
                                 value={entry.startTime}
                                 onChange={(e) =>
                                   handleUpdateTimeEntry &&
@@ -780,7 +780,7 @@ function TicketWidget({
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <input
-                                type="text"
+                                type="time"
                                 value={entry.stopTime}
                                 onChange={(e) =>
                                   handleUpdateTimeEntry &&
@@ -832,7 +832,7 @@ function TicketWidget({
                                 <div className="flex flex-wrap gap-1">
                                   {entry.files.map((file, index) => (
                                     <span 
-                                      key={index} 
+                                      key={`${entry.id}-file-${index}-${file}`}
                                       className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                                       title={file}
                                     >
@@ -1509,7 +1509,7 @@ function TicketWidget({
               <div className="space-y-6">
                 {timeEntries.map((entry) => (
                   <div
-                    key={entry.id}
+                    key={`time-entry-${entry.id}`}
                     className="bg-white border border-gray-200 rounded-md p-4 shadow-sm"
                   >
                     <div className="flex justify-between mb-2">
@@ -1527,7 +1527,7 @@ function TicketWidget({
                           Start Time
                         </label>
                         <input
-                          type="datetime-local"
+                          type="time"
                           value={entry.startTime}
                           onChange={(e) =>
                             handleUpdateTimeEntry &&
@@ -1546,7 +1546,7 @@ function TicketWidget({
                           Stop Time
                         </label>
                         <input
-                          type="datetime-local"
+                          type="time"
                           value={entry.stopTime}
                           onChange={(e) =>
                             handleUpdateTimeEntry &&
@@ -1627,7 +1627,7 @@ function TicketWidget({
                         <div className="mt-2 flex flex-wrap gap-2">
                           {entry.files.map((file, index) => (
                             <span
-                              key={index}
+                              key={`${entry.id}-file-${index}-${file}`}
                               className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                             >
                               {file.split("/").pop()}
@@ -1745,7 +1745,7 @@ function TicketWidget({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                   {uploadedImages.map((image, index) => (
-                    <div key={index} className="relative group">
+                    <div key={`image-${index}-${image}`} className="relative group">
                       <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden border border-neutral-200">
                         <img
                           src={image}

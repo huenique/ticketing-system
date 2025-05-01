@@ -29,12 +29,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { PRESET_TABLES } from "@/constants/tickets";
 import {
   customersService,
-  Status,
   statusesService,
   ticketsService,
-  usersService,
 } from "@/services/ticketsService";
-import { Customer, Row, Ticket, User } from "@/types/tickets";
+import { timeEntriesService } from "@/services";
+import { usersService, User as ServiceUser } from "@/services/usersService";
+import { Customer, Row, Ticket, TimeEntry } from "@/types/tickets";
+import { Status } from "@/services/ticketsService";
 import { convertTicketToRow } from "@/utils/ticketUtils";
 
 // Components
@@ -52,6 +53,29 @@ import useUserStore from "../stores/userStore";
 import { uploadFile } from "@/services/storageService";
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
+
+// Define a custom User type that includes auth_user_id
+interface TicketUser {
+  id: string;
+  $id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  user_type_id: string;
+  auth_user_id?: string;
+}
+
+// Helper function to convert ServiceUser to TicketUser
+const mapServiceUserToTicketUser = (user: ServiceUser): TicketUser => ({
+  id: user.$id || '',
+  $id: user.$id || '',
+  first_name: user.first_name || '',
+  last_name: user.last_name || '',
+  username: user.username || '',
+  // Convert user_type_id to string if it's an object
+  user_type_id: typeof user.user_type_id === 'object' ? user.user_type_id.$id : user.user_type_id || '',
+  auth_user_id: user.auth_user_id || ''
+});
 
 /**
  * Tickets Component
@@ -264,7 +288,10 @@ function Tickets() {
   }, [hasEngineeringPreset, ticketsRefreshCounter, tabs, isAdmin, currentUser]);
 
   // Function to filter tickets based on user permissions
-  const filterTicketsByUserPermission = (tickets: Ticket[], users: User[]) => {
+  const filterTicketsByUserPermission = (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+    // Convert ServiceUser array to TicketUser array
+    const users = serviceUsers.map(mapServiceUserToTicketUser);
+    
     // If user is admin, show all tickets
     if (isAdmin) {
       console.log(`User is admin, showing all ${tickets.length} tickets`);
@@ -272,7 +299,6 @@ function Tickets() {
     }
     
     // For debugging: log the current user info
-    console.log("Current user:", currentUser);    // For debugging: log the current user info
     console.log("Current user:", currentUser);
     
     if (!currentUser) {
@@ -284,16 +310,16 @@ function Tickets() {
     console.log("Auth user ID:", currentUser.id);
     
     // Create a mapping of auth_user_id to user documents
-    const usersByAuthId = new Map<string, User>();
-    const usersById = new Map<string, User>();
+    const usersByAuthId = new Map<string, TicketUser>();
+    const usersById = new Map<string, TicketUser>();
     
     users.forEach(user => {
       // Map by database ID
-      usersById.set(user.$id || user.id || '', user);
+      usersById.set(user.id || '', user);
       
       // Map by auth_user_id if it exists
-      if ((user as any).auth_user_id) {
-        usersByAuthId.set((user as any).auth_user_id, user);
+      if (user.auth_user_id) {
+        usersByAuthId.set(user.auth_user_id, user);
       }
     });
     
@@ -308,7 +334,7 @@ function Tickets() {
     }
     
     // Get the database user ID
-    const currentDbUserId = currentDbUser.$id || currentDbUser.id;
+    const currentDbUserId = currentDbUser.id;
     
     if (!currentDbUserId) {
       console.log("Database user has no ID");
@@ -796,7 +822,7 @@ function Tickets() {
   });
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ServiceUser[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
@@ -816,9 +842,10 @@ function Tickets() {
         console.log("Fetched customers:", customersData);
         setCustomers(customersData);
 
-        // Fetch users
+        // Fetch users and map them to the expected format
         const usersData = await usersService.getAllUsers();
         console.log("Fetched users:", usersData);
+        // Store the original ServiceUser objects
         setUsers(usersData);
       } catch (error) {
         console.error("Error fetching form data:", error);
@@ -964,6 +991,51 @@ function Tickets() {
       console.log("Form data reset when dialog opened");
     }
   }, [isAddTicketDialogOpen]);
+
+  // State for time entries
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+
+  // Fetch all time entries
+  const fetchTimeEntries = async () => {
+    try {
+      console.log("Fetching time entries...");
+      const entries = await timeEntriesService.getAllTimeEntries();
+      console.log("Time entries received:", entries);
+      setTimeEntries(entries);
+      return entries;
+    } catch (error) {
+      console.error("Error fetching time entries:", error);
+      return [];
+    }
+  };
+
+  // Add this to the useEffect that loads ticket data
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setTicketsLoading(true);
+        // Fetch tickets with relationships
+        const tickets = await ticketsService.getTicketsWithRelationships();
+        
+        // Fetch users for assignee data
+        const users = await usersService.getAllUsers();
+        
+        // Fetch time entries
+        await fetchTimeEntries();
+        
+        // The rest of your existing code...
+        // ... (existing code for ticket handling) ...
+
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        setTicketsError(error instanceof Error ? error : new Error("Unknown error"));
+      } finally {
+        setTicketsLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, [ticketsRefreshCounter]);
 
   return (
     <div className="p-8 max-w-full">
