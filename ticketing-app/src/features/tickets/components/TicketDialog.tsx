@@ -232,32 +232,30 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   setWidgets([]);
                   setWidgetLayouts({});
 
-                  // Wait for state to clear, then add default widgets
-                  setTimeout(() => {
-                    if (currentTicket) {
-                      // Status field
-                      addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
+                  // Immediately add default widgets
+                  if (currentTicket) {
+                    // Status field
+                    addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
 
-                      // Customer name field
-                      addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
+                    // Customer name field
+                    addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
 
-                      // Date fields
-                      addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
-                      addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
+                    // Date fields
+                    addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
+                    addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
 
-                      // Hours fields
-                      addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
-                      addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
+                    // Hours fields
+                    addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
+                    addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
 
-                      // Description field
-                      addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
+                    // Description field
+                    addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
 
-                      // Add tables as individual widgets
-                      addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
-                      addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
-                      addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
-                    }
-                  }, 100);
+                    // Add tables as individual widgets
+                    addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
+                    addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
+                    addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
+                  }
                 }}
                 className="mr-2 px-3 py-1.5 rounded-md bg-red-50 text-red-600 text-sm hover:bg-red-100"
               >
@@ -397,6 +395,45 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             const hasEngineeringPreset = currentTicketPreset === "Engineering";
 
             if (hasEngineeringPreset) {
+              // Check if we have widgets for the Engineering preset
+              if (widgets.length === 0) {
+                // Add default widgets if none exist for Engineering preset
+                console.log("Adding default widgets for Engineering preset in TicketDialog");
+                if (currentTicket) {
+                  // Status field
+                  addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
+
+                  // Customer name field
+                  addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
+
+                  // Date fields
+                  addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
+                  addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
+
+                  // Hours fields
+                  addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
+                  addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
+
+                  // Description field
+                  addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
+
+                  // Add tables as individual widgets
+                  addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
+                  addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
+                  addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
+                }
+                
+                // Show a loading indicator while widgets are being created
+                return (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
+                      <p>Loading Engineering layout...</p>
+                    </div>
+                  </div>
+                );
+              }
+              
               // Show widget grid layout if preset is "Engineering"
               return (
                 <>

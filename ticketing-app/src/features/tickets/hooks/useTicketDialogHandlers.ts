@@ -283,6 +283,7 @@ export default function useTicketDialogHandlers(
     const currentTabData = tabs.find((tab) => tab.id === activeTab);
 
     // Set the current ticket preset for use in rendering
+    // Ensure we use the exact preset name to avoid case sensitivity issues
     setCurrentTicketPreset(currentTabData?.appliedPreset);
 
     // Set the current ticket
@@ -414,30 +415,28 @@ export default function useTicketDialogHandlers(
         setWidgets([]);
         setWidgetLayouts({} as Layouts);
 
-        // Add default widgets after a short delay
-        setTimeout(() => {
-          // Status field
-          addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
+        // Add default widgets immediately instead of using setTimeout
+        // Status field
+        addWidget(WIDGET_TYPES.FIELD_STATUS, ticket);
 
-          // Customer name field
-          addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
+        // Customer name field
+        addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, ticket);
 
-          // Date fields
-          addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
-          addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
+        // Date fields
+        addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, ticket);
+        addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, ticket);
 
-          // Hours fields
-          addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
-          addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
+        // Hours fields
+        addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, ticket);
+        addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, ticket);
 
-          // Description field
-          addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
+        // Description field
+        addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, ticket);
 
-          // Add tables as individual widgets
-          addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
-          addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
-          addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
-        }, 100);
+        // Add tables as individual widgets
+        addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, ticket);
+        addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, ticket);
+        addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, ticket);
       }
     } else {
       // For non-Engineering preset tabs, check for tab-specific layouts
@@ -706,8 +705,8 @@ export default function useTicketDialogHandlers(
 
     // Check if this tab has a preset
     const currentTabData = tabs.find((tab) => tab.id === tabId);
-    const hasEngineeringPreset = currentTabData && currentTabData.isEngineeringPreset;
-    setCurrentTicketPreset(hasEngineeringPreset ? "engineering" : undefined);
+    const hasEngineeringPreset = currentTabData && (currentTabData.isEngineeringPreset || currentTabData.appliedPreset === "Engineering");
+    setCurrentTicketPreset(hasEngineeringPreset ? "Engineering" : undefined);
 
     // Get data from ticket
     const status = ticket.cells["col-7"] || "";
