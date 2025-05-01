@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useSettingsStore } from "../../stores/settingsStore";
+import { statusesService } from "../../services/ticketsService";
 
 interface StatusWidgetProps {
   value?: string;
@@ -13,13 +14,57 @@ export default function StatusWidget({
   onChange,
   readOnly = false,
 }: StatusWidgetProps) {
-  const { statusOptions } = useSettingsStore();
+  const { statusOptions, fetchStatusOptions } = useSettingsStore();
   const [currentValue, setCurrentValue] = useState(value);
+  const [loading, setLoading] = useState(false);
 
   // Update internal state when the external value changes
   useEffect(() => {
     setCurrentValue(value);
   }, [value]);
+
+  // Make sure we have status options loaded
+  useEffect(() => {
+    if (statusOptions.length === 0) {
+      const loadStatuses = async () => {
+        setLoading(true);
+        try {
+          await fetchStatusOptions();
+          console.log("Loaded status options");
+        } catch (error) {
+          console.error("Failed to load status options", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadStatuses();
+    }
+  }, [statusOptions.length, fetchStatusOptions]);
+
+  // Try to load status from ID if needed
+  useEffect(() => {
+    const loadStatusFromId = async () => {
+      if (value && !statusOptions.includes(value) && !loading) {
+        try {
+          console.log("Trying to load status from ID:", value);
+          const status = await statusesService.getStatus(value);
+          if (status && status.label) {
+            console.log("Found status label:", status.label);
+            // Update the internal value with the label
+            setCurrentValue(status.label);
+            // Inform parent of the label change
+            if (onChange) {
+              onChange(status.label);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading status from ID:", error);
+        }
+      }
+    };
+
+    loadStatusFromId();
+  }, [value, statusOptions, onChange, loading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newValue = e.target.value;
@@ -34,14 +79,16 @@ export default function StatusWidget({
     if (
       currentValue &&
       !statusOptions.includes(currentValue) &&
-      statusOptions.length > 0
+      statusOptions.length > 0 &&
+      !loading
     ) {
+      console.log(`Status '${currentValue}' not found in options. Defaulting to first option.`);
       setCurrentValue(statusOptions[0]);
       if (onChange) {
         onChange(statusOptions[0]);
       }
     }
-  }, [statusOptions, currentValue, onChange]);
+  }, [statusOptions, currentValue, onChange, loading]);
 
   if (readOnly) {
     return (
@@ -56,10 +103,14 @@ export default function StatusWidget({
       value={currentValue}
       onChange={handleChange}
       className="w-full p-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      disabled={readOnly}
+      disabled={readOnly || loading}
     >
-      {statusOptions.length === 0 && (
-        <option value="">No status options available</option>
+      {(statusOptions.length === 0 || loading) && (
+        <option value="">Loading status options...</option>
+      )}
+
+      {statusOptions.length > 0 && !loading && !statusOptions.includes(currentValue) && (
+        <option value={currentValue}>{currentValue || "N/A"}</option>
       )}
 
       {statusOptions.map((option) => (

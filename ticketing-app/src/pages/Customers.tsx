@@ -646,7 +646,7 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Save changes</Button>
+              <Button className="bg-blue-600 text-white hover:bg-blue-700" type="submit">Save changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1024,7 +1024,7 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Save changes</Button>
+              <Button className="bg-blue-600 text-white hover:bg-blue-700" type="submit">Save changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>

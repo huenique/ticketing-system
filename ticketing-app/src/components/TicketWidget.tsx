@@ -142,23 +142,31 @@ function TicketWidget({
         case "select":
           // Check if this is a status field to use our StatusWidget
           if (widget.field === "status") {
+            // Extract status from the form data
+            const statusValue = typeof ticketForm[widget.field as keyof typeof ticketForm] === "string" 
+                ? ticketForm[widget.field as keyof typeof ticketForm] as string
+                : typeof ticketForm[widget.field as keyof typeof ticketForm] === "number"
+                  ? (ticketForm[widget.field as keyof typeof ticketForm] as number).toString()
+                  : (widget.value as string) || "";
+                  
+            console.log("Rendering status widget with value:", {
+              statusValue,
+              ticketFormStatus: ticketForm.status,
+              widgetValue: widget.value
+            });
+            
             return (
               <div className="h-full flex items-center">
                 <StatusWidget
-                  value={
-                    typeof ticketForm[widget.field as keyof typeof ticketForm] === "string" 
-                      ? ticketForm[widget.field as keyof typeof ticketForm] as string
-                      : typeof ticketForm[widget.field as keyof typeof ticketForm] === "number"
-                        ? (ticketForm[widget.field as keyof typeof ticketForm] as number).toString()
-                        : (widget.value as string) || ""
-                  }
+                  value={statusValue}
                   onChange={(value) => {
+                    console.log("Status widget onChange called with:", value);
                     // Call handleFieldChange to update the form state
                     handleFieldChange(widget.field || "", value);
 
                     // Also update the ticketForm state directly to ensure it's saved
                     if (setTicketForm) {
-                      setTicketForm({ ...ticketForm, status: value });
+                      setTicketForm({ ...ticketForm, status: value, status_id: value });
                     }
                   }}
                 />

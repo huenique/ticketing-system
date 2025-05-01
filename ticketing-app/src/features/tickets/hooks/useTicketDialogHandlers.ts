@@ -20,6 +20,7 @@ import { convertTicketToRow, getFromLS, saveToLS } from "../../../utils/ticketUt
 import { ticketsService } from "../../../services/ticketsService";
 import { uploadFile } from "../../../services/storageService";
 import { customersService, ticketAssignmentsService } from "../../../services";
+import { statusesService } from "../../../services/ticketsService";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
@@ -485,22 +486,36 @@ export default function useTicketDialogHandlers(
     // Set the current ticket
     setCurrentTicket(ticket);
 
+    // Get the status ID and customer ID, prioritizing Appwrite relationship ID fields if available
+    const statusId = ticket.cells["status_id"] || ticket.cells["col-7"] || "";
+    const customerId = ticket.cells["customer_id"] || ticket.cells["col-3"] || "";
+
     // Reset form data based on ticket
     setTicketForm({
-      status: ticket.cells["col-7"] || "New",
-      customerId: ticket.cells["customer_id"] || "",
+      // Use the proper status_id and customer_id for consistency
+      status: statusId,
+      customerId: customerId,
       description: ticket.cells["col-4"] || "",
       billableHours: parseFloat(ticket.cells["col-9"] || "0"),
       totalHours: parseFloat(ticket.cells["col-8"] || "0"),
+      
+      // Store the assignee IDs properly
       assigneeIds: ticket.cells["assignee_ids"]
         ? JSON.parse(ticket.cells["assignee_ids"])
         : [],
 
-      // Appwrite relationship fields
-      status_id: ticket.cells["status_id"] || ticket.cells["col-7"] || "New",
-      customer_id: ticket.cells["customer_id"] || "",
+      // Appwrite relationship fields (store the same values as above for consistency)
+      status_id: statusId,
+      customer_id: customerId,
       assignee_ids: ticket.cells["assignee_ids"]
         ? JSON.parse(ticket.cells["assignee_ids"])
+        : [],
+        
+      // Initialize attachments if available
+      attachments: ticket.cells["attachments"] 
+        ? (Array.isArray(ticket.cells["attachments"]) 
+            ? ticket.cells["attachments"] 
+            : JSON.parse(ticket.cells["attachments"]))
         : [],
     });
 
@@ -710,17 +725,147 @@ export default function useTicketDialogHandlers(
       // Get the ticketId from the current ticket
       const ticketId = currentTicket.id;
       
-      // Save ticket update to Appwrite
-      await ticketsService.updateTicket(ticketId, {
-        status_id: ticketForm.status,
-        customer_id: ticketForm.customerId,
-        description: ticketForm.description,
-        billable_hours: ticketForm.billableHours || 0,
-        total_hours: ticketForm.totalHours || 0,
-        attachments: ticketForm.attachments || [],
+      // Debug logging to see what values we're working with
+      console.log("Current ticket data:", {
+        ticket_id: ticketId,
+        current_customer_id: currentTicket.cells["customer_id"],
+        current_customer_col3: currentTicket.cells["col-3"],
+        form_customer_id: ticketForm.customerId,
+        current_status_id: currentTicket.cells["status_id"],
+        current_status_col7: currentTicket.cells["col-7"],
+        form_status: ticketForm.status
       });
+      
+      // Create an object to store only the fields that need to be updated
+      const ticketUpdates: Partial<{
+        status_id: string;
+        customer_id: string;
+        description: string;
+        billable_hours: number;
+        total_hours: number;
+        attachments: string[];
+      }> = {};
 
-      console.log("Ticket updated successfully:", ticketId);
+      // Only include fields that have been modified
+      if (ticketForm.description !== currentTicket.cells["col-4"]) {
+        ticketUpdates.description = ticketForm.description;
+      }
+      
+      if (ticketForm.billableHours !== parseFloat(currentTicket.cells["col-9"] || "0")) {
+        ticketUpdates.billable_hours = ticketForm.billableHours || 0;
+      }
+      
+      if (ticketForm.totalHours !== parseFloat(currentTicket.cells["col-8"] || "0")) {
+        ticketUpdates.total_hours = ticketForm.totalHours || 0;
+      }
+      
+      // Handle status_id as a relationship field
+      // Check if the status has been changed from what was loaded
+      const statusChanged = ticketForm.status !== currentTicket.cells["status_id"] && 
+                         ticketForm.status !== currentTicket.cells["col-7"];
+                         
+      console.log("Status comparison:", {
+        statusChanged,
+        condition1: ticketForm.status !== currentTicket.cells["status_id"],
+        condition2: ticketForm.status !== currentTicket.cells["col-7"]
+      });
+      
+      if (statusChanged) {
+        try {
+          // Get all statuses first
+          const allStatuses = await statusesService.getAllStatuses();
+          console.log("All available statuses:", allStatuses);
+          
+          // Try to find the status by exact label match
+          let statusDocument = allStatuses.find((status: { label: string }) => 
+            status.label === ticketForm.status
+          );
+          
+          if (!statusDocument) {
+            console.error("Cannot find status with exact label:", ticketForm.status);
+            
+            // Fallback: try case-insensitive match
+            statusDocument = allStatuses.find((status: { label: string }) => 
+              status.label.toLowerCase() === ticketForm.status.toLowerCase()
+            );
+            
+            if (!statusDocument) {
+              console.error("Cannot find status with case-insensitive label match either");
+              toast.error(`Status "${ticketForm.status}" not found. Using default status.`);
+              
+              // Fallback to the first available status if no match is found
+              if (allStatuses.length > 0) {
+                statusDocument = allStatuses[0];
+                console.log("Using first available status as fallback:", statusDocument);
+              } else {
+                throw new Error("No statuses available in the system");
+              }
+            }
+          }
+          
+          // Get the proper Appwrite document ID (prefer $id which is the standard Appwrite format)
+          const statusId = statusDocument.$id || statusDocument.id;
+          console.log("Using status ID for update:", statusId);
+          
+          // Set the status_id field with the document ID (not the label)
+          ticketUpdates.status_id = statusId;
+          
+          // Also update the status column in the currentTicket for immediate UI feedback
+          if (currentTicket) {
+            // Update the display column with the label
+            currentTicket.cells["col-7"] = statusDocument.label;
+            // If there's a status_id column, update it with the ID
+            if ("status_id" in currentTicket.cells) {
+              currentTicket.cells["status_id"] = statusId;
+            }
+          }
+        } catch (error) {
+          console.error("Error processing status update:", error);
+          toast.error("Failed to update status. Using previous value.");
+          // Don't proceed with the status update
+        }
+      } else {
+        console.log("Not updating status_id as it hasn't changed");
+      }
+      
+      // Only update customer_id if it's actually been changed from what was loaded
+      // Check against both the relationship ID and the display column
+      const customerChanged = ticketForm.customerId !== currentTicket.cells["customer_id"] && 
+                           ticketForm.customerId !== currentTicket.cells["col-3"];
+                           
+      console.log("Customer comparison:", {
+        customerChanged,
+        condition1: ticketForm.customerId !== currentTicket.cells["customer_id"],
+        condition2: ticketForm.customerId !== currentTicket.cells["col-3"]
+      });
+      
+      if (customerChanged) {
+        ticketUpdates.customer_id = ticketForm.customerId;
+        console.log("Including customer_id in update:", ticketForm.customerId);
+        
+        // Also update the customer column in the currentTicket for immediate UI feedback
+        if (currentTicket) {
+          currentTicket.cells["col-3"] = ticketForm.customerId;
+          // If there's a customer_id column, also update it
+          if ("customer_id" in currentTicket.cells) {
+            currentTicket.cells["customer_id"] = ticketForm.customerId;
+          }
+        }
+      } else {
+        console.log("Not updating customer_id as it hasn't changed");
+      }
+      
+      // Always include attachments since they could have been modified
+      ticketUpdates.attachments = ticketForm.attachments || [];
+      
+      // Only update the ticket if there are actually changes to make
+      if (Object.keys(ticketUpdates).length > 0) {
+        console.log("Updating ticket with changes:", ticketUpdates);
+        await ticketsService.updateTicket(ticketId, ticketUpdates);
+        console.log("Ticket updated successfully:", ticketId);
+      } else {
+        console.log("No ticket fields were changed, skipping ticket update");
+      }
 
       // Save time entries to Appwrite
       if (timeEntries && timeEntries.length > 0) {
@@ -829,6 +974,66 @@ export default function useTicketDialogHandlers(
       toast.error("Failed to save ticket changes.");
       return false;
     }
+  };
+
+  const viewTicket = async (ticket: Row, tabId: string) => {
+    setCurrentTicket(ticket);
+    setViewDialogOpen(true);
+
+    // Check if this tab has a preset
+    const currentTabData = tabs.find((tab) => tab.id === tabId);
+    const hasEngineeringPreset = currentTabData && (currentTabData.isEngineeringPreset || currentTabData.appliedPreset === "Engineering");
+    setCurrentTicketPreset(hasEngineeringPreset ? "Engineering" : undefined);
+
+    // Get data from ticket
+    const status = ticket.cells["status_id"] || ticket.cells["col-7"] || "";
+    // Get customer ID from the relationship ID field first, then fallback to the display name column
+    const customerId = ticket.cells["customer_id"] || ticket.cells["col-3"] || "";
+    console.log("Setting customer from:", {
+      raw_customer_id: ticket.cells["customer_id"],
+      raw_col3: ticket.cells["col-3"],
+      final_customer_id: customerId
+    });
+    
+    const ticketId = ticket.id;
+    const description = ticket.cells["col-4"] || "";
+    const createdAt = ticket.cells["col-2"] || "";
+    const lastModified = ticket.cells["col-10"] || "";
+    const billableHoursStr = ticket.cells["col-9"] || "0";
+    const totalHoursStr = ticket.cells["col-8"] || "0";
+    const billableHours = parseFloat(billableHoursStr);
+    const totalHours = parseFloat(totalHoursStr);
+    const attachments = ticket.cells["attachments"] || ticket.cells["col-6"] || [];
+
+    // Convert string attachments to array if necessary
+    let attachmentsArray: string[] = [];
+    if (typeof attachments === "string") {
+      attachmentsArray = attachments
+        .split(",")
+        .map((a) => a.trim())
+        .filter((a) => a);
+    } else if (Array.isArray(attachments)) {
+      attachmentsArray = attachments;
+    }
+
+    // Set ticket form data
+    setTicketForm({
+      status,
+      customerId,
+      description,
+      billableHours: isNaN(billableHours) ? 0 : billableHours,
+      totalHours: isNaN(totalHours) ? 0 : totalHours,
+      assigneeIds: [],
+      attachments: attachmentsArray,
+      
+      // Appwrite relationship fields (store the same values for consistency)
+      status_id: status,
+      customer_id: customerId,
+      assignee_ids: [],
+    });
+
+    // Set uploaded images
+    setUploadedImages(attachmentsArray);
   };
 
   // Function to refresh all status-based tabs based on updated All Tickets data
@@ -941,157 +1146,6 @@ export default function useTicketDialogHandlers(
     } catch (error) {
       console.error("Error refreshing status tabs:", error);
     }
-  };
-
-  const viewTicket = async (ticket: Row, tabId: string) => {
-    setCurrentTicket(ticket);
-    setViewDialogOpen(true);
-
-    // Check if this tab has a preset
-    const currentTabData = tabs.find((tab) => tab.id === tabId);
-    const hasEngineeringPreset = currentTabData && (currentTabData.isEngineeringPreset || currentTabData.appliedPreset === "Engineering");
-    setCurrentTicketPreset(hasEngineeringPreset ? "Engineering" : undefined);
-
-    // Get data from ticket
-    const status = ticket.cells["col-7"] || "";
-    const customerId = ticket.cells["col-3"] || "";
-    const ticketId = ticket.id;
-    const description = ticket.cells["col-4"] || "";
-    const createdAt = ticket.cells["col-2"] || "";
-    const lastModified = ticket.cells["col-10"] || "";
-    const billableHoursStr = ticket.cells["col-9"] || "0";
-    const totalHoursStr = ticket.cells["col-8"] || "0";
-    const billableHours = parseFloat(billableHoursStr);
-    const totalHours = parseFloat(totalHoursStr);
-    const attachments = ticket.cells["col-6"] || [];
-
-    // Convert string attachments to array if necessary
-    let attachmentsArray: string[] = [];
-    if (typeof attachments === "string") {
-      attachmentsArray = attachments
-        .split(",")
-        .map((a) => a.trim())
-        .filter((a) => a);
-    } else if (Array.isArray(attachments)) {
-      attachmentsArray = attachments;
-    }
-
-    // Set ticket form data
-    setTicketForm({
-      status,
-      customerId,
-      description,
-      billableHours: isNaN(billableHours) ? 0 : billableHours,
-      totalHours: isNaN(totalHours) ? 0 : totalHours,
-      assigneeIds: [],
-      attachments: attachmentsArray,
-    });
-
-    // Set uploaded images
-    setUploadedImages(attachmentsArray);
-
-    // Fetch time entries for this ticket
-    const fetchTimeEntries = async () => {
-      try {
-        console.log(`Fetching time entries for ticket: ${ticketId}`);
-        const entries = await timeEntriesService.getTimeEntriesForTicket(ticketId);
-        console.log(`Fetched ${entries.length} time entries for ticket: ${ticketId}`);
-        setTimeEntries(entries);
-      } catch (error) {
-        console.error(`Error fetching time entries for ticket ${ticketId}:`, error);
-        setTimeEntries([]);
-      }
-    };
-
-    // Fetch team members (assignees) for this ticket
-    const fetchTeamMembers = async () => {
-      try {
-        console.log(`Fetching team members for ticket: ${ticketId}`);
-        const teamMembers = await ticketAssignmentsService.getAssigneesForTicket(ticketId);
-        console.log(`Fetched ${teamMembers.length} team members for ticket: ${ticketId}`);
-        
-        if (teamMembers.length > 0) {
-          setAssignees(teamMembers);
-          
-          // Extract and set assignee IDs for the form
-          const assigneeIds = teamMembers
-            .filter(member => member.user_id)
-            .map(member => member.user_id as string);
-          
-          setTicketForm(prev => ({
-            ...prev,
-            assigneeIds
-          }));
-        } else {
-          setAssignees([]);
-        }
-      } catch (error) {
-        console.error(`Error fetching team members for ticket ${ticketId}:`, error);
-        setAssignees([]);
-      }
-    };
-
-    // Call fetch functions in parallel
-    await Promise.all([fetchTimeEntries(), fetchTeamMembers()]);
-
-    // Check if we have a raw appwrite data in the ticket
-    if (ticket.rawData) {
-      console.log("Using raw Appwrite data to populate ticket fields:", ticket.rawData);
-      
-      // Extract assignee_ids from raw data if available
-      const assigneeIds: string[] = [];
-      if (ticket.rawData.assignee_ids && Array.isArray(ticket.rawData.assignee_ids)) {
-        ticket.rawData.assignee_ids.forEach((assignee: any) => {
-          if (typeof assignee === 'string') {
-            assigneeIds.push(assignee);
-          } else if (assignee && typeof assignee === 'object' && assignee.$id) {
-            assigneeIds.push(assignee.$id);
-          }
-        });
-      }
-
-      // Update ticket form with assignee IDs if found
-      setTicketForm((prev) => ({
-        ...prev,
-        assigneeIds,
-      }));
-      
-      // Note: We prefer the data from ticketAssignmentsService, so we only use this as fallback
-      // if fetchTeamMembers() didn't return any results
-      if (assignees.length === 0) {
-        // Process assignments from assignment_id if available
-        let newAssignees: Assignee[] = [];
-        
-        if (ticket.rawData.assignment_id && Array.isArray(ticket.rawData.assignment_id)) {
-          newAssignees = ticket.rawData.assignment_id.map((assignment: any) => {
-            // Get user information
-            const userId = assignment.user_id?.$id || assignment.user_id || '';
-            const firstName = assignment.user_id?.first_name || '';
-            const lastName = assignment.user_id?.last_name || '';
-            const fullName = `${firstName} ${lastName}`.trim();
-            
-            return {
-              id: assignment.$id || `a-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              name: fullName,
-              workDescription: assignment.work_description || '',
-              totalHours: assignment.actual_time || '0',
-              estTime: assignment.estimated_time || '0',
-              priority: '1',
-              user_id: userId,
-              completed: false
-            };
-          });
-        }
-
-        // Set assignees if we have any from assignment_id
-        if (newAssignees.length > 0) {
-          setAssignees(newAssignees);
-        }
-      }
-    }
-
-    // Get the saved layout state for this preset/tab
-    // ... existing code ...
   };
 
   return {
