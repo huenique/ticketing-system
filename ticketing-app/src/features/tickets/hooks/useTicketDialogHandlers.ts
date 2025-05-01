@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
+import useUserStore from "../../../stores/userStore";
 import type {
   Assignee,
   LayoutStorage,
@@ -18,6 +19,7 @@ import { convertTicketToRow, getFromLS, saveToLS } from "../../../utils/ticketUt
 import { ticketsService } from "../../../services/ticketsService";
 import { uploadFile } from "../../../services/storageService";
 import { timeEntriesService } from "../../../services/timeEntriesService";
+import { customersService, ticketAssignmentsService } from "../../../services";
 
 export default function useTicketDialogHandlers(
   activeTab: string,
@@ -65,6 +67,9 @@ export default function useTicketDialogHandlers(
 
   // Time Entries State
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+
+  // Get current user
+  const { currentUser } = useUserStore();
 
   // Image Handlers
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,38 +121,116 @@ export default function useTicketDialogHandlers(
   };
 
   // Assignee Handlers
-  const handleAddAssignee = () => {
+  const handleAddAssignee = async () => {
     if (newAssignee.name.trim() === "") return;
 
+    // Generate a temporary ID for UI purposes
     const assigneeId = `a${Date.now()}`;
     const assigneeToAdd: Assignee = {
       ...newAssignee,
       id: assigneeId,
     };
 
-    setAssignees((prev) => [...prev, assigneeToAdd]);
-    setNewAssignee({
-      id: "",
-      name: "",
-      workDescription: "",
-      totalHours: "0",
-      estTime: "0",
-      priority: "3",
-      user_id: "",
-    });
-    setShowAssigneeForm(false);
+    // If the user_id isn't set but we have a current user, use the current user's ID
+    if (!assigneeToAdd.user_id && currentUser && currentUser.id) {
+      assigneeToAdd.user_id = currentUser.id;
+      
+      // Also update the name if it's empty
+      if (!assigneeToAdd.name.trim() && currentUser.name) {
+        assigneeToAdd.name = currentUser.name;
+      }
+    }
+
+    try {
+      // If we're in edit mode and have a current ticket, save to Appwrite
+      if (currentTicket && currentTicket.id) {
+        // Get the ticket ID from the current ticket
+        const ticketId = currentTicket.id || currentTicket.cells["col-1"];
+        
+        // Create a ticket assignment in Appwrite
+        const createdAssignment = await ticketAssignmentsService.createAssignmentFromAssignee(
+          assigneeToAdd,
+          ticketId
+        );
+        
+        // Update the assignee with the real ID from Appwrite
+        assigneeToAdd.id = createdAssignment.id;
+        
+        toast.success("Team member assigned successfully");
+      }
+      
+      // Add to local state
+      setAssignees((prev) => [...prev, assigneeToAdd]);
+      
+      // Reset the form
+      setNewAssignee({
+        id: "",
+        name: "",
+        workDescription: "",
+        totalHours: "0",
+        estTime: "0",
+        priority: "3",
+        user_id: "",
+      });
+      setShowAssigneeForm(false);
+    } catch (error) {
+      console.error("Error adding team member:", error);
+      toast.error("Failed to assign team member", {
+        description: "Please try again"
+      });
+    }
   };
 
-  const handleRemoveAssignee = (id: string) => {
-    setAssignees((prev) => prev.filter((a) => a.id !== id));
-    // Also remove related time entries
-    setTimeEntries((prev) => prev.filter((t) => t.assigneeId !== id));
+  const handleRemoveAssignee = async (id: string) => {
+    try {
+      // If we're in edit mode and have a current ticket, delete from Appwrite
+      if (currentTicket && currentTicket.id) {
+        await ticketAssignmentsService.deleteTicketAssignment(id);
+        toast.success("Team member removed successfully");
+      }
+      
+      // Remove from local state
+      setAssignees((prev) => prev.filter((a) => a.id !== id));
+      // Also remove related time entries
+      setTimeEntries((prev) => prev.filter((t) => t.assigneeId !== id));
+    } catch (error) {
+      console.error("Error removing team member:", error);
+      toast.error("Failed to remove team member", {
+        description: "Please try again"
+      });
+    }
   };
 
-  const handleUpdateAssignee = (id: string, field: string, value: string) => {
-    setAssignees((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)),
-    );
+  const handleUpdateAssignee = async (id: string, field: string, value: string) => {
+    // Map UI field names to database field names
+    const fieldMappings: Record<string, string> = {
+      workDescription: "work_description",
+      totalHours: "actual_time",
+      estTime: "estimated_time"
+    };
+    
+    try {
+      // Update in the local state first for immediate UI feedback
+      setAssignees((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, [field]: value } : a))
+      );
+      
+      // If we're in edit mode and have a current ticket, update in Appwrite
+      if (currentTicket && currentTicket.id) {
+        // Only send the update if the field has a mapping (is stored in the database)
+        if (fieldMappings[field]) {
+          const updates: Partial<Record<string, string>> = {
+            [fieldMappings[field]]: value
+          };
+          
+          await ticketAssignmentsService.updateTicketAssignment(id, updates);
+        }
+      }
+    } catch (error) {
+      console.error(`Error updating team member field '${field}':`, error);
+      // We don't show an error toast here to avoid disrupting the user experience
+      // during typing, but we log the error
+    }
   };
 
   // Time Entry Handlers
@@ -227,7 +310,7 @@ export default function useTicketDialogHandlers(
   };
 
   // Handle task/assignee completion status
-  const markAssigneeCompleted = (assigneeId: string, completed: boolean | string) => {
+  const markAssigneeCompleted = async (assigneeId: string, completed: boolean | string) => {
     // Convert to boolean regardless of input type
     const isCompleted = completed === true || completed === "true";
 
@@ -237,6 +320,38 @@ export default function useTicketDialogHandlers(
         assignee.id === assigneeId ? { ...assignee, completed: isCompleted } : assignee,
       ),
     );
+
+    try {
+      // If we're in edit mode and have a current ticket, update in Appwrite
+      if (currentTicket && currentTicket.id && assigneeId) {
+        // We don't have a completed field in our database schema, so we'll update
+        // the work_description to include a [COMPLETED] prefix if completed
+        const assignee = assignees.find(a => a.id === assigneeId);
+        
+        if (assignee) {
+          let workDescription = assignee.workDescription;
+          
+          // If completed, add a [COMPLETED] prefix if not already there
+          if (isCompleted && !workDescription.includes("[COMPLETED]")) {
+            workDescription = `[COMPLETED] ${workDescription}`;
+          } 
+          // If not completed, remove the [COMPLETED] prefix if it exists
+          else if (!isCompleted && workDescription.includes("[COMPLETED]")) {
+            workDescription = workDescription.replace("[COMPLETED]", "").trim();
+          }
+          
+          // Only update if the work description changed
+          if (workDescription !== assignee.workDescription) {
+            await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
+              work_description: workDescription
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error updating assignee completion status:", error);
+      // We don't show an error toast here to avoid disrupting the UX
+    }
 
     // Find the assignee that was updated
     const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
@@ -699,7 +814,7 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  const viewTicket = (ticket: Row, tabId: string) => {
+  const viewTicket = async (ticket: Row, tabId: string) => {
     setCurrentTicket(ticket);
     setViewDialogOpen(true);
 
@@ -759,8 +874,36 @@ export default function useTicketDialogHandlers(
       }
     };
 
-    // Call fetch time entries
-    fetchTimeEntries();
+    // Fetch team members (assignees) for this ticket
+    const fetchTeamMembers = async () => {
+      try {
+        console.log(`Fetching team members for ticket: ${ticketId}`);
+        const teamMembers = await ticketAssignmentsService.getAssigneesForTicket(ticketId);
+        console.log(`Fetched ${teamMembers.length} team members for ticket: ${ticketId}`);
+        
+        if (teamMembers.length > 0) {
+          setAssignees(teamMembers);
+          
+          // Extract and set assignee IDs for the form
+          const assigneeIds = teamMembers
+            .filter(member => member.user_id)
+            .map(member => member.user_id as string);
+          
+          setTicketForm(prev => ({
+            ...prev,
+            assigneeIds
+          }));
+        } else {
+          setAssignees([]);
+        }
+      } catch (error) {
+        console.error(`Error fetching team members for ticket ${ticketId}:`, error);
+        setAssignees([]);
+      }
+    };
+
+    // Call fetch functions in parallel
+    await Promise.all([fetchTimeEntries(), fetchTeamMembers()]);
 
     // Check if we have a raw appwrite data in the ticket
     if (ticket.rawData) {
@@ -783,41 +926,39 @@ export default function useTicketDialogHandlers(
         ...prev,
         assigneeIds,
       }));
-
-      // Process assignments from assignment_id if available
-      let newAssignees: Assignee[] = [];
       
-      if (ticket.rawData.assignment_id && Array.isArray(ticket.rawData.assignment_id)) {
-        newAssignees = ticket.rawData.assignment_id.map((assignment: any) => {
-          // Get user information
-          const userId = assignment.user_id?.$id || assignment.user_id || '';
-          const firstName = assignment.user_id?.first_name || '';
-          const lastName = assignment.user_id?.last_name || '';
-          const fullName = `${firstName} ${lastName}`.trim();
-          
-          return {
-            id: assignment.$id || `a-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: fullName,
-            workDescription: assignment.work_description || '',
-            totalHours: assignment.actual_time || '0',
-            estTime: assignment.estimated_time || '0',
-            priority: '1',
-            user_id: userId,
-            completed: false
-          };
-        });
-      }
+      // Note: We prefer the data from ticketAssignmentsService, so we only use this as fallback
+      // if fetchTeamMembers() didn't return any results
+      if (assignees.length === 0) {
+        // Process assignments from assignment_id if available
+        let newAssignees: Assignee[] = [];
+        
+        if (ticket.rawData.assignment_id && Array.isArray(ticket.rawData.assignment_id)) {
+          newAssignees = ticket.rawData.assignment_id.map((assignment: any) => {
+            // Get user information
+            const userId = assignment.user_id?.$id || assignment.user_id || '';
+            const firstName = assignment.user_id?.first_name || '';
+            const lastName = assignment.user_id?.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim();
+            
+            return {
+              id: assignment.$id || `a-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              name: fullName,
+              workDescription: assignment.work_description || '',
+              totalHours: assignment.actual_time || '0',
+              estTime: assignment.estimated_time || '0',
+              priority: '1',
+              user_id: userId,
+              completed: false
+            };
+          });
+        }
 
-      // Set assignees if we have any from assignment_id
-      if (newAssignees.length > 0) {
-        setAssignees(newAssignees);
-      } else {
-        // Start with empty assignees for all presets
-        setAssignees([]);
+        // Set assignees if we have any from assignment_id
+        if (newAssignees.length > 0) {
+          setAssignees(newAssignees);
+        }
       }
-    } else {
-      // Without raw data, start with empty assignees
-      setAssignees([]);
     }
 
     // Get the saved layout state for this preset/tab

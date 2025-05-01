@@ -751,7 +751,7 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Add Customer</Button>
+              <Button className="bg-blue-600 text-white" type="submit">Add Customer</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -942,7 +942,7 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Add Contact</Button>
+              <Button className="bg-blue-600 text-white" type="submit">Add Contact</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -3,7 +3,7 @@ import { TimeEntry } from "@/types/tickets";
 
 // Collection ID constants
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-const TIME_ENTRIES_COLLECTION = "time_entry";
+const TIME_ENTRIES_COLLECTION = "time_entries";
 
 // Helper function to map API response to TimeEntry
 const mapToTimeEntry = (document: any): TimeEntry => {

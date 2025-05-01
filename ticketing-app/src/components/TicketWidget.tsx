@@ -515,9 +515,9 @@ function TicketWidget({
                             const priorityB = parseInt(b.priority || "5");
                             return priorityA - priorityB;
                           })
-                          .map((assignee) => (
+                          .map((assignee, index) => (
                             <tr
-                              key={assignee.id}
+                              key={`assignee-${assignee.id}-${index}`}
                               className={
                                 assignee.completed ? "opacity-60 bg-neutral-50" : ""
                               }
@@ -1314,8 +1314,8 @@ function TicketWidget({
                       </td>
                     </tr>
                   )}
-                  {assignees.map((assignee) => (
-                    <tr key={assignee.id} className="hover:bg-neutral-50">
+                  {assignees.map((assignee, index) => (
+                    <tr key={`assignee-${assignee.id}-${index}`} className="hover:bg-neutral-50">
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         <input
                           type="text"
