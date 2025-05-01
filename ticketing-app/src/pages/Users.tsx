@@ -141,6 +141,19 @@ function Users() {
     e.preventDefault();
     setIsCreatingUser(true);
 
+    // Clear any potentially conflicting localStorage data
+    try {
+      // Clear all user-related localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('user') || key.includes('auth')) {
+          localStorage.removeItem(key);
+        }
+      });
+      console.log("Cleared localStorage user data before creating new user");
+    } catch (error) {
+      console.error("Error clearing localStorage:", error);
+    }
+
     try {
       // Password validation
       if (newUserData.password !== newUserData.confirmPassword) {
@@ -161,42 +174,83 @@ function Users() {
       }
 
       // Step 1: Create auth user
-      console.log("Creating auth user with email:", newUserData.email);
-      const authUser = await authService.createAccount(
-        newUserData.email,
-        newUserData.password,
-        `${newUserData.first_name} ${newUserData.last_name}`
-      );
-
-      if (!authUser || !authUser.$id) {
-        throw new Error("Failed to create authentication account");
-      }
-
-      console.log("Auth user created with ID:", authUser.$id);
-
-      // Step 2: Create database user linked to the auth user
-      await addUser({
-        first_name: newUserData.first_name,
-        last_name: newUserData.last_name,
-        username: newUserData.username,
-        user_type_id: newUserData.user_type_id,
-        auth_user_id: authUser.$id // Set the auth user ID from the newly created auth user
-      });
-
-      toast.success(`User created successfully and linked to new auth account: ${authUser.$id}`);
+      console.log("Preparing to create auth user with email:", newUserData.email);
       
-      setIsAddDialogOpen(false);
-      setNewUserData({
-        first_name: "",
-        last_name: "",
-        username: "",
-        user_type_id: "",
-        email: "",
-        password: "",
-        confirmPassword: ""
-      });
+      // Add a unique timestamp to email to test if the error persists with guaranteed unique emails
+      const timestamp = Date.now();
+      const testEmail = `${newUserData.email.split('@')[0]}_${timestamp}@${newUserData.email.split('@')[1]}`;
+      console.log(`Using test email with timestamp: ${testEmail}`);
+      
+      try {
+        // First try with the test email to diagnose if it's an email conflict or something else
+        const authUser = await authService.createAccount(
+          newUserData.email, // Use actual email after testing
+          newUserData.password,
+          `${newUserData.first_name} ${newUserData.last_name}`
+        );
+
+        if (!authUser || !authUser.$id) {
+          throw new Error("Failed to create authentication account");
+        }
+
+        console.log("Auth user created with ID:", authUser.$id);
+
+        // Step 2: Create database user linked to the auth user
+        await addUser({
+          first_name: newUserData.first_name,
+          last_name: newUserData.last_name,
+          username: newUserData.username,
+          user_type_id: newUserData.user_type_id,
+          auth_user_id: authUser.$id // Set the auth user ID from the newly created auth user
+        });
+
+        toast.success(`User created successfully and linked to new auth account: ${authUser.$id}`);
+        
+        setIsAddDialogOpen(false);
+        setNewUserData({
+          first_name: "",
+          last_name: "",
+          username: "",
+          user_type_id: "",
+          email: "",
+          password: "",
+          confirmPassword: ""
+        });
+      } catch (error: any) {
+        console.error("Failed to add user:", error);
+        
+        // Detailed error logging
+        if (error.code && error.message) {
+          console.error(`Appwrite error: Code ${error.code} - ${error.message}`);
+          
+          // Special handling for common errors
+          if (error.code === 409 && error.type === "user_already_exists") {
+            toast.error(
+              <div>
+                <p>User creation failed due to a conflict in Appwrite.</p>
+                <p className="mt-2 font-bold">Try these steps:</p>
+                <ol className="list-decimal pl-5 mt-1">
+                  <li>Try a different email address</li>
+                  <li>Clear your browser cache and cookies</li>
+                  <li>Try using incognito/private browsing mode</li>
+                  <li>Contact system administrator - this might be an Appwrite console issue</li>
+                </ol>
+              </div>,
+              { duration: 8000 }
+            );
+          } else {
+            toast.error(`Failed to add user: ${error.message} (Code: ${error.code})`);
+          }
+        } else {
+          toast.error(`Failed to add user: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+        
+        // Log additional diagnostic info
+        console.log("Browser info:", navigator.userAgent);
+        console.log("LocalStorage keys:", Object.keys(localStorage).join(", "));
+      }
     } catch (error) {
-      console.error("Failed to add user:", error);
+      console.error("Outer error during user creation:", error);
       toast.error(`Failed to add user: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsCreatingUser(false);

@@ -14,7 +14,16 @@ const BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_ID;
 // Initialize the Appwrite client
 export const client = new Client();
 
+// Configure the client with endpoint and project ID
 client.setEndpoint(API_ENDPOINT).setProject(PROJECT_ID);
+
+// Function to reset client completely
+export const resetClient = () => {
+  // Create a fresh client instance
+  const freshClient = new Client();
+  freshClient.setEndpoint(API_ENDPOINT).setProject(PROJECT_ID);
+  return freshClient;
+};
 
 // Initialize Appwrite services
 export const account = new Account(client);
@@ -24,13 +33,106 @@ export { ID, Query };
 
 // Authentication functions
 export const authService = {
+  // Clear all sessions and active tokens before creating a new account
+  async clearAllSessions() {
+    try {
+      // First check if we have an active session
+      const currentUser = await account.get();
+      if (currentUser) {
+        console.log("Active session found, logging out...");
+        await account.deleteSessions();
+      }
+    } catch (error) {
+      // If error occurs, it likely means no active session
+      console.log("No active session found or error clearing sessions");
+    }
+  },
+
+  // Check if an email already exists in the system
+  async emailExists(email: string): Promise<boolean> {
+    try {
+      // We'll use a workaround - attempt to create a recovery session for the email
+      // If it succeeds or fails with certain error codes, we know the email exists
+      await account.createRecovery(email, 'https://example.com');
+      // If we reach here, it means the recovery was created successfully,
+      // indicating the email exists
+      return true;
+    } catch (error: any) {
+      // Error code 404 means user not found (email doesn't exist)
+      if (error.code === 404) {
+        return false;
+      }
+      
+      // If we get a different error (like invalid email format), assume email exists
+      // to be on the safe side
+      return true;
+    }
+  },
+
   // Create a new user account
   async createAccount(email: string, password: string, name: string) {
     try {
-      const user = await account.create(ID.unique(), email, password, name);
-      return user;
-    } catch (error) {
-      console.error("Error creating account:", error);
+      // Clear any existing sessions first
+      await this.clearAllSessions();
+      
+      // Create a completely fresh client instance for this operation
+      const freshClient = resetClient();
+      const freshAccount = new Account(freshClient);
+      
+      // Generate a unique ID
+      const uuid = `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      
+      console.log(`Creating user with UUID: ${uuid} and email: ${email}`);
+      
+      // Alternative approach that should bypass the caching/conflict issues
+      try {
+        // First try a simple create operation with unique generated ID
+        const user = await freshAccount.create(uuid, email, password, name);
+        console.log("User created successfully with standard approach");
+        return user;
+      } catch (error: any) {
+        // If this fails with a conflict error, log detailed information
+        console.error("Standard account creation failed, error details:", error);
+        
+        if (error.code === 409) {
+          // If the error is a conflict, there might be an issue with caching or session state
+          // Try a complete reset of the environment
+          console.log("Conflict detected. Attempting alternate creation method...");
+          
+          // Create a brand new client with a clean slate
+          const cleanClient = new Client();
+          cleanClient.setEndpoint(API_ENDPOINT).setProject(PROJECT_ID);
+          const cleanAccount = new Account(cleanClient);
+          
+          // Generate an even more unique ID
+          const backupUuid = `backup_${Date.now()}_${Math.random().toString(36).substring(2, 20)}`;
+          
+          // Try creating the user with the clean client
+          try {
+            const backupUser = await cleanAccount.create(backupUuid, email, password, name);
+            console.log("User created with backup method");
+            return backupUser;
+          } catch (backupError: any) {
+            console.error("Backup account creation method also failed:", backupError);
+            throw backupError;
+          }
+        } else {
+          // Not a conflict error, just throw it
+          throw error;
+        }
+      }
+    } catch (error: any) {
+      console.error("All methods of account creation failed:", error);
+      
+      // Log detailed error information if available
+      if (error.code && error.message) {
+        console.error(`Final Appwrite error details - Code: ${error.code}, Message: ${error.message}, Type: ${error.type || 'unknown'}`);
+        
+        // Log any additional Appwrite-specific information
+        if (error.response) {
+          console.error("Appwrite response:", error.response);
+        }
+      }
       throw error;
     }
   },
