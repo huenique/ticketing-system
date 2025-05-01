@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
 import AttachmentsWidget from "./widgets/AttachmentsWidget";
+import { usersService } from "../services/usersService";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -75,6 +76,28 @@ function TicketWidget({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
   const { currentUser } = useUserStore();
+  
+  // State for users dropdown
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Fetch users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const usersList = await usersService.getAllUsers();
+        setUsers(usersList);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Failed to load users");
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // Function to handle remove click with extra measures to prevent drag
   const handleRemoveClick = (e: React.MouseEvent) => {
@@ -340,14 +363,37 @@ function TicketWidget({
                           <label className="block text-sm font-medium text-neutral-700">
                             Name
                           </label>
-                          <input
-                            type="text"
-                            value={newAssignee.name}
-                            onChange={(e) =>
-                              setNewAssignee({ ...newAssignee, name: e.target.value })
-                            }
-                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          />
+                          {isLoadingUsers ? (
+                            <div className="mt-1 flex items-center text-sm text-gray-500">
+                              Loading users...
+                            </div>
+                          ) : (
+                            <select
+                              value={newAssignee.name}
+                              onChange={(e) => {
+                                const selectedUser = users.find(user => 
+                                  `${user.first_name} ${user.last_name}` === e.target.value
+                                );
+                                
+                                setNewAssignee({ 
+                                  ...newAssignee, 
+                                  name: e.target.value,
+                                  user_id: selectedUser?.$id || ""
+                                });
+                              }}
+                              className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                            >
+                              <option value="">Select a user</option>
+                              {users.map((user) => (
+                                <option 
+                                  key={user.$id} 
+                                  value={`${user.first_name} ${user.last_name}`}
+                                >
+                                  {user.first_name} {user.last_name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-neutral-700">
@@ -1081,14 +1127,37 @@ function TicketWidget({
                       <label className="block text-sm font-medium text-neutral-700">
                         Name
                       </label>
-                      <input
-                        type="text"
-                        value={newAssignee.name}
-                        onChange={(e) =>
-                          setNewAssignee({ ...newAssignee, name: e.target.value })
-                        }
-                        className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                      />
+                      {isLoadingUsers ? (
+                        <div className="mt-1 flex items-center text-sm text-gray-500">
+                          Loading users...
+                        </div>
+                      ) : (
+                        <select
+                          value={newAssignee.name}
+                          onChange={(e) => {
+                            const selectedUser = users.find(user => 
+                              `${user.first_name} ${user.last_name}` === e.target.value
+                            );
+                            
+                            setNewAssignee({ 
+                              ...newAssignee, 
+                              name: e.target.value,
+                              user_id: selectedUser?.$id || ""
+                            });
+                          }}
+                          className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                        >
+                          <option value="">Select a user</option>
+                          {users.map((user) => (
+                            <option 
+                              key={user.$id} 
+                              value={`${user.first_name} ${user.last_name}`}
+                            >
+                              {user.first_name} {user.last_name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-700">

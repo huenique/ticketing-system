@@ -59,6 +59,7 @@ export default function useTicketDialogHandlers(
     totalHours: "0",
     estTime: "0",
     priority: "3",
+    user_id: "",
   });
   const [showAssigneeForm, setShowAssigneeForm] = useState(false);
 
@@ -132,6 +133,7 @@ export default function useTicketDialogHandlers(
       totalHours: "0",
       estTime: "0",
       priority: "3",
+      user_id: "",
     });
     setShowAssigneeForm(false);
   };

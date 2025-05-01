@@ -58,7 +58,7 @@ export interface Assignee {
   estTime: string;          // Maps to estimated_time in database
   priority: string;         // Used for UI sorting
   completed?: boolean;      // UI state
-  user_id?: string;         // Relationship with Users collection
+  user_id?: string;         // Relationship with Users collection - stores the user's ID
   ticket_id?: string;       // Relationship with Tickets collection
 }
 
