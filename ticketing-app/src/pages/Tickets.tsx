@@ -385,40 +385,51 @@ function Tickets() {
       const settingsStore = useSettingsStore.getState();
       const tabsStore = useTabsStore.getState();
 
-      // Get status options from settings store instead of hardcoded array
-      const statusesFromSettings = settingsStore.statusOptions;
-
-      // STEP 1: Get current statuses fresh from backend (NOT from store yet)
+      // STEP 1: Get current statuses fresh from backend
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
 
-      // STEP 2: Add missing statuses
-      const missingStatuses = statusesFromSettings.filter(
-        (preset) => !existingStatusLabels.includes(preset),
+      // STEP 2: Define the required engineering statuses
+      const requiredEngineeringStatuses = [
+        "New",
+        "Awaiting Customer Response",
+        "Awaiting for Parts",
+        "Open",
+        "In Progress",
+        "Completed",
+        "Declined"
+      ];
+
+      // STEP 3: Add missing required statuses
+      const missingRequiredStatuses = requiredEngineeringStatuses.filter(
+        (status) => !existingStatusLabels.includes(status)
       );
 
-      if (missingStatuses.length > 0) {
+      if (missingRequiredStatuses.length > 0) {
         await Promise.all(
-          missingStatuses.map((status) =>
-            statusesService.createStatus({ label: status }),
-          ),
+          missingRequiredStatuses.map((status) =>
+            statusesService.createStatus({ label: status })
+          )
         );
       }
 
-      // STEP 3: Fetch statuses again freshly (after adding)
+      // STEP 4: Fetch statuses again after adding required ones
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
 
-      // STEP 4: Fetch tickets and users
+      // Update the settings store with all available statuses
+      settingsStore.setStatusOptions(updatedStatusLabels);
+
+      // STEP 5: Fetch tickets and users
       const [ticketsWithRelationships, users] = await Promise.all([
         ticketsService.getTicketsWithRelationships(),
         usersService.getAllUsers()
       ]);
         
-      // STEP 4.5: Filter tickets based on user permissions
+      // STEP 6: Filter tickets based on user permissions
       const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
 
-      // STEP 5: Build tabs
+      // STEP 7: Build tabs
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
@@ -447,7 +458,7 @@ function Tickets() {
         tabsStore.setActiveTab("tab-all-tickets");
       }
 
-      // STEP 6: Create tables
+      // STEP 8: Create tables
       const allTicketRows = filteredTickets.map((ticket) =>
         convertTicketToRow(ticket),
       );
@@ -459,9 +470,6 @@ function Tickets() {
           createFilteredTable(tab.id, tab.title, allTicketRows);
         }
       });
-
-      // Finally, update the Zustand store statuses too
-      settingsStore.setStatusOptions(updatedStatusLabels);
 
       setTicketsLoading(false);
     } catch (error) {
