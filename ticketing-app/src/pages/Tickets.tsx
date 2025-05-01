@@ -1531,6 +1531,7 @@ function Tickets() {
         handleUpdateTimeEntry={ticketDialogHandlers.handleUpdateTimeEntry}
         handleImageUpload={ticketDialogHandlers.handleImageUpload}
         markAssigneeCompleted={ticketDialogHandlers.markAssigneeCompleted}
+        modifiedTimeEntries={ticketDialogHandlers.modifiedTimeEntries}
       />
     </div>
   );

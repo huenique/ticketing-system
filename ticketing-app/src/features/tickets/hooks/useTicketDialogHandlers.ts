@@ -1,6 +1,7 @@
 import { Layouts } from "react-grid-layout";
 import { useState } from "react";
 import { toast } from "sonner";
+import { timeEntriesService } from "@/services/timeEntriesService";
 
 import { PRESET_TABLES, WIDGET_TYPES } from "../../../constants/tickets";
 import useTablesStore from "../../../stores/tablesStore";
@@ -18,7 +19,6 @@ import type {
 import { convertTicketToRow, getFromLS, saveToLS } from "../../../utils/ticketUtils";
 import { ticketsService } from "../../../services/ticketsService";
 import { uploadFile } from "../../../services/storageService";
-import { timeEntriesService } from "../../../services/timeEntriesService";
 import { customersService, ticketAssignmentsService } from "../../../services";
 
 export default function useTicketDialogHandlers(
@@ -67,6 +67,9 @@ export default function useTicketDialogHandlers(
 
   // Time Entries State
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+
+  // Add a state to track modified time entries (near the other state declarations)
+  const [modifiedTimeEntries, setModifiedTimeEntries] = useState<Set<string>>(new Set());
 
   // Get current user
   const { currentUser } = useUserStore();
@@ -234,79 +237,157 @@ export default function useTicketDialogHandlers(
   };
 
   // Time Entry Handlers
-  const handleAddTimeEntry = (assigneeId: string) => {
-    const assignee = assignees.find((a) => a.id === assigneeId);
-    if (!assignee) return;
+  const handleAddTimeEntry = async (assigneeId: string) => {
+    try {
+      console.log("Adding new time entry for assignee:", assigneeId);
+      const assignee = assignees.find((a) => a.id === assigneeId);
+      if (!assignee && assigneeId !== "") return;
 
-    const now = new Date();
-    // Format time as HH:MM:SS for consistency with database
-    const formattedTime = now.toTimeString().split(' ')[0];
-    const formattedDate = now.toLocaleDateString();
+      const now = new Date();
+      // Format time as HH:MM:SS for consistency with database
+      const formattedTime = now.toTimeString().split(' ')[0];
+      const formattedDate = now.toLocaleDateString();
+      console.log("Current time for new entry:", formattedTime);
 
-    const newTimeEntry: TimeEntry = {
-      id: `t${Date.now()}`,
-      assigneeId,
-      assigneeName: assignee.name,
-      startTime: formattedTime,
-      stopTime: "",
-      duration: "0",
-      dateCreated: formattedDate,
-      remarks: "",
-    };
+      // If assigneeId is empty, create a standalone time entry
+      const assigneeName = assignee ? assignee.name : "";
+      
+      // Ensure we extract just the user ID if it's an object
+      let userId = assignee ? assignee.user_id : "";
+      if (userId && typeof userId === 'object') {
+        userId = (userId as any).$id || (userId as any).id || "";
+      }
 
-    setTimeEntries((prev) => [...prev, newTimeEntry]);
+      // Prepare the time entry data
+      const newTimeEntryData: Omit<TimeEntry, "id"> = {
+        assigneeId: assigneeId || "",
+        assigneeName: assigneeName,
+        startTime: formattedTime,
+        stopTime: "", // Leave stop time empty as requested
+        duration: "0", // Initially set to 0, will be calculated when stop time is added
+        dateCreated: formattedDate,
+        remarks: "",
+        files: [],
+        ticket_id: currentTicket?.id || "",
+        user_id: userId || ""
+      };
+
+      console.log("Time entry data being sent to Appwrite:", newTimeEntryData);
+
+      // If we're in edit mode, save to Appwrite
+      if (currentTicket && currentTicket.id) {
+        // Save to Appwrite
+        const savedTimeEntry = await timeEntriesService.createTimeEntry(newTimeEntryData);
+        console.log("Successfully created time entry in Appwrite:", savedTimeEntry);
+        
+        // Update the UI with the saved entry
+        setTimeEntries(prev => [...prev, savedTimeEntry]);
+        
+        toast.success("Time entry added successfully");
+      } else {
+        // If we're in create mode, just update the local state
+        console.log("Adding time entry to local state only (no Appwrite save)");
+        setTimeEntries(prev => [
+          ...prev, 
+          { 
+            ...newTimeEntryData, 
+            id: `temp_${Date.now()}` 
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error("Error adding time entry:", error);
+      toast.error("Failed to add time entry");
+    }
   };
 
-  const handleUpdateTimeEntry = (id: string, field: string, value: string) => {
-    setTimeEntries((prev) =>
-      prev.map((entry) => {
-        if (entry.id === id) {
-          const updatedEntry = { ...entry, [field]: value };
+  // Update the handleUpdateTimeEntry function to only save locally
+  const handleUpdateTimeEntry = async (id: string, field: string, value: string) => {
+    try {
+      // Don't allow direct editing of duration field
+      if (field === "duration") return;
+      
+      // Update the time entry in the local state first
+      setTimeEntries((prev) =>
+        prev.map((entry) => {
+          if (entry.id === id) {
+            const updatedEntry = { ...entry, [field]: value };
 
-          // Recalculate duration if start or stop time changes
-          if (field === "startTime" || field === "stopTime") {
-            if (updatedEntry.startTime && updatedEntry.stopTime) {
-              try {
-                // Parse times in HH:MM format from time input
-                const [startHours, startMinutes] = updatedEntry.startTime
-                  .split(":")
-                  .map(Number);
-                const [stopHours, stopMinutes] = updatedEntry.stopTime
-                  .split(":")
-                  .map(Number);
+            // Recalculate duration if start or stop time changes
+            if (field === "startTime" || field === "stopTime") {
+              if (updatedEntry.startTime && updatedEntry.stopTime) {
+                try {
+                  // Parse times in HH:MM format from time input
+                  const [startHours, startMinutes] = updatedEntry.startTime
+                    .split(":")
+                    .map(Number);
+                  const [stopHours, stopMinutes] = updatedEntry.stopTime
+                    .split(":")
+                    .map(Number);
 
-                // Calculate duration in hours
-                let durationHours = stopHours - startHours;
-                let durationMinutes = stopMinutes - startMinutes;
+                  // Calculate duration in hours
+                  let durationHours = stopHours - startHours;
+                  let durationMinutes = stopMinutes - startMinutes;
 
-                if (durationMinutes < 0) {
-                  durationHours -= 1;
-                  durationMinutes += 60;
+                  if (durationMinutes < 0) {
+                    durationHours -= 1;
+                    durationMinutes += 60;
+                  }
+
+                  if (durationHours < 0) {
+                    // Assuming stop time is next day if it's earlier than start time
+                    durationHours += 24;
+                  }
+
+                  const totalDuration = durationHours + durationMinutes / 60;
+                  updatedEntry.duration = totalDuration.toFixed(1);
+                } catch (error) {
+                  console.error("Error calculating duration:", error);
+                  // Keep the previous duration if calculation fails
                 }
-
-                if (durationHours < 0) {
-                  // Assuming stop time is next day if it's earlier than start time
-                  durationHours += 24;
-                }
-
-                const totalDuration = durationHours + durationMinutes / 60;
-                updatedEntry.duration = totalDuration.toFixed(1);
-              } catch (error) {
-                console.error("Error calculating duration:", error);
-                // Keep the previous duration if calculation fails
               }
             }
-          }
 
-          return updatedEntry;
-        }
-        return entry;
-      }),
-    );
+            return updatedEntry;
+          }
+          return entry;
+        })
+      );
+
+      // Mark this time entry as modified (if it's a real entry, not a temp one)
+      if (!id.startsWith('temp_')) {
+        setModifiedTimeEntries(prev => {
+          const newSet = new Set(prev);
+          newSet.add(id);
+          return newSet;
+        });
+        console.log(`Marked time entry ${id} as modified for field ${field}`);
+      }
+    } catch (error) {
+      console.error(`Error updating time entry field '${field}':`, error);
+      toast.error("Failed to update time entry");
+    }
   };
 
-  const handleRemoveTimeEntry = (id: string) => {
-    setTimeEntries(timeEntries.filter((entry) => entry.id !== id));
+  const handleRemoveTimeEntry = async (id: string) => {
+    try {
+      // Remove from local state first for immediate UI feedback
+      setTimeEntries(timeEntries.filter((entry) => entry.id !== id));
+      
+      // Only attempt to delete from Appwrite if this is a real entry (not a temp one)
+      if (!id.startsWith('temp_') && currentTicket?.id) {
+        await timeEntriesService.deleteTimeEntry(id);
+      }
+    } catch (error) {
+      console.error(`Error removing time entry ${id}:`, error);
+      toast.error("Failed to remove time entry");
+      
+      // Add the entry back to the local state since deletion failed
+      const entryToRestore = timeEntries.find(entry => entry.id === id);
+      if (entryToRestore) {
+        setTimeEntries(prev => [...prev, entryToRestore]);
+      }
+    }
   };
 
   // Handle task/assignee completion status
@@ -618,17 +699,17 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Handle saving ticket changes
+  // Modify the handleSaveTicketChanges function to save modified time entries
   const handleSaveTicketChanges = async () => {
     if (!currentTicket) return;
 
     try {
-      // Get the ticketId from the current ticket
-      const ticketId = currentTicket.id;
-      
       // Show loading toast
       toast.loading("Saving ticket changes...");
 
+      // Get the ticketId from the current ticket
+      const ticketId = currentTicket.id;
+      
       // Save ticket update to Appwrite
       await ticketsService.updateTicket(ticketId, {
         status_id: ticketForm.status,
@@ -643,30 +724,75 @@ export default function useTicketDialogHandlers(
 
       // Save time entries to Appwrite
       if (timeEntries && timeEntries.length > 0) {
-        // Update existing time entries and create new ones
-        const saveTimeEntriesPromises = timeEntries.map(async (entry) => {
+        console.log(`Processing ${timeEntries.length} time entries`);
+        
+        // Create new time entries
+        const newTimeEntries = timeEntries.filter(entry => entry.id.startsWith('temp_'));
+        console.log(`Found ${newTimeEntries.length} new time entries to create`);
+        
+        // Create promises for new time entries
+        const createPromises = newTimeEntries.map(async (entry) => {
           try {
-            // If the entry has an ID that starts with 't', it's a new entry that hasn't been saved to the database
-            if (entry.id.startsWith('t')) {
-              // Prepare entry for saving to database
-              const newEntry = {
-                ...entry,
-                ticket_id: ticketId,
-              };
-              // Save the new time entry
-              return await timeEntriesService.createTimeEntry(newEntry);
-            } else {
-              // Update existing time entry
-              return await timeEntriesService.updateTimeEntry(entry.id, entry);
-            }
+            // Prepare entry for saving to database
+            const newEntry = {
+              ...entry,
+              ticket_id: ticketId,
+            };
+            // Save the new time entry
+            return await timeEntriesService.createTimeEntry(newEntry);
           } catch (error) {
-            console.error("Error saving time entry:", error);
+            console.error("Error saving new time entry:", error);
             return null;
           }
         });
-
-        await Promise.all(saveTimeEntriesPromises);
-        console.log("Time entries saved successfully");
+        
+        // Update modified time entries
+        const modifiedEntries = timeEntries.filter(entry => 
+          !entry.id.startsWith('temp_') && modifiedTimeEntries.has(entry.id)
+        );
+        console.log(`Found ${modifiedEntries.length} modified time entries to update`);
+        
+        // Create promises for modified time entries
+        const updatePromises = modifiedEntries.map(async (entry) => {
+          try {
+            // Ensure any relationship fields are correctly formatted
+            let userIdToSave = entry.user_id;
+            if (typeof userIdToSave === 'object') {
+              userIdToSave = (userIdToSave as any).$id || (userIdToSave as any).id || "";
+            }
+            
+            let ticketIdToSave = entry.ticket_id;
+            if (typeof ticketIdToSave === 'object') {
+              ticketIdToSave = (ticketIdToSave as any).$id || (ticketIdToSave as any).id || "";
+            }
+            
+            // Prepare data for update
+            const dataToUpdate = {
+              start_time: entry.startTime,
+              stop_time: entry.stopTime,
+              total_duration: entry.duration,
+              remarks: entry.remarks,
+              files: entry.files,
+              ticket_id: ticketIdToSave,
+              user_id: userIdToSave
+            };
+            
+            console.log(`Updating time entry ${entry.id} with data:`, dataToUpdate);
+            
+            // Update the time entry
+            return await timeEntriesService.updateTimeEntry(entry.id, dataToUpdate);
+          } catch (error) {
+            console.error(`Error updating time entry ${entry.id}:`, error);
+            return null;
+          }
+        });
+        
+        // Wait for all time entry operations to complete
+        const results = await Promise.all([...createPromises, ...updatePromises]);
+        console.log(`Time entries saved successfully: ${results.filter(Boolean).length} operations completed`);
+        
+        // Reset the modified time entries set
+        setModifiedTimeEntries(new Set());
       }
 
       // Update the table display
@@ -695,10 +821,13 @@ export default function useTicketDialogHandlers(
       // Clear loading toast and show success message
       toast.dismiss();
       toast.success("Ticket updated successfully!");
+      
+      return true;
     } catch (error) {
       console.error("Error saving ticket changes:", error);
       toast.dismiss();
       toast.error("Failed to save ticket changes.");
+      return false;
     }
   };
 
@@ -997,5 +1126,6 @@ export default function useTicketDialogHandlers(
     handleInitializeTicketDialog,
     handleSaveTicketChanges,
     viewTicket,
+    modifiedTimeEntries,
   };
 }

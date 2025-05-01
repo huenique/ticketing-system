@@ -79,19 +79,36 @@ export const timeEntriesService = {
   /**
    * Create a new time entry
    */
-  createTimeEntry: async (timeEntryData: Omit<TimeEntry, "id">): Promise<TimeEntry> => {
+  createTimeEntry: async (timeEntryData: Omit<TimeEntry, "id"> | Record<string, any>): Promise<TimeEntry> => {
     try {
       console.log("Creating new time entry:", timeEntryData);
+      
+      // Use type assertion to avoid TypeScript errors
+      const data = timeEntryData as any;
+      
+      // Extract just the ID if user_id is an object
+      const userId = typeof data.user_id === 'object' 
+        ? (data.user_id as any).$id || (data.user_id as any).id 
+        : data.user_id;
+      
+      // Extract just the ID if ticket_id is an object
+      const ticketId = typeof data.ticket_id === 'object'
+        ? (data.ticket_id as any).$id || (data.ticket_id as any).id
+        : data.ticket_id;
+      
       // Transform from frontend TimeEntry format to database format
-      const dataToSave = {
-        start_time: timeEntryData.startTime,
-        stop_time: timeEntryData.stopTime,
-        total_duration: timeEntryData.duration,
-        remarks: timeEntryData.remarks,
-        files: timeEntryData.files || [],
-        ticket_id: timeEntryData.ticket_id,
-        user_id: timeEntryData.user_id
+      const dataToSave: Record<string, any> = {
+        // Use default values for required fields if not provided
+        start_time: data.startTime || data.start_time || new Date().toTimeString().split(' ')[0],
+        stop_time: data.stopTime || data.stop_time || "",
+        total_duration: data.duration || data.total_duration || "0",
+        remarks: data.remarks || "",
+        files: data.files || [],
+        ticket_id: ticketId,
+        user_id: userId
       };
+      
+      console.log("Saving time entry to Appwrite:", dataToSave);
       
       const response = await databases.createDocument(
         DATABASE_ID,
@@ -110,25 +127,91 @@ export const timeEntriesService = {
   /**
    * Update an existing time entry
    */
-  updateTimeEntry: async (timeEntryId: string, timeEntryData: Partial<TimeEntry>): Promise<TimeEntry> => {
+  updateTimeEntry: async (timeEntryId: string, timeEntryData: Partial<TimeEntry> | Record<string, any>): Promise<TimeEntry> => {
     try {
       console.log(`Updating time entry ${timeEntryId}:`, timeEntryData);
+      
+      // Extract the ID from an object if timeEntryId is an object
+      const id = typeof timeEntryId === 'object' 
+        ? (timeEntryId as any).$id || (timeEntryId as any).id 
+        : timeEntryId;
       
       // Transform from frontend TimeEntry format to database format
       const dataToUpdate: Record<string, any> = {};
       
-      if (timeEntryData.startTime !== undefined) dataToUpdate.start_time = timeEntryData.startTime;
-      if (timeEntryData.stopTime !== undefined) dataToUpdate.stop_time = timeEntryData.stopTime;
-      if (timeEntryData.duration !== undefined) dataToUpdate.total_duration = timeEntryData.duration;
-      if (timeEntryData.remarks !== undefined) dataToUpdate.remarks = timeEntryData.remarks;
-      if (timeEntryData.files !== undefined) dataToUpdate.files = timeEntryData.files;
-      if (timeEntryData.ticket_id !== undefined) dataToUpdate.ticket_id = timeEntryData.ticket_id;
-      if (timeEntryData.user_id !== undefined) dataToUpdate.user_id = timeEntryData.user_id;
+      // Handle both frontend field names and direct database field names
+      // Use type assertion to avoid TypeScript errors
+      const data = timeEntryData as any;
+      
+      // Start time - check both frontend and database field names
+      if (data.startTime !== undefined) {
+        dataToUpdate.start_time = data.startTime;
+      } else if (data.start_time !== undefined) {
+        dataToUpdate.start_time = data.start_time;
+      }
+      
+      // Stop time - check both frontend and database field names
+      if (data.stopTime !== undefined) {
+        dataToUpdate.stop_time = data.stopTime;
+      } else if (data.stop_time !== undefined) {
+        dataToUpdate.stop_time = data.stop_time;
+      }
+      
+      // Duration - check both frontend and database field names
+      if (data.duration !== undefined) {
+        dataToUpdate.total_duration = data.duration;
+      } else if (data.total_duration !== undefined) {
+        dataToUpdate.total_duration = data.total_duration;
+      }
+      
+      // Remarks
+      if (data.remarks !== undefined) {
+        dataToUpdate.remarks = data.remarks;
+      }
+      
+      // Files
+      if (data.files !== undefined) {
+        dataToUpdate.files = data.files;
+      }
+      
+      // Handle user_id object if present
+      if (data.user_id !== undefined) {
+        const userId = typeof data.user_id === 'object'
+          ? (data.user_id as any).$id || (data.user_id as any).id
+          : data.user_id;
+        dataToUpdate.user_id = userId;
+      }
+      
+      // Handle ticket_id object if present
+      if (data.ticket_id !== undefined) {
+        const ticketId = typeof data.ticket_id === 'object'
+          ? (data.ticket_id as any).$id || (data.ticket_id as any).id
+          : data.ticket_id;
+        dataToUpdate.ticket_id = ticketId;
+      }
+      
+      // If this is a direct API call with a minimal payload and no time fields,
+      // add default values for required fields if they're missing
+      if (Object.keys(dataToUpdate).length > 0 && 
+          !dataToUpdate.start_time && 
+          !('start_time' in dataToUpdate)) {
+        console.log("Adding default start_time to partial update");
+        dataToUpdate.start_time = new Date().toTimeString().split(' ')[0];
+      }
+      
+      if (Object.keys(dataToUpdate).length > 0 && 
+          !dataToUpdate.total_duration && 
+          !('total_duration' in dataToUpdate)) {
+        console.log("Adding default total_duration to partial update");
+        dataToUpdate.total_duration = "0";
+      }
+      
+      console.log(`Sending Appwrite update for time entry ${id} with data:`, dataToUpdate);
       
       const response = await databases.updateDocument(
         DATABASE_ID,
         TIME_ENTRIES_COLLECTION,
-        timeEntryId,
+        id,
         dataToUpdate
       );
       console.log("Updated time entry:", response);

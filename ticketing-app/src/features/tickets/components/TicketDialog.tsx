@@ -63,6 +63,7 @@ interface TicketDialogProps {
   handleUpdateTimeEntry: (id: string, field: string, value: string) => void;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
+  modifiedTimeEntries: Set<string>;
 }
 
 const TicketDialog: React.FC<TicketDialogProps> = ({
@@ -103,6 +104,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   handleUpdateTimeEntry,
   handleImageUpload,
   markAssigneeCompleted,
+  modifiedTimeEntries,
 }) => {
   const { currentUser } = useUserStore();
 
@@ -163,10 +165,24 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     }
   };
 
+  // Add a function to handle dialog close that saves changes
+  const handleDialogClose = async () => {
+    // If there are unsaved changes, save them first
+    if (modifiedTimeEntries.size > 0) {
+      await handleSaveTicketChanges();
+    }
+    
+    // Close the dialog
+    setViewDialogOpen(false);
+    
+    // Reset the current ticket preset
+    setCurrentTicketPreset(undefined);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/30 p-4 overflow-y-auto"
-      onClick={() => setViewDialogOpen(false)}
+      onClick={() => handleDialogClose()}
     >
       <div
         className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col"
@@ -188,9 +204,9 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    className={`${
                       isEditLayoutMode ? "translate-x-6" : "translate-x-1"
-                    }`}
+                    } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                   />
                 </button>
               </div>
@@ -377,14 +393,21 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
               </div>
             )}
 
-            <button
-              onClick={() => {
-                setViewDialogOpen(false);
-                setCurrentTicketPreset(undefined);
-              }}
-              className="rounded-full h-8 w-8 flex items-center justify-center text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-            >
-              ×
+            <button onClick={() => handleDialogClose()} className="text-neutral-500">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
           </div>
         </div>
@@ -739,35 +762,14 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
         <div className="border-t p-4 flex justify-end space-x-3">
           <button
-            onClick={() => {
-              setViewDialogOpen(false);
-              setCurrentTicketPreset(undefined);
-            }}
+            onClick={() => handleDialogClose()}
             className="px-4 py-2 border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50"
           >
             Cancel
           </button>
           <button
-            onClick={() => {
-              // Validate required fields before saving
-              if (ticketForm.billableHours === null || ticketForm.billableHours === undefined) {
-                toast.error("Validation Error", {
-                  description: "Billable Hours cannot be empty"
-                });
-                return;
-              }
-
-              if (ticketForm.totalHours === null || ticketForm.totalHours === undefined) {
-                toast.error("Validation Error", {
-                  description: "Total Hours cannot be empty"
-                });
-                return;
-              }
-
-              // If validation passes, proceed with saving
-              handleSaveTicketChanges();
-            }}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            onClick={() => handleSaveTicketChanges()}
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md"
           >
             Save Changes
           </button>

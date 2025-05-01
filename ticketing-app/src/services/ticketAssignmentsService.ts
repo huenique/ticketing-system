@@ -42,7 +42,12 @@ export const ticketAssignmentsService = {
    * Get a single ticket assignment by ID
    */
   getTicketAssignment: async (assignmentId: string): Promise<TicketAssignment> => {
-    return getDocument<TicketAssignment>(TICKET_ASSIGNMENTS_COLLECTION, assignmentId);
+    // Extract the ID from an object if assignmentId is an object
+    const id = typeof assignmentId === 'object' 
+      ? (assignmentId as any).$id || (assignmentId as any).id 
+      : assignmentId;
+      
+    return getDocument<TicketAssignment>(TICKET_ASSIGNMENTS_COLLECTION, id);
   },
 
   /**

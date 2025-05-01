@@ -11,6 +11,7 @@ import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import StatusWidget from "./widgets/StatusWidget";
 import AttachmentsWidget from "./widgets/AttachmentsWidget";
 import { usersService } from "../services/usersService";
+import { timeEntriesService } from "../services/timeEntriesService";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -840,20 +841,7 @@ function TicketWidget({
                               />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={entry.duration}
-                                onChange={(e) =>
-                                  handleUpdateTimeEntry &&
-                                  handleUpdateTimeEntry(
-                                    entry.id,
-                                    "duration",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                                readOnly
-                              />
+                              <span className="bg-neutral-100 px-2 py-1 rounded">{entry.duration} hours</span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {entry.dateCreated}
@@ -1315,7 +1303,10 @@ function TicketWidget({
                     </tr>
                   )}
                   {assignees.map((assignee, index) => (
-                    <tr key={`assignee-${assignee.id}-${index}`} className="hover:bg-neutral-50">
+                    <tr
+                      key={`assignee-${assignee.id}-${index}`}
+                      className="border-t border-neutral-200"
+                    >
                       <td className="px-4 py-3 text-sm text-neutral-900">
                         <input
                           type="text"
@@ -1727,7 +1718,7 @@ function TicketWidget({
                     <div className="flex justify-between items-center">
                       <div className="text-sm">
                         <span className="font-medium">Duration: </span>
-                        {entry.duration} hours
+                        <span className="bg-neutral-100 px-2 py-1 rounded">{entry.duration} hours</span>
                       </div>
                       
                       {handleRemoveTimeEntry && (
