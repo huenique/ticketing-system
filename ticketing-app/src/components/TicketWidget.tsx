@@ -8,10 +8,16 @@ import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
 import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
-import StatusWidget from "./widgets/StatusWidget";
-import AttachmentsWidget from "./widgets/AttachmentsWidget";
 import { usersService } from "../services/usersService";
-import { timeEntriesService } from "../services/timeEntriesService";
+
+// Import all the widget components
+import WidgetHeader from "./widgets/WidgetHeader";
+import FieldWidget from "./widgets/FieldWidget";
+import AssigneeTableWidget from "./widgets/AssigneeTableWidget";
+import TimeEntriesWidget from "./widgets/TimeEntriesWidget";
+import DetailsWidget from "./widgets/DetailsWidget";
+import TimeEntriesCardWidget from "./widgets/TimeEntriesCardWidget";
+import AttachmentsWidget from "./widgets/AttachmentsWidget";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -73,9 +79,6 @@ function TicketWidget({
   newAssignee: Assignee;
   setNewAssignee: (assignee: Assignee) => void;
 }) {
-  // State for title editing
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
   const { currentUser } = useUserStore();
   
   // State for users dropdown
@@ -113,877 +116,93 @@ function TicketWidget({
     return false;
   };
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditableTitle(e.target.value);
-  };
-
-  const handleTitleSave = () => {
-    if (updateWidgetTitle) {
-      updateWidgetTitle(widget.id, editableTitle);
-      setIsEditingTitle(false);
-    }
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleTitleSave();
-    } else if (e.key === "Escape") {
-      setEditableTitle(widget.title || "Widget");
-      setIsEditingTitle(false);
-    }
-  };
-
   const renderWidgetContent = () => {
     if (widget.collapsed) return null;
 
     // First check if it's an individual field widget
     if (widget.fieldType) {
-      switch (widget.fieldType) {
-        case "select":
-          // Check if this is a status field to use our StatusWidget
-          if (widget.field === "status") {
-            // Extract status from the form data
-            const statusValue = typeof ticketForm[widget.field as keyof typeof ticketForm] === "string" 
-                ? ticketForm[widget.field as keyof typeof ticketForm] as string
-                : typeof ticketForm[widget.field as keyof typeof ticketForm] === "number"
-                  ? (ticketForm[widget.field as keyof typeof ticketForm] as number).toString()
-                  : (widget.value as string) || "";
-                  
-            console.log("Rendering status widget with value:", {
-              statusValue,
-              ticketFormStatus: ticketForm.status,
-              widgetValue: widget.value
-            });
-            
-            return (
-              <div className="h-full flex items-center">
-                <StatusWidget
-                  value={statusValue}
-                  onChange={(value) => {
-                    console.log("Status widget onChange called with:", value);
-                    // Call handleFieldChange to update the form state
-                    handleFieldChange(widget.field || "", value);
-
-                    // Also update the ticketForm state directly to ensure it's saved
-                    if (setTicketForm) {
-                      setTicketForm({ ...ticketForm, status: value, status_id: value });
-                    }
-                  }}
-                />
-              </div>
-            );
-          }
-          // Use default select for non-status fields
+      // Handle table-type fields specifically
+      if (widget.fieldType === "table") {
+        // Handle the assignee table and time entries table
+        if (widget.type === "field_assignee_table") {
           return (
-            <div className="h-full flex items-center">
-              <select
-                id={widget.field}
-                value={
-                  typeof ticketForm[widget.field as keyof typeof ticketForm] ===
-                  "undefined"
-                    ? (widget.value as string) || ""
-                    : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
-                }
-                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-                className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              >
-                <option value="New">New</option>
-                <option value="Awaiting Customer Response">
-                  Awaiting Customer Response
-                </option>
-                <option value="Awaiting Parts">Awaiting Parts</option>
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Declined">Declined</option>
-              </select>
-            </div>
+            <AssigneeTableWidget
+              assignees={assignees}
+              users={users}
+              isLoadingUsers={isLoadingUsers}
+              showAssigneeForm={showAssigneeForm}
+              setShowAssigneeForm={setShowAssigneeForm}
+              newAssignee={newAssignee}
+              setNewAssignee={setNewAssignee}
+              handleAddAssignee={handleAddAssignee}
+              handleRemoveAssignee={handleRemoveAssignee}
+              handleUpdateAssignee={handleUpdateAssignee}
+              handleAddTimeEntry={handleAddTimeEntry}
+              markAssigneeCompleted={markAssigneeCompleted}
+            />
           );
-
-        case "text-readonly": {
-          // Determine the correct value to display based on the widget type
-          let displayValue = widget.value;
-
-          if (currentTicket && widget.type === WIDGET_TYPES.FIELD_CUSTOMER_NAME) {
-            displayValue = currentTicket.cells["col-3"] || "";
-          } else if (
-            currentTicket &&
-            widget.type === WIDGET_TYPES.FIELD_LAST_MODIFIED
-          ) {
-            displayValue = currentTicket.cells["col-10"] || "";
-          } else if (currentTicket && widget.type === WIDGET_TYPES.FIELD_DATE_CREATED) {
-            displayValue = currentTicket.cells["col-2"] || "";
-          }
-
+        } else if (widget.type === "field_time_entries_table") {
           return (
-            <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-              {displayValue}
+            <TimeEntriesWidget
+              timeEntries={timeEntries}
+              handleUpdateTimeEntry={handleUpdateTimeEntry}
+              handleRemoveTimeEntry={handleRemoveTimeEntry}
+            />
+          );
+        }
+      } else if (widget.fieldType === "gallery" && widget.type === "field_attachments_gallery") {
+        // Check if we have the necessary props
+        if (!uploadedImages || !handleImageUpload || !setUploadedImages) {
+          return (
+            <div className="p-4 text-center text-neutral-500">
+              Attachments widget requires additional configuration
             </div>
           );
         }
 
-        case "number":
-          // Check if this is a billable hours or total hours field
-          if (widget.field === "billableHours") {
-            return (
-              <div className="h-full flex items-center">
-                <input
-                  type="number"
-                  id={widget.field}
-                  value={ticketForm.billableHours === null || ticketForm.billableHours === undefined ? '' : ticketForm.billableHours}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                    
-                    // Call handleFieldChange to update the form state with string value
-                    handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
-                    
-                    // Also update the ticketForm state directly
-                    if (setTicketForm) {
-                      setTicketForm({
-                        ...ticketForm,
-                        billableHours: value
-                      });
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value === '') {
-                      toast.error("Billable Hours cannot be empty", {
-                        description: "Please enter a valid number",
-                        duration: 3000
-                      });
-                    }
-                  }}
-                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  step="0.1"
-                  required
-                />
-              </div>
+        // Handle removing an attachment
+        const handleRemoveAttachment = (fileId: string) => {
+          if (setUploadedImages) {
+            setUploadedImages(
+              uploadedImages.filter((id) => id !== fileId)
             );
-          } else if (widget.field === "totalHours") {
-            return (
-              <div className="h-full flex items-center">
-                <input
-                  type="number"
-                  id={widget.field}
-                  value={ticketForm.totalHours === null || ticketForm.totalHours === undefined ? '' : ticketForm.totalHours}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                    
-                    // Call handleFieldChange to update the form state with string value
-                    handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
-                    
-                    // Also update the ticketForm state directly
-                    if (setTicketForm) {
-                      setTicketForm({
-                        ...ticketForm,
-                        totalHours: value
-                      });
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value === '') {
-                      toast.error("Total Hours cannot be empty", {
-                        description: "Please enter a valid number",
-                        duration: 3000
-                      });
-                    }
-                  }}
-                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  step="0.1"
-                  required
-                />
-              </div>
-            );
-          } else {
-            // Default number input for other fields
-            return (
-              <div className="h-full flex items-center">
-                <input
-                  type="number"
-                  id={widget.field}
-                  value={
-                    typeof ticketForm[widget.field as keyof typeof ticketForm] ===
-                    "undefined"
-                      ? (widget.value as string) || ""
-                      : ticketForm[widget.field as keyof typeof ticketForm] === null
-                        ? ""
-                        : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
-                  }
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? null : e.target.value;
-                    handleFieldChange(widget.field || "", value === null ? '' : value);
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value === '') {
-                      toast.error(`${widget.title} cannot be empty`, {
-                        description: "Please enter a valid number",
-                        duration: 3000
-                      });
-                    }
-                  }}
-                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  step="0.1"
-                  required
-                />
-              </div>
-            );
-          }
-
-        case "textarea":
-          return (
-            <div className="h-full flex flex-col">
-              <Textarea
-                id={widget.field}
-                value={
-                  (typeof widget.value === "string"
-                    ? widget.value
-                    : String(widget.value || "")) as string
-                }
-                onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-              />
-            </div>
-          );
-
-        case "table":
-          // Handle the assignee table and time entries table
-          if (widget.type === "field_assignee_table") {
-            // Return an individual assignee table widget
-            return (
-              <div className="overflow-auto">
-                <div className="mb-3 flex justify-end items-center">
-                  {currentUser?.role !== "user" && setShowAssigneeForm && (
-                    <button
-                      onClick={() => setShowAssigneeForm(!showAssigneeForm)}
-                      className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
-                    >
-                      {showAssigneeForm ? "Cancel" : "Add Member"}
-                    </button>
-                  )}
-                </div>
-
-                {showAssigneeForm &&
-                  currentUser?.role !== "user" &&
-                  setNewAssignee &&
-                  newAssignee &&
-                  handleAddAssignee && (
-                    <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700">
-                            Name
-                          </label>
-                          {isLoadingUsers ? (
-                            <div className="mt-1 flex items-center text-sm text-gray-500">
-                              Loading users...
-                            </div>
-                          ) : (
-                            <select
-                              value={newAssignee.name}
-                              onChange={(e) => {
-                                const selectedUser = users.find(user => 
-                                  `${user.first_name} ${user.last_name}` === e.target.value
-                                );
-                                
-                                setNewAssignee({ 
-                                  ...newAssignee, 
-                                  name: e.target.value,
-                                  user_id: selectedUser?.$id || ""
-                                });
-                              }}
-                              className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                            >
-                              <option value="">Select a user</option>
-                              {users.map((user) => (
-                                <option 
-                                  key={user.$id} 
-                                  value={`${user.first_name} ${user.last_name}`}
-                                >
-                                  {user.first_name} {user.last_name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700">
-                            Work Description
-                          </label>
-                          <input
-                            type="text"
-                            value={newAssignee.workDescription}
-                            onChange={(e) =>
-                              setNewAssignee({
-                                ...newAssignee,
-                                workDescription: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700">
-                            Priority
-                          </label>
-                          <select
-                            value={newAssignee.priority || "3"}
-                            onChange={(e) =>
-                              setNewAssignee({
-                                ...newAssignee,
-                                priority: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          >
-                            {Array.from(
-                              { length: Math.max(1, assignees.length + 1) },
-                              (_, i) => (
-                                <option key={i + 1} value={String(i + 1)}>
-                                  {i + 1}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700">
-                            Actual Time
-                          </label>
-                          <input
-                            type="number"
-                            value={newAssignee.totalHours}
-                            onChange={(e) =>
-                              setNewAssignee({
-                                ...newAssignee,
-                                totalHours: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                            step="0.1"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700">
-                            Est. Time
-                          </label>
-                          <input
-                            type="number"
-                            value={newAssignee.estTime}
-                            onChange={(e) =>
-                              setNewAssignee({
-                                ...newAssignee,
-                                estTime: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                            step="0.1"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={handleAddAssignee}
-                          className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
-                        >
-                          Add Member
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                {assignees?.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-neutral-200">
-                      <thead className="bg-neutral-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Name
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Work Description
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Priority
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Actual Time
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Est. Time
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-neutral-200">
-                        {assignees
-                          .slice()
-                          .sort((a, b) => {
-                            // Sort by priority (lowest number first)
-                            const priorityA = parseInt(a.priority || "5");
-                            const priorityB = parseInt(b.priority || "5");
-                            return priorityA - priorityB;
-                          })
-                          .map((assignee, index) => (
-                            <tr
-                              key={`assignee-${assignee.id}-${index}`}
-                              className={
-                                assignee.completed ? "opacity-60 bg-neutral-50" : ""
-                              }
-                            >
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <input
-                                  type="text"
-                                  value={assignee.name}
-                                  onChange={(e) =>
-                                    handleUpdateAssignee &&
-                                    handleUpdateAssignee(
-                                      assignee.id,
-                                      "name",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                                />
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <input
-                                  type="text"
-                                  value={assignee.workDescription}
-                                  onChange={(e) =>
-                                    handleUpdateAssignee &&
-                                    handleUpdateAssignee(
-                                      assignee.id,
-                                      "workDescription",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                                />
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <select
-                                  value={assignee.priority || "5"}
-                                  onChange={(e) =>
-                                    handleUpdateAssignee &&
-                                    handleUpdateAssignee(
-                                      assignee.id,
-                                      "priority",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                                >
-                                  {Array.from(
-                                    { length: Math.max(1, assignees.length) },
-                                    (_, i) => (
-                                      <option key={i + 1} value={String(i + 1)}>
-                                        {i + 1}
-                                      </option>
-                                    ),
-                                  )}
-                                </select>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <input
-                                  type="number"
-                                  value={assignee.totalHours}
-                                  onChange={(e) =>
-                                    handleUpdateAssignee &&
-                                    handleUpdateAssignee(
-                                      assignee.id,
-                                      "totalHours",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                                  step="0.1"
-                                />
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <input
-                                  type="number"
-                                  value={assignee.estTime}
-                                  onChange={(e) =>
-                                    handleUpdateAssignee &&
-                                    handleUpdateAssignee(assignee.id, "estTime", e.target.value)
-                                  }
-                                  className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                                  step="0.1"
-                                />
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                {/* Show buttons based on user and role validation */}
-                                {currentUser && (
-                                  <>
-                                    {/* Admin can see all actions regardless of assignee */}
-                                    {currentUser.role === "admin" && (
-                                      <>
-                                        {handleAddTimeEntry && (
-                                          <button
-                                            onClick={() =>
-                                              handleAddTimeEntry(assignee.id, assignee.user_id)
-                                            }
-                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                            title="Add time entry"
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                              />
-                                            </svg>
-                                          </button>
-                                        )}
-                                        {markAssigneeCompleted && (
-                                          <button
-                                            onClick={() =>
-                                              markAssigneeCompleted(
-                                                assignee.id,
-                                                !assignee.completed,
-                                              )
-                                            }
-                                            className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                            title={
-                                              assignee.completed
-                                                ? "Mark as Not Done"
-                                                : "Mark as Done"
-                                            }
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M5 13l4 4L19 7"
-                                              />
-                                            </svg>
-                                          </button>
-                                        )}
-                                        {handleRemoveAssignee && (
-                                          <button
-                                            onClick={() =>
-                                              handleRemoveAssignee(assignee.id)
-                                            }
-                                            className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                                            title="Remove assignee"
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              className="h-4 w-4"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M6 18L18 6M6 6l12 12"
-                                              />
-                                            </svg>
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
-
-                                    {/* Regular user can only see time entry and mark as done for their own entries */}
-                                    {currentUser.role === "user" &&
-                                      assignee.name === currentUser.name && (
-                                        <>
-                                          {handleAddTimeEntry && (
-                                            <button
-                                              onClick={() => {
-                                                console.log("Adding time entry for assignee:", assignee);
-                                                
-                                                // Extract user_id from the assignee
-                                                let userId = assignee.user_id;
-                                                
-                                                if (typeof userId === 'object' && userId !== null) {
-                                                  if ('$id' in userId) {
-                                                    userId = (userId as any).$id;
-                                                  } else if ('id' in userId) {
-                                                    userId = (userId as any).id;
-                                                  }
-                                                }
-                                                
-                                                // Pass both assignee.id and the userId
-                                                handleAddTimeEntry(assignee.id, userId);
-                                              }}
-                                              className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                              title="Add time entry"
-                                            >
-                                              <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-4 w-4"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                              >
-                                                <path
-                                                  strokeLinecap="round"
-                                                  strokeLinejoin="round"
-                                                  strokeWidth={2}
-                                                  d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                />
-                                              </svg>
-                                            </button>
-                                          )}
-                                          {markAssigneeCompleted && (
-                                            <button
-                                              onClick={() =>
-                                                markAssigneeCompleted(
-                                                  assignee.id,
-                                                  !assignee.completed,
-                                                )
-                                              }
-                                              className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                              title={
-                                                assignee.completed
-                                                  ? "Mark as Not Done"
-                                                  : "Mark as Done"
-                                              }
-                                            >
-                                              <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-4 w-4"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                              >
-                                                <path
-                                                  strokeLinecap="round"
-                                                  strokeLinejoin="round"
-                                                  strokeWidth={2}
-                                                  d="M5 13l4 4L19 7"
-                                                />
-                                              </svg>
-                                            </button>
-                                          )}
-                                        </>
-                                      )}
-                                  </>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
-                    No team members assigned yet.
-                  </div>
-                )}
-              </div>
-            );
-          } else if (widget.type === "field_time_entries_table") {
-            // Return an individual time entries table widget
-            return (
-              <div className="overflow-auto">
-                {timeEntries?.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-neutral-200">
-                      <thead className="bg-neutral-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Assignee
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Start Time
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Stop Time
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Duration (hrs)
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Remarks
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Files
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-neutral-200">
-                        {timeEntries.map((entry, index) => (
-                          <tr key={`time-entry-${entry.id || index}`}>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {entry.assigneeName}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="time"
-                                value={entry.startTime}
-                                onChange={(e) =>
-                                  handleUpdateTimeEntry &&
-                                  handleUpdateTimeEntry(
-                                    entry.id,
-                                    "startTime",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="time"
-                                value={entry.stopTime}
-                                onChange={(e) =>
-                                  handleUpdateTimeEntry &&
-                                  handleUpdateTimeEntry(
-                                    entry.id,
-                                    "stopTime",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="bg-neutral-100 px-2 py-1 rounded">{entry.duration} hours</span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {entry.dateCreated}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={entry.remarks}
-                                onChange={(e) =>
-                                  handleUpdateTimeEntry &&
-                                  handleUpdateTimeEntry(
-                                    entry.id,
-                                    "remarks",
-                                    e.target.value,
-                                  )
-                                }
-                                className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {entry.files && entry.files.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {entry.files.map((file, index) => (
-                                    <span 
-                                      key={`${entry.id}-file-${index}-${file}`}
-                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                      title={file}
-                                    >
-                                      File {index + 1}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 text-xs">No files</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                              {handleRemoveTimeEntry && (
-                                <button
-                                  onClick={() => handleRemoveTimeEntry(entry.id)}
-                                  className="text-red-600 hover:text-red-800"
-                                  title="Remove Time Entry"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
-                    No time entries recorded yet.
-                  </div>
-                )}
-              </div>
-            );
-          }
-          return null;
-
-        case "gallery":
-          if (widget.type === "field_attachments_gallery") {
-            // Check if we have the necessary props
-            if (!uploadedImages || !handleImageUpload || !setUploadedImages) {
-              return (
-                <div className="p-4 text-center text-neutral-500">
-                  Attachments widget requires additional configuration
-                </div>
-              );
-            }
-
-            // Handle removing an attachment
-            const handleRemoveAttachment = (fileId: string) => {
-              if (setUploadedImages) {
-                setUploadedImages(
-                  uploadedImages.filter((id) => id !== fileId)
-                );
-                
-                // Also update the ticket form
-                if (setTicketForm && ticketForm.attachments) {
-                  setTicketForm({
-                    ...ticketForm,
-                    attachments: ticketForm.attachments.filter((id: string) => id !== fileId)
-                  });
-                }
-              }
-            };
-
-            // Determine if any files are currently uploading
-            const isUploading = uploadedImages.some(id => id === "uploading...");
             
-            return (
-              <div className="h-full">
-                <AttachmentsWidget
-                  attachments={uploadedImages}
-                  onAddAttachments={handleImageUpload}
-                  onRemoveAttachment={handleRemoveAttachment}
-                  isReadOnly={!isEditMode}
-                  isUploading={isUploading}
-                  uploadProgress={60} // This would ideally be dynamic based on actual upload progress
-                />
-              </div>
-            );
+            // Also update the ticket form
+            if (setTicketForm && ticketForm.attachments) {
+              setTicketForm({
+                ...ticketForm,
+                attachments: ticketForm.attachments.filter((id: string) => id !== fileId)
+              });
+            }
           }
-          return null;
+        };
+
+        // Determine if any files are currently uploading
+        const isUploading = uploadedImages.some(id => id === "uploading...");
+        
+        return (
+          <div className="h-full">
+            <AttachmentsWidget
+              attachments={uploadedImages}
+              onAddAttachments={handleImageUpload}
+              onRemoveAttachment={handleRemoveAttachment}
+              isReadOnly={!isEditMode}
+              isUploading={isUploading}
+              uploadProgress={60} // This would ideally be dynamic based on actual upload progress
+            />
+          </div>
+        );
+      } else {
+        // For standard field types, use the FieldWidget component
+        return (
+          <FieldWidget
+            widget={widget}
+            ticketForm={ticketForm}
+            currentTicket={currentTicket}
+            handleFieldChange={handleFieldChange}
+            setTicketForm={setTicketForm}
+          />
+        );
       }
     }
 
@@ -992,122 +211,12 @@ function TicketWidget({
       case "details":
         if (!setTicketForm) return null;
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="h-[38px]">
-                <StatusWidget
-                  value={ticketForm.status}
-                  onChange={(value) => {
-                    // Update the form state
-                    setTicketForm({ ...ticketForm, status: value });
-
-                    // Call handleFieldChange to ensure the status is updated in the widget
-                    handleFieldChange("status", value);
-                  }}
-                />
-              </div>
-
-              <div>
-                <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                  {currentTicket?.cells["col-3"]}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                    {currentTicket?.cells["col-2"]}
-                  </div>
-                </div>
-                <div>
-                  <div className="py-2 px-3 h-[38px] bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
-                    {currentTicket?.cells["col-10"]}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="h-[38px]">
-                  <input
-                    type="number"
-                    id="billableHours"
-                    value={ticketForm.billableHours === null || ticketForm.billableHours === undefined ? '' : ticketForm.billableHours}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                      
-                      // Call handleFieldChange to update the form state with string value
-                      handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
-                      
-                      // Also update the ticketForm state directly
-                      if (setTicketForm) {
-                        setTicketForm({
-                          ...ticketForm,
-                          billableHours: value
-                        });
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === '') {
-                        toast.error("Billable Hours cannot be empty", {
-                          description: "Please enter a valid number",
-                          duration: 3000
-                        });
-                      }
-                    }}
-                    className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    step="0.1"
-                    required
-                  />
-                </div>
-                <div className="h-[38px]">
-                  <input
-                    type="number"
-                    id="totalHours"
-                    value={ticketForm.totalHours === null || ticketForm.totalHours === undefined ? '' : ticketForm.totalHours}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                      
-                      // Call handleFieldChange to update the form state with string value
-                      handleFieldChange(widget.field || "", e.target.value === null ? '' : e.target.value);
-                      
-                      // Also update the ticketForm state directly
-                      if (setTicketForm) {
-                        setTicketForm({
-                          ...ticketForm,
-                          totalHours: value
-                        });
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === '') {
-                        toast.error("Total Hours cannot be empty", {
-                          description: "Please enter a valid number",
-                          duration: 3000
-                        });
-                      }
-                    }}
-                    className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    step="0.1"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <textarea
-                  id="description"
-                  value={ticketForm.description}
-                  onChange={(e) =>
-                    setTicketForm({ ...ticketForm, description: e.target.value })
-                  }
-                  rows={5}
-                  className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-          </div>
+          <DetailsWidget
+            ticketForm={ticketForm}
+            currentTicket={currentTicket}
+            setTicketForm={setTicketForm}
+            handleFieldChange={handleFieldChange}
+          />
         );
 
       case "assignees":
@@ -1290,497 +399,36 @@ function TicketWidget({
 
             {/* Assignees table */}
             <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-neutral-200">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Work Description
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Priority
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Actual Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Est. Time
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-neutral-200">
-                  {assignees.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-4 text-center text-sm text-neutral-500"
-                      >
-                        No team members assigned yet
-                      </td>
-                    </tr>
-                  )}
-                  {assignees.map((assignee, index) => (
-                    <tr
-                      key={`assignee-${assignee.id}-${index}`}
-                      className="border-t border-neutral-200"
-                    >
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        <input
-                          type="text"
-                          value={assignee.name}
-                          onChange={(e) =>
-                            handleUpdateAssignee &&
-                            handleUpdateAssignee(
-                              assignee.id,
-                              "name",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        <input
-                          type="text"
-                          value={assignee.workDescription}
-                          onChange={(e) =>
-                            handleUpdateAssignee &&
-                            handleUpdateAssignee(
-                              assignee.id,
-                              "workDescription",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full bg-transparent border-0 focus:ring-0 p-0"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        <select
-                          value={assignee.priority || "5"}
-                          onChange={(e) =>
-                            handleUpdateAssignee &&
-                            handleUpdateAssignee(
-                              assignee.id,
-                              "priority",
-                              e.target.value,
-                            )
-                          }
-                          className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                        >
-                          {Array.from(
-                            { length: Math.max(1, assignees.length) },
-                            (_, i) => (
-                              <option key={i + 1} value={String(i + 1)}>
-                                {i + 1}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        <input
-                          type="number"
-                          value={assignee.totalHours}
-                          onChange={(e) =>
-                            handleUpdateAssignee &&
-                            handleUpdateAssignee(
-                              assignee.id,
-                              "totalHours",
-                              e.target.value,
-                            )
-                          }
-                          className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                          step="0.1"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900">
-                        <input
-                          type="number"
-                          value={assignee.estTime}
-                          onChange={(e) =>
-                            handleUpdateAssignee &&
-                            handleUpdateAssignee(assignee.id, "estTime", e.target.value)
-                          }
-                          className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                          step="0.1"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-900 text-right whitespace-nowrap">
-                        {/* Show buttons based on user and role validation */}
-                        {currentUser && (
-                          <>
-                            {/* Admin can see all actions regardless of assignee */}
-                            {currentUser.role === "admin" && (
-                              <>
-                                {handleAddTimeEntry && (
-                                  <button
-                                    onClick={() => handleAddTimeEntry(assignee.id, assignee.user_id)}
-                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                    title="Add time entry"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                                {markAssigneeCompleted && (
-                                  <button
-                                    onClick={() =>
-                                      markAssigneeCompleted(
-                                        assignee.id,
-                                        !assignee.completed,
-                                      )
-                                    }
-                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                    title={
-                                      assignee.completed
-                                        ? "Mark as Not Done"
-                                        : "Mark as Done"
-                                    }
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                                {handleRemoveAssignee && (
-                                  <button
-                                    onClick={() => handleRemoveAssignee(assignee.id)}
-                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                                    title="Remove assignee"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                              </>
-                            )}
-
-                            {/* Regular user can only see time entry and mark as done for their own entries */}
-                            {currentUser.role === "user" &&
-                              assignee.name === currentUser.name && (
-                                <>
-                                  {handleAddTimeEntry && (
-                                    <button
-                                      onClick={() => {
-                                        console.log("Adding time entry for assignee:", assignee);
-                                        
-                                        // Extract user_id from the assignee
-                                        let userId = assignee.user_id;
-                                        
-                                        if (typeof userId === 'object' && userId !== null) {
-                                          if ('$id' in userId) {
-                                            userId = (userId as any).$id;
-                                          } else if ('id' in userId) {
-                                            userId = (userId as any).id;
-                                          }
-                                        }
-                                                
-                                        // Pass both assignee.id and the userId
-                                        handleAddTimeEntry(assignee.id, userId);
-                                      }}
-                                      className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                      title="Add time entry"
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                  {markAssigneeCompleted && (
-                                    <button
-                                      onClick={() =>
-                                        markAssigneeCompleted(
-                                          assignee.id,
-                                          !assignee.completed,
-                                        )
-                                      }
-                                      className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                      title={
-                                        assignee.completed
-                                          ? "Mark as Not Done"
-                                          : "Mark as Done"
-                                      }
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M5 13l4 4L19 7"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <AssigneeTableWidget
+                assignees={assignees}
+                users={users}
+                isLoadingUsers={isLoadingUsers}
+                showAssigneeForm={false} // We're showing it separately above
+                setShowAssigneeForm={setShowAssigneeForm}
+                newAssignee={newAssignee}
+                setNewAssignee={setNewAssignee}
+                handleAddAssignee={handleAddAssignee}
+                handleRemoveAssignee={handleRemoveAssignee}
+                handleUpdateAssignee={handleUpdateAssignee}
+                handleAddTimeEntry={handleAddTimeEntry}
+                markAssigneeCompleted={markAssigneeCompleted}
+              />
             </div>
           </div>
         );
 
       case "time_entries":
-        if (!handleUpdateTimeEntry || !handleRemoveTimeEntry) {
+        if (!handleUpdateTimeEntry || !handleRemoveTimeEntry || !handleAddTimeEntry) {
           return null;
         }
 
         return (
-          <div className="mt-4">
-            <div className="flex justify-between mb-4">
-              <div className="text-gray-500 text-sm">
-                Record time spent working on this ticket
-              </div>
-              {handleAddTimeEntry && (
-                <Button
-                  onClick={() => {
-                    // Pass empty assigneeId but current user's ID (if available)
-                    handleAddTimeEntry("", currentUser?.id || "");
-                  }}
-                  size="sm"
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  Add Time Entry
-                </Button>
-              )}
-            </div>
-            
-            {timeEntries && timeEntries.length > 0 ? (
-              <div className="space-y-6">
-                {timeEntries.map((entry) => (
-                  <div
-                    key={`time-entry-${entry.id}`}
-                    className="bg-white border border-gray-200 rounded-md p-4 shadow-sm"
-                  >
-                    <div className="flex justify-between mb-2">
-                      <div className="text-sm font-medium">
-                        {entry.assigneeName || "Unassigned"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {entry.dateCreated}
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Start Time
-                        </label>
-                        <input
-                          type="time"
-                          value={entry.startTime}
-                          onChange={(e) =>
-                            handleUpdateTimeEntry &&
-                            handleUpdateTimeEntry(
-                              entry.id,
-                              "startTime",
-                              e.target.value
-                            )
-                          }
-                          className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Stop Time
-                        </label>
-                        <input
-                          type="time"
-                          value={entry.stopTime}
-                          onChange={(e) =>
-                            handleUpdateTimeEntry &&
-                            handleUpdateTimeEntry(
-                              entry.id,
-                              "stopTime",
-                              e.target.value
-                            )
-                          }
-                          className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Remarks
-                      </label>
-                      <Textarea
-                        value={entry.remarks}
-                        onChange={(e) =>
-                          handleUpdateTimeEntry &&
-                          handleUpdateTimeEntry(
-                            entry.id,
-                            "remarks",
-                            e.target.value
-                          )
-                        }
-                        className="block w-full text-sm"
-                        placeholder="Add your notes here..."
-                      />
-                    </div>
-                    
-                    <div className="mb-3">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Files
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="file"
-                          id={`file-upload-${entry.id}`}
-                          className="hidden"
-                          multiple
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              // Handle file upload logic here
-                              const fileNames = Array.from(e.target.files).map(f => f.name);
-                              
-                              // Update the time entry with the new files
-                              handleUpdateTimeEntry &&
-                              handleUpdateTimeEntry(
-                                entry.id,
-                                "files",
-                                JSON.stringify(fileNames)
-                              );
-                            }
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            document.getElementById(`file-upload-${entry.id}`)?.click();
-                          }}
-                        >
-                          Upload Files
-                        </Button>
-                        
-                        {entry.files && entry.files.length > 0 && (
-                          <div className="text-xs text-gray-500">
-                            {entry.files.length} file(s) attached
-                          </div>
-                        )}
-                      </div>
-                      
-                      {entry.files && entry.files.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {entry.files.map((file, index) => (
-                            <span
-                              key={`${entry.id}-file-${index}-${file}`}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {file.split("/").pop()}
-                              <button
-                                type="button"
-                                className="ml-1 h-4 w-4 rounded-full hover:bg-blue-200 inline-flex items-center justify-center"
-                                onClick={() => {
-                                  // Remove file logic
-                                  const newFiles = [...entry.files || []];
-                                  newFiles.splice(index, 1);
-                                  
-                                  handleUpdateTimeEntry &&
-                                  handleUpdateTimeEntry(
-                                    entry.id,
-                                    "files",
-                                    JSON.stringify(newFiles)
-                                  );
-                                }}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm">
-                        <span className="font-medium">Duration: </span>
-                        <span className="bg-neutral-100 px-2 py-1 rounded">{entry.duration} hours</span>
-                      </div>
-                      
-                      {handleRemoveTimeEntry && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleRemoveTimeEntry(entry.id)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No time entries recorded for this ticket yet.
-              </div>
-            )}
-          </div>
+          <TimeEntriesCardWidget
+            timeEntries={timeEntries}
+            handleUpdateTimeEntry={handleUpdateTimeEntry}
+            handleRemoveTimeEntry={handleRemoveTimeEntry}
+            handleAddTimeEntry={handleAddTimeEntry}
+          />
         );
 
       case "attachments":
@@ -1897,120 +545,14 @@ function TicketWidget({
 
   return (
     <div className="w-full h-full bg-white rounded-lg border border-neutral-200 shadow-sm flex flex-col overflow-hidden">
-      {/* Widget header for dragging and controls */}
-      <div
-        className={cn(
-          "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
-          isEditMode ? "react-grid-dragHandle" : "",
-        )}
-      >
-        <h3 className="text-sm font-medium text-neutral-700 truncate flex-1">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={editableTitle}
-              onChange={handleTitleChange}
-              onBlur={handleTitleSave}
-              onKeyDown={handleTitleKeyDown}
-              className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-1 px-2 text-xs focus:outline-none focus:ring-blue-500"
-              autoFocus
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              style={{ width: `${Math.max(100, editableTitle.length * 8)}px` }}
-            />
-          ) : (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (isEditMode && updateWidgetTitle) {
-                  setIsEditingTitle(true);
-                }
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              className={cn(
-                "py-1 px-1 rounded",
-                isEditMode && updateWidgetTitle
-                  ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600"
-                  : "",
-              )}
-            >
-              {widget.title || "Widget"}
-            </span>
-          )}
-        </h3>
-
-        {isEditMode && (
-          <div className="flex items-center space-x-1 ml-2">
-            <button
-              onClick={() => toggleWidgetCollapse(widget.id)}
-              className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
-              title={widget.collapsed ? "Expand" : "Collapse"}
-            >
-              {widget.collapsed ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 15l7-7 7 7"
-                  />
-                </svg>
-              )}
-            </button>
-            <button
-              onClick={handleRemoveClick}
-              className="h-5 w-5 flex items-center justify-center rounded-full text-neutral-500 hover:bg-red-100 hover:text-red-500"
-              title="Remove Widget"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3 w-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Use the WidgetHeader component */}
+      <WidgetHeader
+        widget={widget}
+        isEditMode={isEditMode}
+        updateWidgetTitle={updateWidgetTitle}
+        toggleWidgetCollapse={toggleWidgetCollapse}
+        handleRemoveClick={handleRemoveClick}
+      />
 
       {/* Widget content - adjust to fill remaining height */}
       <div

@@ -108,6 +108,70 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 }) => {
   const { currentUser } = useUserStore();
 
+  // Add a function to handle layout reset
+  const handleResetLayout = () => {
+    // Find current tab to determine if it has Engineering preset
+    const currentTabData = tabs.find((tab) => tab.id === activeTab);
+    const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
+
+    if (hasEngineeringPreset) {
+      // Clear saved Engineering layouts
+      saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+        "engineering-layouts",
+        { widgets: [], layouts: {} },
+      );
+      console.log("Reset Engineering widget layout");
+    } else if (currentTicket) {
+      // Clear tab-specific layouts
+      const ticketId = currentTicket.cells["col-1"];
+      const tabSpecificLayoutKey = `tab-${activeTab}`;
+      saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+        tabSpecificLayoutKey,
+        { widgets: [], layouts: {} },
+      );
+      console.log(
+        "Reset tab-specific layout for tab",
+        activeTab,
+        "and ticket:",
+        ticketId,
+      );
+    }
+
+    // First clear existing widgets and layouts
+    setWidgets([]);
+    setWidgetLayouts({});
+
+    // Widgets will be re-added by the useEffect
+  };
+
+  // Add a useEffect to initialize widgets when needed
+  useEffect(() => {
+    // Only run this effect when the dialog is open and there's a current ticket
+    if (viewDialogOpen && currentTicket) {
+      // Check if the Engineering preset is applied and we need to add widgets
+      const hasEngineeringPreset = currentTicketPreset === "Engineering";
+      
+      if (hasEngineeringPreset && widgets.length === 0) {
+        console.log("Adding default widgets for Engineering preset in TicketDialog");
+        
+        // Add engineering preset widgets
+        addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
+        addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
+      }
+      
+      // Also check for "Reset Layout" button actions which directly manipulate the DOM
+      // This is handled by event handlers attached to Reset Layout button
+    }
+  }, [viewDialogOpen, currentTicket, currentTicketPreset, widgets.length, addWidget]);
+
   if (!viewDialogOpen || !currentTicket) return null;
 
   const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
@@ -212,67 +276,10 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
               </div>
             )}
 
-            {/* Add Reset Layout button */}
+            {/* Update Reset Layout button */}
             {isEditLayoutMode && currentUser?.role !== "user" && (
               <button
-                onClick={() => {
-                  // Find current tab to determine if it has Engineering preset
-                  const currentTabData = tabs.find((tab) => tab.id === activeTab);
-                  const hasEngineeringPreset =
-                    currentTabData?.appliedPreset === "Engineering";
-
-                  if (hasEngineeringPreset) {
-                    // Clear saved Engineering layouts
-                    saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
-                      "engineering-layouts",
-                      { widgets: [], layouts: {} },
-                    );
-                    console.log("Reset Engineering widget layout");
-                  } else if (currentTicket) {
-                    // Clear tab-specific layouts
-                    const ticketId = currentTicket.cells["col-1"];
-                    const tabSpecificLayoutKey = `tab-${activeTab}`;
-                    saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
-                      tabSpecificLayoutKey,
-                      { widgets: [], layouts: {} },
-                    );
-                    console.log(
-                      "Reset tab-specific layout for tab",
-                      activeTab,
-                      "and ticket:",
-                      ticketId,
-                    );
-                  }
-
-                  // First clear existing widgets and layouts
-                  setWidgets([]);
-                  setWidgetLayouts({});
-
-                  // Immediately add default widgets
-                  if (currentTicket) {
-                    // Status field
-                    addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
-
-                    // Customer name field
-                    addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
-
-                    // Date fields
-                    addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
-                    addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
-
-                    // Hours fields
-                    addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
-                    addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
-
-                    // Description field
-                    addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
-
-                    // Add tables as individual widgets
-                    addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
-                    addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
-                    addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
-                  }
-                }}
+                onClick={handleResetLayout}
                 className="mr-2 px-3 py-1.5 rounded-md bg-red-50 text-red-600 text-sm hover:bg-red-100"
               >
                 Reset Layout
@@ -420,32 +427,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             if (hasEngineeringPreset) {
               // Check if we have widgets for the Engineering preset
               if (widgets.length === 0) {
-                // Add default widgets if none exist for Engineering preset
-                console.log("Adding default widgets for Engineering preset in TicketDialog");
-                if (currentTicket) {
-                  // Status field
-                  addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
-
-                  // Customer name field
-                  addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
-
-                  // Date fields
-                  addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
-                  addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
-
-                  // Hours fields
-                  addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
-                  addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
-
-                  // Description field
-                  addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
-
-                  // Add tables as individual widgets
-                  addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
-                  addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
-                  addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
-                }
-                
                 // Show a loading indicator while widgets are being created
                 return (
                   <div className="flex items-center justify-center h-full">

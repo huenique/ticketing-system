@@ -1032,18 +1032,44 @@ function Tickets() {
 
   // State for time entries
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [isLoadingTimeEntries, setIsLoadingTimeEntries] = useState(false);
+  const [timeEntriesTimestamp, setTimeEntriesTimestamp] = useState(0);
 
-  // Fetch all time entries
+  // Fetch all time entries - with deduplication and caching
   const fetchTimeEntries = async () => {
+    // Return cached data if it's recent (less than 30 seconds old)
+    const now = Date.now();
+    const cacheAge = now - timeEntriesTimestamp;
+    const CACHE_TTL = 30000; // 30 seconds
+    
+    if (timeEntries.length > 0 && cacheAge < CACHE_TTL) {
+      console.log("Using cached time entries data", timeEntries.length, "entries");
+      return timeEntries;
+    }
+    
+    // Prevent multiple concurrent requests
+    if (isLoadingTimeEntries) {
+      console.log("Time entries already being fetched, waiting for completion...");
+      // Wait for the current request to complete
+      return timeEntries; 
+    }
+    
     try {
+      setIsLoadingTimeEntries(true);
       console.log("Fetching time entries...");
       const entries = await timeEntriesService.getAllTimeEntries();
       console.log("Time entries received:", entries);
+      
+      // Update state
       setTimeEntries(entries);
+      setTimeEntriesTimestamp(now);
+      
       return entries;
     } catch (error) {
       console.error("Error fetching time entries:", error);
       return [];
+    } finally {
+      setIsLoadingTimeEntries(false);
     }
   };
 
