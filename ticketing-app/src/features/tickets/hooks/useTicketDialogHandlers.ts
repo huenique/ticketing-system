@@ -24,21 +24,52 @@ import { statusesService } from "../../../services/ticketsService";
 import { databases } from "@/lib/appwrite";
 import { Query } from "appwrite";
 
-export default function useTicketDialogHandlers(
-  activeTab: string,
-  tabs: Tab[],
-  tables: Record<string, Table | null>,
-  widgets: Widget[],
-  setWidgets: (widgets: Widget[]) => void,
-  setWidgetLayouts: (layouts: Layouts) => void,
-  addWidget: (type: string, ticket: Row) => void,
-) {
+// Types for handler return values
+interface TicketDialogState {
+  viewDialogOpen: boolean;
+  setViewDialogOpen: (open: boolean) => void;
+  currentTicket: Row | null;
+  setCurrentTicket: (ticket: Row | null) => void;
+  currentTicketPreset: string | undefined;
+  setCurrentTicketPreset: (preset: string | undefined) => void;
+  ticketForm: TicketForm;
+  setTicketForm: (form: TicketForm | ((prevForm: TicketForm) => TicketForm)) => void;
+  uploadedImages: string[];
+  setUploadedImages: (images: string[] | ((prevImages: string[]) => string[])) => void;
+  assignees: Assignee[];
+  setAssignees: (assignees: Assignee[] | ((prevAssignees: Assignee[]) => Assignee[])) => void;
+  timeEntries: TimeEntry[];
+  setTimeEntries: (entries: TimeEntry[] | ((prevEntries: TimeEntry[]) => TimeEntry[])) => void;
+  isEditLayoutMode: boolean;
+  setIsEditLayoutMode: (isEdit: boolean) => void;
+  showAssigneeForm: boolean;
+  setShowAssigneeForm: (show: boolean) => void;
+  newAssignee: Assignee;
+  setNewAssignee: (assignee: Assignee) => void;
+  modifiedTimeEntries: Set<string>;
+  setModifiedTimeEntries: (entries: Set<string> | ((prevEntries: Set<string>) => Set<string>)) => void;
+}
+
+interface TicketDialogHandlers {
+  handleAddAssignee: () => void;
+  handleRemoveAssignee: (id: string) => void;
+  handleUpdateAssignee: (id: string, field: string, value: string) => void;
+  handleAddTimeEntry: (assigneeId: string, directUserId?: string) => void;
+  handleRemoveTimeEntry: (id: string) => void;
+  handleUpdateTimeEntry: (id: string, field: string, value: string) => void;
+  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
+  handleInitializeTicketDialog: (ticket: Row) => void;
+  handleSaveTicketChanges: () => Promise<boolean>;
+  viewTicket: (ticket: Row, tabId: string) => Promise<void>;
+}
+
+// Base hook that manages ticket dialog state
+function useTicketDialogState(): TicketDialogState {
   // Ticket Dialog State
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [currentTicket, setCurrentTicket] = useState<Row | null>(null);
-  const [currentTicketPreset, setCurrentTicketPreset] = useState<string | undefined>(
-    undefined,
-  );
+  const [currentTicketPreset, setCurrentTicketPreset] = useState<string | undefined>(undefined);
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false);
 
   // Ticket Form State
@@ -71,19 +102,46 @@ export default function useTicketDialogHandlers(
   // Time Entries State
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
-  // Add a state to track modified time entries (near the other state declarations)
+  // Track modified time entries
   const [modifiedTimeEntries, setModifiedTimeEntries] = useState<Set<string>>(new Set());
 
-  // Get current user
-  const { currentUser } = useUserStore();
+  return {
+    viewDialogOpen,
+    setViewDialogOpen,
+    currentTicket,
+    setCurrentTicket,
+    currentTicketPreset,
+    setCurrentTicketPreset,
+    ticketForm,
+    setTicketForm,
+    uploadedImages,
+    setUploadedImages,
+    assignees,
+    setAssignees,
+    timeEntries,
+    setTimeEntries,
+    isEditLayoutMode,
+    setIsEditLayoutMode,
+    showAssigneeForm,
+    setShowAssigneeForm,
+    newAssignee,
+    setNewAssignee,
+    modifiedTimeEntries,
+    setModifiedTimeEntries,
+  };
+}
 
-  // Image Handlers
+// Re-implement the useImageHandlers function to use direct state updates
+function useImageHandlers(state: TicketDialogState) {
+  const { setUploadedImages, currentTicket, setTicketForm, uploadedImages } = state;
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Set uploading state if needed
-    setUploadedImages((prevImages) => [...prevImages, "uploading..."]);
+    // Add uploading placeholder directly
+    const imagesWithPlaceholder = [...uploadedImages, "uploading..."];
+    setUploadedImages(imagesWithPlaceholder);
 
     // Upload files to Appwrite storage
     const uploadPromises = Array.from(files).map(async (file) => {
@@ -109,24 +167,47 @@ export default function useTicketDialogHandlers(
       // Filter out any failed uploads
       const successfulFileIds = fileIds.filter((id: string | null) => id !== null) as string[];
       
+      // Get latest state for updates
+      const currentImages = [...state.uploadedImages];
+      
+      // Remove the uploading placeholder
+      const filteredImages = currentImages.filter(img => img !== "uploading...");
+      
+      // Add new file IDs
+      const updatedImages = [...filteredImages, ...successfulFileIds];
+      
       // Update state with the successful uploads
-      setUploadedImages((prevImages) => {
-        // Remove the "uploading..." placeholder
-        const filteredPrevImages = prevImages.filter(img => img !== "uploading...");
-        return [...filteredPrevImages, ...successfulFileIds];
-      });
+      setUploadedImages(updatedImages);
       
       // If we have a current ticket, update the attachments in the form
       if (currentTicket && successfulFileIds.length > 0) {
-        setTicketForm(prev => ({
-          ...prev,
-          attachments: [...(prev.attachments || []), ...successfulFileIds]
-        }));
+        const updatedForm = {
+          ...state.ticketForm,
+          attachments: [...(state.ticketForm.attachments || []), ...successfulFileIds]
+        };
+        setTicketForm(updatedForm);
       }
     });
   };
 
-  // Assignee Handlers
+  return { handleImageUpload };
+}
+
+// Hook for assignee operations with direct state updates
+function useAssigneeHandlers(state: TicketDialogState) {
+  const { 
+    assignees, 
+    setAssignees, 
+    currentTicket, 
+    newAssignee, 
+    setNewAssignee, 
+    setShowAssigneeForm,
+    setTimeEntries,
+    timeEntries
+  } = state;
+  
+  const { currentUser } = useUserStore();
+
   const handleAddAssignee = async () => {
     if (newAssignee.name.trim() === "") return;
 
@@ -165,8 +246,9 @@ export default function useTicketDialogHandlers(
         toast.success("Team member assigned successfully");
       }
       
-      // Add to local state
-      setAssignees((prev) => [...prev, assigneeToAdd]);
+      // Add to local state - use direct update
+      const updatedAssignees = [...assignees, assigneeToAdd];
+      setAssignees(updatedAssignees);
       
       // Reset the form
       setNewAssignee({
@@ -195,10 +277,13 @@ export default function useTicketDialogHandlers(
         toast.success("Team member removed successfully");
       }
       
-      // Remove from local state
-      setAssignees((prev) => prev.filter((a) => a.id !== id));
-      // Also remove related time entries
-      setTimeEntries((prev) => prev.filter((t) => t.assigneeId !== id));
+      // Remove from local state - use direct update
+      const updatedAssignees = assignees.filter(a => a.id !== id);
+      setAssignees(updatedAssignees);
+      
+      // Also remove related time entries - use direct update
+      const updatedTimeEntries = timeEntries.filter(t => t.assigneeId !== id);
+      setTimeEntries(updatedTimeEntries);
     } catch (error) {
       console.error("Error removing team member:", error);
       toast.error("Failed to remove team member", {
@@ -217,9 +302,10 @@ export default function useTicketDialogHandlers(
     
     try {
       // Update in the local state first for immediate UI feedback
-      setAssignees((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, [field]: value } : a))
+      const updatedAssignees = assignees.map(a => 
+        a.id === id ? { ...a, [field]: value } : a
       );
+      setAssignees(updatedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id) {
@@ -239,7 +325,116 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Time Entry Handlers
+  // Handle task/assignee completion status
+  const markAssigneeCompleted = async (assigneeId: string, completed: boolean | string) => {
+    // Convert to boolean regardless of input type
+    const isCompleted = completed === true || completed === "true";
+
+    // Update the assignees state - use direct update
+    const updatedAssignees = assignees.map(assignee => 
+      assignee.id === assigneeId ? { ...assignee, completed: isCompleted } : assignee
+    );
+    setAssignees(updatedAssignees);
+
+    try {
+      // If we're in edit mode and have a current ticket, update in Appwrite
+      if (currentTicket && currentTicket.id && assigneeId) {
+        // We don't have a completed field in our database schema, so we'll update
+        // the work_description to include a [COMPLETED] prefix if completed
+        const assignee = assignees.find(a => a.id === assigneeId);
+        
+        if (assignee) {
+          let workDescription = assignee.workDescription;
+          
+          // If completed, add a [COMPLETED] prefix if not already there
+          if (isCompleted && !workDescription.includes("[COMPLETED]")) {
+            workDescription = `[COMPLETED] ${workDescription}`;
+          } 
+          // If not completed, remove the [COMPLETED] prefix if it exists
+          else if (!isCompleted && workDescription.includes("[COMPLETED]")) {
+            workDescription = workDescription.replace("[COMPLETED]", "").trim();
+          }
+          
+          // Only update if the work description changed
+          if (workDescription !== assignee.workDescription) {
+            await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
+              work_description: workDescription
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error updating assignee completion status:", error);
+      // We don't show an error toast here to avoid disrupting the UX
+    }
+
+    // Find the assignee that was updated
+    const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
+
+    // If we're working with a current ticket, update its status in the All Tickets tab
+    if (updatedAssignee && currentTicket) {
+      const ticketId = currentTicket.cells["col-1"];
+
+      // Update the ticket in the current tab
+      const tablesState = useTablesStore.getState();
+      const updatedTables = { ...tablesState.tables };
+      const activeTab = Object.keys(updatedTables)[0]; // Assume first tab is active if not specified
+      
+      if (updatedTables[activeTab]) {
+        // Find the row that matches this ticket
+        const updatedRows = updatedTables[activeTab].rows.map((row: Row) => {
+          if (row.cells["col-1"] === ticketId) {
+            return {
+              ...row,
+              completed: isCompleted,
+              cells: {
+                ...row.cells,
+                "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column if it exists
+              },
+            };
+          }
+          return row;
+        });
+
+        updatedTables[activeTab] = {
+          ...updatedTables[activeTab],
+          rows: updatedRows,
+        };
+
+        // Update the global tables state
+        useTablesStore.getState().setTables(updatedTables);
+
+        // Save to localStorage
+        localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+      }
+    }
+  };
+
+  return {
+    handleAddAssignee,
+    handleRemoveAssignee,
+    handleUpdateAssignee,
+    markAssigneeCompleted,
+  };
+}
+
+// Hook for time entry operations
+function useTimeEntryHandlers(state: TicketDialogState) {
+  const { timeEntries, setTimeEntries, currentTicket, assignees, modifiedTimeEntries, setModifiedTimeEntries } = state;
+
+  // Helper to update modified time entries set
+  const updateModifiedEntries = (id: string) => {
+    if (!id.startsWith('temp_')) {
+      // Use the setter function to update the Set
+      setModifiedTimeEntries(prevSet => {
+        const newSet = new Set(prevSet);
+        newSet.add(id);
+        console.log(`Marked time entry ${id} as modified`);
+        return newSet;
+      });
+    }
+  };
+
   const handleAddTimeEntry = async (assigneeId: string, directUserId?: string) => {
     try {
       console.log("============ ADD TIME ENTRY DEBUG ============");
@@ -372,20 +567,24 @@ export default function useTicketDialogHandlers(
         const savedTimeEntry = await timeEntriesService.createTimeEntry(newTimeEntryData);
         console.log("Successfully created time entry in Appwrite:", savedTimeEntry);
         
-        // Update the UI with the saved entry
-        setTimeEntries(prev => [...prev, savedTimeEntry]);
+        // Update the UI with the saved entry - use direct state update
+        const updatedTimeEntries = [...timeEntries, savedTimeEntry];
+        setTimeEntries(updatedTimeEntries);
         
         toast.success("Time entry added successfully");
       } else {
         // If we're in create mode, just update the local state
         console.log("Adding time entry to local state only (no Appwrite save)");
-        setTimeEntries(prev => [
-          ...prev, 
-          { 
-            ...newTimeEntryData, 
-            id: `temp_${Date.now()}` 
-          }
-        ]);
+        
+        // Create a temporary time entry with generated ID
+        const tempTimeEntry = {
+          ...newTimeEntryData,
+          id: `temp_${Date.now()}`
+        };
+        
+        // Update state with direct update
+        const updatedTimeEntries = [...timeEntries, tempTimeEntry];
+        setTimeEntries(updatedTimeEntries);
       }
     } catch (error) {
       console.error("Error adding time entry:", error);
@@ -393,75 +592,61 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Add a new function to debug why assignees aren't displaying correctly
-  const _debugAssignees = () => {
-    console.log("============ ASSIGNEES DEBUG ============");
-    console.log("Current assignees:", JSON.stringify(assignees, null, 2));
-    console.log("==========================================");
-  };
-
-  // Update the handleUpdateTimeEntry function to only save locally
   const handleUpdateTimeEntry = async (id: string, field: string, value: string) => {
     try {
       // Don't allow direct editing of duration field
       if (field === "duration") return;
       
-      // Update the time entry in the local state first
-      setTimeEntries((prev) =>
-        prev.map((entry) => {
-          if (entry.id === id) {
-            const updatedEntry = { ...entry, [field]: value };
+      // Create an array of updated time entries
+      const updatedTimeEntries = timeEntries.map(entry => {
+        if (entry.id === id) {
+          const updatedEntry = { ...entry, [field]: value };
 
-            // Recalculate duration if start or stop time changes
-            if (field === "startTime" || field === "stopTime") {
-              if (updatedEntry.startTime && updatedEntry.stopTime) {
-                try {
-                  // Parse times in HH:MM format from time input
-                  const [startHours, startMinutes] = updatedEntry.startTime
-                    .split(":")
-                    .map(Number);
-                  const [stopHours, stopMinutes] = updatedEntry.stopTime
-                    .split(":")
-                    .map(Number);
+          // Recalculate duration if start or stop time changes
+          if (field === "startTime" || field === "stopTime") {
+            if (updatedEntry.startTime && updatedEntry.stopTime) {
+              try {
+                // Parse times in HH:MM format from time input
+                const [startHours, startMinutes] = updatedEntry.startTime
+                  .split(":")
+                  .map(Number);
+                const [stopHours, stopMinutes] = updatedEntry.stopTime
+                  .split(":")
+                  .map(Number);
 
-                  // Calculate duration in hours
-                  let durationHours = stopHours - startHours;
-                  let durationMinutes = stopMinutes - startMinutes;
+                // Calculate duration in hours
+                let durationHours = stopHours - startHours;
+                let durationMinutes = stopMinutes - startMinutes;
 
-                  if (durationMinutes < 0) {
-                    durationHours -= 1;
-                    durationMinutes += 60;
-                  }
-
-                  if (durationHours < 0) {
-                    // Assuming stop time is next day if it's earlier than start time
-                    durationHours += 24;
-                  }
-
-                  const totalDuration = durationHours + durationMinutes / 60;
-                  updatedEntry.duration = totalDuration.toFixed(1);
-                } catch (error) {
-                  console.error("Error calculating duration:", error);
-                  // Keep the previous duration if calculation fails
+                if (durationMinutes < 0) {
+                  durationHours -= 1;
+                  durationMinutes += 60;
                 }
+
+                if (durationHours < 0) {
+                  // Assuming stop time is next day if it's earlier than start time
+                  durationHours += 24;
+                }
+
+                const totalDuration = durationHours + durationMinutes / 60;
+                updatedEntry.duration = totalDuration.toFixed(1);
+              } catch (error) {
+                console.error("Error calculating duration:", error);
+                // Keep the previous duration if calculation fails
               }
             }
-
-            return updatedEntry;
           }
-          return entry;
-        })
-      );
+
+          return updatedEntry;
+        }
+        return entry;
+      });
+      
+      // Update the time entries state
+      setTimeEntries(updatedTimeEntries);
 
       // Mark this time entry as modified (if it's a real entry, not a temp one)
-      if (!id.startsWith('temp_')) {
-        setModifiedTimeEntries(prev => {
-          const newSet = new Set(prev);
-          newSet.add(id);
-          return newSet;
-        });
-        console.log(`Marked time entry ${id} as modified for field ${field}`);
-      }
+      updateModifiedEntries(id);
     } catch (error) {
       console.error(`Error updating time entry field '${field}':`, error);
       toast.error("Failed to update time entry");
@@ -471,7 +656,8 @@ export default function useTicketDialogHandlers(
   const handleRemoveTimeEntry = async (id: string) => {
     try {
       // Remove from local state first for immediate UI feedback
-      setTimeEntries(timeEntries.filter((entry) => entry.id !== id));
+      const filteredTimeEntries = timeEntries.filter(entry => entry.id !== id);
+      setTimeEntries(filteredTimeEntries);
       
       // Only attempt to delete from Appwrite if this is a real entry (not a temp one)
       if (!id.startsWith('temp_') && currentTicket?.id) {
@@ -484,96 +670,164 @@ export default function useTicketDialogHandlers(
       // Add the entry back to the local state since deletion failed
       const entryToRestore = timeEntries.find(entry => entry.id === id);
       if (entryToRestore) {
-        setTimeEntries(prev => [...prev, entryToRestore]);
+        const restoredTimeEntries = [...timeEntries, entryToRestore];
+        setTimeEntries(restoredTimeEntries);
       }
     }
   };
 
-  // Handle task/assignee completion status
-  const markAssigneeCompleted = async (assigneeId: string, completed: boolean | string) => {
-    // Convert to boolean regardless of input type
-    const isCompleted = completed === true || completed === "true";
+  return {
+    handleAddTimeEntry,
+    handleUpdateTimeEntry,
+    handleRemoveTimeEntry,
+  };
+}
 
-    // Update the assignees state
-    setAssignees((prev) =>
-      prev.map((assignee) =>
-        assignee.id === assigneeId ? { ...assignee, completed: isCompleted } : assignee,
-      ),
-    );
+// Main hook that composes all other hooks
+export default function useTicketDialogHandlers(
+  activeTab: string,
+  tabs: Tab[],
+  tables: Record<string, Table | null>,
+  widgets: Widget[],
+  setWidgets: (widgets: Widget[]) => void,
+  setWidgetLayouts: (layouts: Layouts) => void,
+  addWidget: (type: string, ticket: Row) => void,
+): TicketDialogState & TicketDialogHandlers {
+  // Get all the state
+  const state = useTicketDialogState();
+  
+  // Get all the handlers
+  const imageHandlers = useImageHandlers(state);
+  const assigneeHandlers = useAssigneeHandlers(state);
+  const timeEntryHandlers = useTimeEntryHandlers(state);
 
+  // Extract setModifiedTimeEntries for use in handleSaveTicketChanges
+  const { setModifiedTimeEntries } = state;
+
+  // Function to refresh all status-based tabs based on updated All Tickets data
+  const refreshStatusTabs = async (allTicketsRows: Row[]) => {
     try {
-      // If we're in edit mode and have a current ticket, update in Appwrite
-      if (currentTicket && currentTicket.id && assigneeId) {
-        // We don't have a completed field in our database schema, so we'll update
-        // the work_description to include a [COMPLETED] prefix if completed
-        const assignee = assignees.find(a => a.id === assigneeId);
-        
-        if (assignee) {
-          let workDescription = assignee.workDescription;
-          
-          // If completed, add a [COMPLETED] prefix if not already there
-          if (isCompleted && !workDescription.includes("[COMPLETED]")) {
-            workDescription = `[COMPLETED] ${workDescription}`;
-          } 
-          // If not completed, remove the [COMPLETED] prefix if it exists
-          else if (!isCompleted && workDescription.includes("[COMPLETED]")) {
-            workDescription = workDescription.replace("[COMPLETED]", "").trim();
-          }
-          
-          // Only update if the work description changed
-          if (workDescription !== assignee.workDescription) {
-            await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
-              work_description: workDescription
-            });
+      // First, fetch the latest tickets from Appwrite to get up-to-date data
+      console.log("Fetching latest tickets from Appwrite for tab refresh");
+      const latestTickets = await ticketsService.getTicketsWithRelationships();
+      console.log(`Retrieved ${latestTickets.length} tickets from Appwrite`);
+      
+      // Convert the Appwrite tickets to table rows
+      const ticketsAsRows: Row[] = latestTickets.map(ticket => convertTicketToRow(ticket));
+      console.log(`Converted ${ticketsAsRows.length} tickets to table rows`);
+      
+      // Get a reference to the tables store
+      const tablesStore = useTablesStore.getState();
+      const currentTables = tablesStore.tables;
+      
+      // Debug: List available tabs to help find the correct ID
+      console.log("Available tabs:", Object.keys(currentTables));
+      
+      // Find the "All Tickets" tab - try different possible IDs
+      const possibleAllTicketTabIds = ["tab-all-tickets", "all-tickets", "tab1", "tab-1"];
+      let allTicketsTable = null;
+      let allTicketsTabId = null;
+      
+      // Try each possible ID
+      for (const tabId of possibleAllTicketTabIds) {
+        if (currentTables[tabId]) {
+          allTicketsTable = currentTables[tabId];
+          allTicketsTabId = tabId;
+          console.log(`Found All Tickets tab with ID: ${tabId}`);
+          break;
+        }
+      }
+      
+      // If still not found, look for a tab with "all" in the name
+      if (!allTicketsTable) {
+        for (const tabId of Object.keys(currentTables)) {
+          if (tabId.toLowerCase().includes('all')) {
+            allTicketsTable = currentTables[tabId];
+            allTicketsTabId = tabId;
+            console.log(`Found possible All Tickets tab with ID: ${tabId}`);
+            break;
           }
         }
       }
-    } catch (error) {
-      console.error("Error updating assignee completion status:", error);
-      // We don't show an error toast here to avoid disrupting the UX
-    }
-
-    // Find the assignee that was updated
-    const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
-
-    // If we're working with a current ticket, update its status in the All Tickets tab
-    if (updatedAssignee && currentTicket) {
-      const ticketId = currentTicket.cells["col-1"];
-
-      // Update the ticket in the current tab
-      const updatedTables = { ...tables };
-      if (updatedTables[activeTab]) {
-        // Find the row that matches this ticket
-        const updatedRows = updatedTables[activeTab].rows.map((row: Row) => {
-          if (row.cells["col-1"] === ticketId) {
-            return {
-              ...row,
-              completed: isCompleted,
-              cells: {
-                ...row.cells,
-                "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column if it exists
-              },
-            };
-          }
-          return row;
-        });
-
-        updatedTables[activeTab] = {
-          ...updatedTables[activeTab],
-          rows: updatedRows,
-        };
-
-        // Update the global tables state
-        useTablesStore.getState().setTables(updatedTables);
-
-        // Save to localStorage
-        localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
+      
+      // If still not found, just use the first available tab
+      if (!allTicketsTable && Object.keys(currentTables).length > 0) {
+        const firstTabId = Object.keys(currentTables)[0];
+        allTicketsTable = currentTables[firstTabId];
+        allTicketsTabId = firstTabId;
+        console.log(`Using first available tab as fallback: ${firstTabId}`);
       }
+      
+      if (!allTicketsTable) {
+        console.error("Cannot refresh status tabs: All Tickets tab not found");
+        console.log("Available table IDs:", Object.keys(currentTables));
+        return;
+      }
+      
+      const updatedTables = { ...currentTables };
+      
+      // Update the All Tickets tab with the latest data
+      if (allTicketsTabId) {
+        updatedTables[allTicketsTabId] = {
+          ...allTicketsTable,
+          rows: ticketsAsRows,
+        };
+      }
+      
+      // Loop through all tabs
+      tabs.forEach((tab) => {
+        // Skip the All Tickets tab
+        if (tab.id === allTicketsTabId || !tab.status) return;
+        
+        console.log(`Refreshing tab: ${tab.id} for status "${tab.status}"`);
+        
+        // Get the preset table structure or use the structure from the all tickets tab
+        const presetTable = PRESET_TABLES["Engineering"] || { 
+          columns: allTicketsTable.columns 
+        };
+        
+        if (!presetTable) {
+          console.warn(`Cannot find preset table for tab ${tab.id}`);
+          return;
+        }
+        
+        // Filter rows for this tab based on its status
+        const filteredRows = ticketsAsRows.filter(
+          (row) => row.cells["col-7"] === tab.status
+        );
+        
+        console.log(`Found ${filteredRows.length} tickets with status "${tab.status}"`);
+        
+        // Update this tab's table with filtered rows
+        if (currentTables[tab.id]) {
+          updatedTables[tab.id] = {
+            ...currentTables[tab.id],
+            columns: currentTables[tab.id]?.columns || [...presetTable.columns],
+            rows: filteredRows,
+          };
+        }
+      });
+      
+      // Update all tables at once
+      tablesStore.setTables(updatedTables);
+      console.log("All status tabs have been refreshed");
+    } catch (error) {
+      console.error("Error refreshing status tabs:", error);
     }
   };
 
-  // Initialize the ticket dialog
+  // Initialize the ticket dialog with a ticket's data
   const handleInitializeTicketDialog = (ticket: Row) => {
+    const { 
+      setCurrentTicket, 
+      setCurrentTicketPreset, 
+      setTicketForm, 
+      setUploadedImages,
+      setAssignees,
+      setTimeEntries,
+      setIsEditLayoutMode
+    } = state;
+
     // Find the current tab and store its preset
     const currentTabData = tabs.find((tab) => tab.id === activeTab);
 
@@ -641,7 +895,7 @@ export default function useTicketDialogHandlers(
     console.log("Loading saved widget layout state");
 
     // Open dialog
-    setViewDialogOpen(true);
+    state.setViewDialogOpen(true);
 
     // Check if this ticket has a completed status stored in its data
     let assigneeCompletedStatus = false;
@@ -812,9 +1066,16 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Modify the handleSaveTicketChanges function to save modified time entries
+  // Save ticket changes function
   const handleSaveTicketChanges = async () => {
-    if (!currentTicket) return;
+    const { 
+      currentTicket, 
+      ticketForm, 
+      timeEntries, 
+      modifiedTimeEntries 
+    } = state;
+    
+    if (!currentTicket) return false;
 
     try {
       // Show loading toast
@@ -973,6 +1234,9 @@ export default function useTicketDialogHandlers(
         const newTimeEntries = timeEntries.filter(entry => entry.id.startsWith('temp_'));
         console.log(`Found ${newTimeEntries.length} new time entries to create`);
         
+        // Log the modifiedTimeEntries for debugging
+        console.log("Modified time entries set:", [...modifiedTimeEntries]);
+        
         // Create promises for new time entries
         const createPromises = newTimeEntries.map(async (entry) => {
           try {
@@ -1034,7 +1298,7 @@ export default function useTicketDialogHandlers(
         const results = await Promise.all([...createPromises, ...updatePromises]);
         console.log(`Time entries saved successfully: ${results.filter(Boolean).length} operations completed`);
         
-        // Reset the modified time entries set
+        // Reset the modified time entries set - using the extracted setter function
         setModifiedTimeEntries(new Set());
       }
 
@@ -1074,8 +1338,18 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Enhance the viewTicket function to add debugging
+  // View ticket function
   const viewTicket = async (ticket: Row, tabId: string) => {
+    const { 
+      setCurrentTicket, 
+      setViewDialogOpen, 
+      setCurrentTicketPreset,
+      setTicketForm,
+      setUploadedImages,
+      setAssignees,
+      setTimeEntries 
+    } = state;
+    
     setCurrentTicket(ticket);
     setViewDialogOpen(true);
 
@@ -1176,150 +1450,13 @@ export default function useTicketDialogHandlers(
     }
   };
 
-  // Function to refresh all status-based tabs based on updated All Tickets data
-  const refreshStatusTabs = async (allTicketsRows: Row[]) => {
-    try {
-      // First, fetch the latest tickets from Appwrite to get up-to-date data
-      console.log("Fetching latest tickets from Appwrite for tab refresh");
-      const latestTickets = await ticketsService.getTicketsWithRelationships();
-      console.log(`Retrieved ${latestTickets.length} tickets from Appwrite`);
-      
-      // Convert the Appwrite tickets to table rows
-      const ticketsAsRows: Row[] = latestTickets.map(ticket => convertTicketToRow(ticket));
-      console.log(`Converted ${ticketsAsRows.length} tickets to table rows`);
-      
-      // Get a reference to the tables store
-      const tablesStore = useTablesStore.getState();
-      const currentTables = tablesStore.tables;
-      
-      // Debug: List available tabs to help find the correct ID
-      console.log("Available tabs:", Object.keys(currentTables));
-      
-      // Find the "All Tickets" tab - try different possible IDs
-      const possibleAllTicketTabIds = ["tab-all-tickets", "all-tickets", "tab1", "tab-1"];
-      let allTicketsTable = null;
-      let allTicketsTabId = null;
-      
-      // Try each possible ID
-      for (const tabId of possibleAllTicketTabIds) {
-        if (currentTables[tabId]) {
-          allTicketsTable = currentTables[tabId];
-          allTicketsTabId = tabId;
-          console.log(`Found All Tickets tab with ID: ${tabId}`);
-          break;
-        }
-      }
-      
-      // If still not found, look for a tab with "all" in the name
-      if (!allTicketsTable) {
-        for (const tabId of Object.keys(currentTables)) {
-          if (tabId.toLowerCase().includes('all')) {
-            allTicketsTable = currentTables[tabId];
-            allTicketsTabId = tabId;
-            console.log(`Found possible All Tickets tab with ID: ${tabId}`);
-            break;
-          }
-        }
-      }
-      
-      // If still not found, just use the first available tab
-      if (!allTicketsTable && Object.keys(currentTables).length > 0) {
-        const firstTabId = Object.keys(currentTables)[0];
-        allTicketsTable = currentTables[firstTabId];
-        allTicketsTabId = firstTabId;
-        console.log(`Using first available tab as fallback: ${firstTabId}`);
-      }
-      
-      if (!allTicketsTable) {
-        console.error("Cannot refresh status tabs: All Tickets tab not found");
-        console.log("Available table IDs:", Object.keys(currentTables));
-        return;
-      }
-      
-      const updatedTables = { ...currentTables };
-      
-      // Update the All Tickets tab with the latest data
-      if (allTicketsTabId) {
-        updatedTables[allTicketsTabId] = {
-          ...allTicketsTable,
-          rows: ticketsAsRows,
-        };
-      }
-      
-      // Loop through all tabs
-      tabs.forEach((tab) => {
-        // Skip the All Tickets tab
-        if (tab.id === allTicketsTabId || !tab.status) return;
-        
-        console.log(`Refreshing tab: ${tab.id} for status "${tab.status}"`);
-        
-        // Get the preset table structure or use the structure from the all tickets tab
-        const presetTable = PRESET_TABLES["Engineering"] || { 
-          columns: allTicketsTable.columns 
-        };
-        
-        if (!presetTable) {
-          console.warn(`Cannot find preset table for tab ${tab.id}`);
-          return;
-        }
-        
-        // Filter rows for this tab based on its status
-        const filteredRows = ticketsAsRows.filter(
-          (row) => row.cells["col-7"] === tab.status
-        );
-        
-        console.log(`Found ${filteredRows.length} tickets with status "${tab.status}"`);
-        
-        // Update this tab's table with filtered rows
-        if (currentTables[tab.id]) {
-          updatedTables[tab.id] = {
-            ...currentTables[tab.id],
-            columns: currentTables[tab.id]?.columns || [...presetTable.columns],
-            rows: filteredRows,
-          };
-        }
-      });
-      
-      // Update all tables at once
-      tablesStore.setTables(updatedTables);
-      console.log("All status tabs have been refreshed");
-    } catch (error) {
-      console.error("Error refreshing status tabs:", error);
-    }
-  };
-
   return {
-    viewDialogOpen,
-    setViewDialogOpen,
-    currentTicket,
-    setCurrentTicket,
-    currentTicketPreset,
-    setCurrentTicketPreset,
-    ticketForm,
-    setTicketForm,
-    uploadedImages,
-    setUploadedImages,
-    assignees,
-    setAssignees,
-    timeEntries,
-    setTimeEntries,
-    isEditLayoutMode,
-    setIsEditLayoutMode,
-    showAssigneeForm,
-    setShowAssigneeForm,
-    newAssignee,
-    setNewAssignee,
-    handleAddAssignee,
-    handleRemoveAssignee,
-    handleUpdateAssignee,
-    handleAddTimeEntry,
-    handleRemoveTimeEntry,
-    handleUpdateTimeEntry,
-    handleImageUpload,
-    markAssigneeCompleted,
+    ...state,
+    ...imageHandlers,
+    ...assigneeHandlers,
+    ...timeEntryHandlers,
     handleInitializeTicketDialog,
     handleSaveTicketChanges,
-    viewTicket,
-    modifiedTimeEntries,
+    viewTicket
   };
 }
