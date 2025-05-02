@@ -600,7 +600,31 @@ function useTimeEntryHandlers(state: TicketDialogState) {
       // Create an array of updated time entries
       const updatedTimeEntries = timeEntries.map(entry => {
         if (entry.id === id) {
-          const updatedEntry = { ...entry, [field]: value };
+          const updatedEntry = { ...entry };
+          
+          // Handle fields in a type-safe way
+          switch (field) {
+            case "startTime":
+              updatedEntry.startTime = value;
+              break;
+            case "stopTime":
+              updatedEntry.stopTime = value;
+              break;
+            case "remarks":
+              updatedEntry.remarks = value;
+              break;
+            case "files":
+              try {
+                updatedEntry.files = JSON.parse(value);
+              } catch (e) {
+                console.error("Error parsing files JSON:", e);
+                updatedEntry.files = [];
+              }
+              break;
+            default:
+              // For other fields, safely assign using type assertion
+              (updatedEntry as any)[field] = value;
+          }
 
           // Recalculate duration if start or stop time changes
           if (field === "startTime" || field === "stopTime") {
