@@ -732,11 +732,12 @@ function Customers() {
                       // Try to find a contact that matches the primary email
                       if (editFormData.primary_email) {
                         const matchingContact = findMatchingContact(appwriteContacts, editFormData.primary_email);
-                        return matchingContact?.$id || "";
+                        return matchingContact?.$id || "no-contacts";
                       }
-                      return "";
+                      return "no-contacts";
                     })()}
                     onValueChange={(value) => {
+                      if (value === "no-contacts") return;
                       const selectedContact = appwriteContacts.find(contact => contact.$id === value);
                       if (selectedContact) {
                         setEditFormData({
@@ -755,7 +756,7 @@ function Customers() {
                     </SelectTrigger>
                     <SelectContent className="bg-white">
                       {appwriteContacts.length === 0 ? (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no-contacts" disabled>
                           No contacts found
                         </SelectItem>
                       ) : (
