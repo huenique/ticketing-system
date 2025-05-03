@@ -163,7 +163,7 @@ async function createCollections() {
     'attribute customers.primary_contact_number'
   );
   await safe(
-    () => databases.createStringAttribute(dbId, 'customers', 'primary_email', 255, true),
+    () => databases.createStringAttribute(dbId, 'customers', 'primary_email', 255, false),
     'attribute customers.primary_email'
   );
   await safe(
