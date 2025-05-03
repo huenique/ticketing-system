@@ -1,6 +1,7 @@
 import { Edit, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,13 @@ import {
   customersService,
 } from "@/services/customersService";
 import { Customer as CommonCustomer } from "@/types/common";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function Customers() {
   const {
@@ -64,6 +72,7 @@ function Customers() {
     primary_contact_number: string;
     primary_email: string;
     abn: string;
+    primary_contact_id?: string;
   };
 
   type ContactFormData = {
@@ -108,6 +117,11 @@ function Customers() {
     Partial<ContactFormData>
   >({});
 
+  // Add a state for delete confirmation dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Fetch customers when component mounts
   useEffect(() => {
     const loadData = async () => {
@@ -144,6 +158,7 @@ function Customers() {
       console.log("Contact created successfully:", result);
 
       await fetchCustomerContacts(customerId);
+      return result;
     } catch (error) {
       console.error("Error adding contact:", error);
       throw error;
@@ -220,6 +235,11 @@ function Customers() {
     }
   };
 
+  // Helper function to find the contact that matches the primary contact info
+  const findMatchingContact = (contacts: Contact[], primaryEmail: string): Contact | undefined => {
+    return contacts.find(contact => contact.email === primaryEmail);
+  };
+
   const handleEditClick = (customer: CustomerType) => {
     setSelectedCustomer(customer);
     setEditFormData({
@@ -231,11 +251,39 @@ function Customers() {
       abn: customer.abn,
     });
     setIsEditDialogOpen(true);
+    
+    // Fetch contacts for this customer to populate the dropdown
+    const customerId = getCustomerId(customer);
+    fetchCustomerContacts(customerId).then(() => {
+      // After contacts are loaded, try to find a matching contact
+      if (customer.primary_email && appwriteContacts.length > 0) {
+        const matchingContact = findMatchingContact(appwriteContacts, customer.primary_email);
+        if (matchingContact) {
+          console.log("Found matching contact for primary contact:", matchingContact);
+        }
+      }
+    });
   };
 
-  const handleDeleteClick = async (customerId: string) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
-      await deleteCustomer(customerId);
+  const handleDeleteClick = (customerId: string) => {
+    setCustomerToDelete(customerId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteCustomer(customerToDelete);
+      toast.success("Customer deleted successfully");
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      toast.error("Failed to delete customer. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setCustomerToDelete(null);
     }
   };
 
@@ -335,16 +383,45 @@ function Customers() {
 
   const handleSubmitNewCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addCustomer(newCustomerData);
-    setIsAddDialogOpen(false);
-    setNewCustomerData({
-      name: "",
-      address: "",
-      primary_contact_name: "",
-      primary_contact_number: "",
-      primary_email: "",
-      abn: "",
-    });
+    
+    // Set placeholder values for primary contact fields since they are required in the database
+    const customerToCreate = {
+      ...newCustomerData,
+      primary_contact_name: "Not set", // Placeholder values for required fields
+      primary_contact_number: "Not set",
+      primary_email: "not.set@example.com",
+    };
+    
+    try {
+      // Create the customer first
+      const newCustomer = await addCustomer(customerToCreate);
+      
+      // If created successfully, open the contacts dialog for the new customer
+      if (newCustomer) {
+        setIsAddDialogOpen(false);
+        setSelectedCustomer(newCustomer);
+        // Reset form data
+        setNewCustomerData({
+          name: "",
+          address: "",
+          primary_contact_name: "",
+          primary_contact_number: "",
+          primary_email: "",
+          abn: "",
+        });
+        
+        // Show toast notification
+        toast.success("Customer created successfully. Add contacts and select a primary contact.");
+        
+        // Open the contacts dialog for the newly created customer
+        setIsContactsDialogOpen(true);
+        // Fetch contacts (should be empty for a new customer)
+        fetchCustomerContacts(getCustomerId(newCustomer));
+      }
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      toast.error("Failed to create customer. Please try again.");
+    }
   };
 
   const handleSubmitNewContactToAppwrite = async (e: React.FormEvent) => {
@@ -354,14 +431,41 @@ function Customers() {
       try {
         // Get customer ID using the helper function
         const customerId = getCustomerId(selectedCustomer);
-
-        await addContact(customerId, {
+        
+        // Check if contacts exist before adding the new one
+        const existingContacts = await customersService.getCustomerContacts(customerId);
+        const isFirstContact = existingContacts.length === 0;
+        
+        // Add the new contact
+        const newContact = await addContact(customerId, {
           first_name: newContactData.first_name,
           last_name: newContactData.last_name,
           contact_number: newContactData.contact_number,
           email: newContactData.email,
           position: newContactData.position,
         });
+
+        // If this is the first contact, automatically set it as primary
+        if (isFirstContact && newContact) {
+          // Update customer with primary contact info from the new contact
+          const updateData = {
+            primary_contact_name: `${newContact.first_name} ${newContact.last_name}`,
+            primary_contact_number: newContact.contact_number,
+            primary_email: newContact.email,
+          };
+          
+          await updateCustomer(customerId, updateData);
+          
+          // Update the selectedCustomer state with the new data
+          if (selectedCustomer) {
+            setSelectedCustomer({
+              ...selectedCustomer,
+              ...updateData
+            });
+          }
+          
+          toast.success(`${newContact.first_name} ${newContact.last_name} automatically set as primary contact`);
+        }
 
         setIsAddContactDialogOpen(false);
         setNewContactData({
@@ -439,6 +543,33 @@ function Customers() {
     }
   };
 
+  // Add a new function to set a contact as primary
+  const setPrimaryContact = async (contact: Contact) => {
+    if (!selectedCustomer) return;
+    
+    try {
+      const customerId = getCustomerId(selectedCustomer);
+      const updateData = {
+        primary_contact_name: `${contact.first_name} ${contact.last_name}`,
+        primary_contact_number: contact.contact_number,
+        primary_email: contact.email,
+      };
+      
+      await updateCustomer(customerId, updateData);
+      
+      // Update the selected customer with new data
+      setSelectedCustomer({
+        ...selectedCustomer,
+        ...updateData
+      });
+      
+      toast.success(`${contact.first_name} ${contact.last_name} set as primary contact`);
+    } catch (error) {
+      console.error("Error setting primary contact:", error);
+      toast.error("Failed to set primary contact");
+    }
+  };
+
   if (loading && customers.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -471,6 +602,7 @@ function Customers() {
 
   return (
     <div className="space-y-6">
+      <Toaster />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Customers</h1>
@@ -554,11 +686,11 @@ function Customers() {
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
-              Update customer information. Click save when done.
+              Make changes to customer information. You can select a primary contact from the dropdown.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitEdit}>
@@ -589,48 +721,58 @@ function Customers() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label
-                  htmlFor="primary_contact_name"
+                  htmlFor="primary_contact"
                   className="text-right text-sm font-medium"
                 >
                   Primary Contact
                 </label>
-                <Input
-                  id="primary_contact_name"
-                  name="primary_contact_name"
-                  value={editFormData.primary_contact_name || ""}
-                  onChange={handleEditFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label
-                  htmlFor="primary_contact_number"
-                  className="text-right text-sm font-medium"
-                >
-                  Contact Number
-                </label>
-                <Input
-                  id="primary_contact_number"
-                  name="primary_contact_number"
-                  value={editFormData.primary_contact_number || ""}
-                  onChange={handleEditFormChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label
-                  htmlFor="primary_email"
-                  className="text-right text-sm font-medium"
-                >
-                  Email
-                </label>
-                <Input
-                  id="primary_email"
-                  name="primary_email"
-                  value={editFormData.primary_email || ""}
-                  onChange={handleEditFormChange}
-                  className="col-span-3"
-                />
+                <div className="col-span-3">
+                  <Select 
+                    value={(() => {
+                      // Try to find a contact that matches the primary email
+                      if (editFormData.primary_email) {
+                        const matchingContact = findMatchingContact(appwriteContacts, editFormData.primary_email);
+                        return matchingContact?.$id || "";
+                      }
+                      return "";
+                    })()}
+                    onValueChange={(value) => {
+                      const selectedContact = appwriteContacts.find(contact => contact.$id === value);
+                      if (selectedContact) {
+                        setEditFormData({
+                          ...editFormData,
+                          primary_contact_name: `${selectedContact.first_name} ${selectedContact.last_name}`,
+                          primary_contact_number: selectedContact.contact_number,
+                          primary_email: selectedContact.email,
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue 
+                        placeholder={editFormData.primary_contact_name || "Select contact"} 
+                      />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {appwriteContacts.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          No contacts found
+                        </SelectItem>
+                      ) : (
+                        appwriteContacts.map((contact) => (
+                          <SelectItem key={contact.$id} value={contact.$id}>
+                            {contact.first_name} {contact.last_name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {editFormData.primary_contact_name && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Current: {editFormData.primary_contact_name} ({editFormData.primary_email})
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="abn" className="text-right text-sm font-medium">
@@ -654,11 +796,12 @@ function Customers() {
 
       {/* Add Customer Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
               Enter customer details. Click add when done.
+              After creating the customer, you'll be able to add contacts and select a primary contact.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitNewCustomer}>
@@ -690,54 +833,6 @@ function Customers() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label
-                  htmlFor="primary_contact_name"
-                  className="text-right text-sm font-medium"
-                >
-                  Primary Contact
-                </label>
-                <Input
-                  id="primary_contact_name"
-                  name="primary_contact_name"
-                  value={newCustomerData.primary_contact_name}
-                  onChange={handleNewCustomerFormChange}
-                  className="col-span-3"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label
-                  htmlFor="primary_contact_number"
-                  className="text-right text-sm font-medium"
-                >
-                  Contact Number
-                </label>
-                <Input
-                  id="primary_contact_number"
-                  name="primary_contact_number"
-                  value={newCustomerData.primary_contact_number}
-                  onChange={handleNewCustomerFormChange}
-                  className="col-span-3"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label
-                  htmlFor="primary_email"
-                  className="text-right text-sm font-medium"
-                >
-                  Email
-                </label>
-                <Input
-                  id="primary_email"
-                  name="primary_email"
-                  value={newCustomerData.primary_email}
-                  onChange={handleNewCustomerFormChange}
-                  className="col-span-3"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="abn" className="text-right text-sm font-medium">
                   ABN
                 </label>
@@ -759,17 +854,17 @@ function Customers() {
 
       {/* View Contacts Dialog */}
       <Dialog open={isContactsDialogOpen} onOpenChange={setIsContactsDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Contacts for {selectedCustomer?.name}</DialogTitle>
             <DialogDescription>
-              View and manage contacts for this customer.
+              View and manage contacts for this customer. You can set any contact as the primary contact.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="flex justify-between mb-4">
               <h3 className="text-lg font-medium">Contacts</h3>
-              {selectedCustomer && (
+              {selectedCustomer && appwriteContacts.length > 0 && (
                 <button
                   onClick={() => handleAddContactClick(selectedCustomer)}
                   className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-sm font-medium text-white"
@@ -800,60 +895,84 @@ function Customers() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>First Name</TableHead>
-                    <TableHead>Last Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Contact Number</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {appwriteContacts.length === 0 ? (
-                    <TableRow key="empty-contacts">
-                      <TableCell
-                        colSpan={6}
-                        className="text-center py-4 text-neutral-500"
-                      >
-                        No contacts found for this customer.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    appwriteContacts.map((contact) => (
-                      <TableRow key={contact.$id}>
-                        <TableCell>{contact.first_name}</TableCell>
-                        <TableCell>{contact.last_name}</TableCell>
-                        <TableCell>{contact.position}</TableCell>
-                        <TableCell>{contact.contact_number}</TableCell>
-                        <TableCell>{contact.email}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEditContactClick(contact)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title="Edit Contact"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteContactFromAppwrite(contact.$id)
-                              }
-                              className="p-1 text-red-600 hover:text-red-800"
-                              title="Delete Contact"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+              appwriteContacts.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No contacts found for this customer.</p>
+                  {selectedCustomer && (
+                    <button
+                      onClick={() => handleAddContactClick(selectedCustomer)}
+                      className="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white mx-auto"
+                    >
+                      <Plus size={16} />
+                      Add Contact
+                    </button>
                   )}
-                </TableBody>
-              </Table>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>First Name</TableHead>
+                      <TableHead>Last Name</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Contact Number</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appwriteContacts.map((contact) => {
+                      const isPrimaryContact = selectedCustomer && 
+                        selectedCustomer.primary_email === contact.email;
+                      
+                      return (
+                        <TableRow 
+                          key={contact.$id}
+                          className={isPrimaryContact ? "bg-green-50" : ""}
+                        >
+                          <TableCell>{contact.first_name}</TableCell>
+                          <TableCell>{contact.last_name}</TableCell>
+                          <TableCell>{contact.position}</TableCell>
+                          <TableCell>{contact.contact_number}</TableCell>
+                          <TableCell>{contact.email}</TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEditContactClick(contact)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title="Edit Contact"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleDeleteContactFromAppwrite(contact.$id)
+                                }
+                                className="p-1 text-red-600 hover:text-red-800"
+                                title="Delete Contact"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => setPrimaryContact(contact)}
+                                className={`p-1 ${
+                                  isPrimaryContact 
+                                    ? "text-green-800 bg-green-100 rounded-full" 
+                                    : "text-green-600 hover:text-green-800"
+                                }`}
+                                title={isPrimaryContact ? "Current Primary Contact" : "Set as Primary Contact"}
+                                disabled={isPrimaryContact ? true : undefined}
+                              >
+                                <UserPlus size={16} />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )
             )}
           </div>
           <DialogFooter>
@@ -1027,6 +1146,33 @@ function Customers() {
               <Button className="bg-blue-600 text-white hover:bg-blue-700" type="submit">Save changes</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Customer Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Customer</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this customer?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button disabled={isDeleting} className="bg-gray-600 text-white hover:bg-gray-700" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={isDeleting} className="bg-red-600 text-white hover:bg-red-700" onClick={confirmDelete}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
