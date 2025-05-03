@@ -147,7 +147,7 @@ async function createCollections() {
         'customers',
         'primary_contact_name',
         255,
-        true
+        false
       ),
     'attribute customers.primary_contact_name'
   );
@@ -158,7 +158,7 @@ async function createCollections() {
         'customers',
         'primary_contact_number',
         255,
-        true
+        false
       ),
     'attribute customers.primary_contact_number'
   );
