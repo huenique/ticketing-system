@@ -20,8 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { authService } from "@/lib/appwrite";
-import useUsersStore, { User, UserInput, UserType } from "@/stores/usersStore";
-import useUserStore from "@/stores/userStore";
+import useUsersStore, { User, UserInput } from "@/stores/usersStore";
 
 function Users() {
   const {
@@ -36,14 +35,17 @@ function Users() {
     addUser,
   } = useUsersStore();
   
-  // Get current auth user
-  const { currentUser } = useUserStore();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<UserInput>>({});
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  
+  // Add state for delete confirmation dialog
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Define a simpler type for the new user form data
   type NewUserFormData = {
@@ -93,9 +95,25 @@ function Users() {
     setIsEditDialogOpen(true);
   };
 
-  const handleDeleteClick = async (userId: string) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      await deleteUser(userId);
+  const handleDeleteClick = (userId: string) => {
+    setUserToDelete(userId);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteUser(userToDelete);
+      toast.success("User deleted successfully");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
     }
   };
 
@@ -176,7 +194,7 @@ function Users() {
       // Step 1: Create auth user
       console.log("Preparing to create auth user with email:", newUserData.email);
       
-      // Add a unique timestamp to email to test if the error persists with guaranteed unique emails
+      // Add a unique timestamp to email to test if it's an email conflict or something else
       const timestamp = Date.now();
       const testEmail = `${newUserData.email.split('@')[0]}_${timestamp}@${newUserData.email.split('@')[1]}`;
       console.log(`Using test email with timestamp: ${testEmail}`);
@@ -684,6 +702,44 @@ function Users() {
               </button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button 
+              disabled={isDeleting} 
+              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              disabled={isDeleting} 
+              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm ml-2"
+              onClick={confirmDelete}
+            >
+              {isDeleting ? (
+                <>
+                  <svg className="mr-2 h-4 w-4 animate-spin inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

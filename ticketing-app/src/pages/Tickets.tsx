@@ -28,7 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { PRESET_TABLES } from "@/constants/tickets";
 import {
-  customersService,
+  customersService as ticketsCustomersService,
   statusesService,
   ticketsService,
 } from "@/services/ticketsService";
@@ -54,6 +54,12 @@ import { uploadFile } from "@/services/storageService";
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
 
+// Import the customer contact types
+import {
+  customersService as fullCustomersService,
+  CustomerContact
+} from "@/services/customersService";
+
 // Define a custom User type that includes auth_user_id
 interface TicketUser {
   id: string;
@@ -63,6 +69,18 @@ interface TicketUser {
   username: string;
   user_type_id: string;
   auth_user_id?: string;
+}
+
+// Interface for the ticket form data (extends Ticket with UI-only fields)
+interface TicketFormData {
+  status_id: string;
+  customer_id: string;
+  primary_contact_id: string; // This is a UI-only field for the form
+  description: string;
+  billable_hours: number;
+  total_hours: number;
+  assignee_ids: string[];
+  attachments: string[];
 }
 
 // Helper function to convert ServiceUser to TicketUser
@@ -76,6 +94,13 @@ const mapServiceUserToTicketUser = (user: ServiceUser): TicketUser => ({
   user_type_id: typeof user.user_type_id === 'object' ? user.user_type_id.$id : user.user_type_id || '',
   auth_user_id: user.auth_user_id || ''
 });
+
+// Helper function to convert form data to Ticket data
+const convertFormDataToTicket = (formData: TicketFormData): Partial<Ticket> => {
+  // Destructure to remove the primary_contact_id field
+  const { primary_contact_id, ...ticketData } = formData;
+  return ticketData;
+};
 
 /**
  * Tickets Component
@@ -849,20 +874,41 @@ function Tickets() {
 
   // State for the Add Ticket dialog
   const [isAddTicketDialogOpen, setIsAddTicketDialogOpen] = useState(false);
-  const [newTicketData, setNewTicketData] = useState({
+  const [newTicketData, setNewTicketData] = useState<TicketFormData>({
     status_id: "",
     customer_id: "",
+    primary_contact_id: "",
     description: "",
     billable_hours: 0,
     total_hours: 0,
-    assignee_ids: [] as string[],
-    attachments: [] as string[],
+    assignee_ids: [],
+    attachments: [],
   });
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<ServiceUser[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
+  const [customerContactsLoading, setCustomerContactsLoading] = useState(false);
+
+  // Function to fetch contacts for a customer
+  const fetchCustomerContacts = async (customerId: string) => {
+    if (!customerId) return;
+    
+    try {
+      setCustomerContactsLoading(true);
+      console.log(`Fetching contacts for customer ID: ${customerId}`);
+      const contacts = await fullCustomersService.getCustomerContacts(customerId);
+      console.log(`Retrieved ${contacts.length} contacts for ticket form:`, contacts);
+      setCustomerContacts(contacts);
+    } catch (error) {
+      console.error("Error fetching customer contacts:", error);
+      setCustomerContacts([]);
+    } finally {
+      setCustomerContactsLoading(false);
+    }
+  };
 
   // Fetch statuses, customers, and users when component mounts or dialog opens
   useEffect(() => {
@@ -876,9 +922,24 @@ function Tickets() {
         setStatuses(statusesData);
 
         // Fetch customers
-        const customersData = await customersService.getAllCustomers();
-        console.log("Fetched customers:", customersData);
-        setCustomers(customersData);
+        const customersResponse = await fullCustomersService.getAllCustomers();
+        console.log("Fetched customers:", customersResponse);
+        
+        // Convert the customer data to match the expected format
+        const formattedCustomers: Customer[] = customersResponse.map(c => ({
+          id: c.$id,
+          name: c.name,
+          address: c.address,
+          primary_contact_name: c.primary_contact_name,
+          primary_contact_number: c.primary_contact_number,
+          primary_email: c.primary_email,
+          abn: c.abn,
+          $id: c.$id,
+          $createdAt: c.$createdAt,
+          $updatedAt: c.$updatedAt,
+        }));
+        
+        setCustomers(formattedCustomers);
 
         // Fetch users and map them to the expected format
         const usersData = await usersService.getAllUsers();
@@ -970,9 +1031,12 @@ function Tickets() {
         }
       }
       
-      // Create new ticket with form data
+      // Convert form data to ticket data (removing primary_contact_id)
+      const baseTicketData = convertFormDataToTicket(newTicketData);
+      
+      // Create ticket data with uploaded files and selected assignees
       const ticketData = {
-        ...newTicketData,
+        ...baseTicketData,
         assignee_ids: selectedAssignees,
         attachments: uploadedFileIds // Use the file IDs from storage
       };
@@ -991,6 +1055,7 @@ function Tickets() {
       setNewTicketData({
         status_id: "",
         customer_id: "",
+        primary_contact_id: "",
         description: "",
         billable_hours: 0,
         total_hours: 0,
@@ -999,6 +1064,7 @@ function Tickets() {
       });
       setSelectedAssignees([]);
       setUploadedFiles([]);
+      setCustomerContacts([]);
       
       // Close dialog
       setIsAddTicketDialogOpen(false);
@@ -1018,6 +1084,7 @@ function Tickets() {
       setNewTicketData({
         status_id: "",
         customer_id: "",
+        primary_contact_id: "",
         description: "",
         billable_hours: 0,
         total_hours: 0,
@@ -1070,6 +1137,26 @@ function Tickets() {
       return [];
     } finally {
       setIsLoadingTimeEntries(false);
+    }
+  };
+
+  // Function to set a contact as primary for a customer
+  const setPrimaryContact = async (customerId: string, contact: CustomerContact) => {
+    if (!customerId || !contact) return;
+    
+    try {
+      // Update customer with primary contact info
+      const updateData = {
+        primary_contact_name: `${contact.first_name} ${contact.last_name}`,
+        primary_contact_number: contact.contact_number,
+        primary_email: contact.email,
+      };
+      
+      // Update the customer record in Appwrite
+      await ticketsCustomersService.updateCustomer(customerId, updateData);
+      console.log(`Set ${contact.first_name} ${contact.last_name} as primary contact for customer ${customerId}`);
+    } catch (error) {
+      console.error("Error setting primary contact:", error);
     }
   };
 
@@ -1269,6 +1356,8 @@ function Tickets() {
                     onValueChange={(value) => {
                       if (value !== "placeholder") {
                         handleNewTicketFormChange("customer_id", value);
+                        // When customer changes, fetch their contacts
+                        fetchCustomerContacts(value);
                       }
                     }}
                   >
@@ -1299,6 +1388,66 @@ function Tickets() {
                         ) : (
                           <SelectItem value="no-customers" disabled>
                             No customers available
+                          </SelectItem>
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Primary Contact */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="primary_contact_id" className="text-right text-sm font-medium">
+                  Primary Contact
+                </label>
+                <div className="col-span-3">
+                  <Select
+                    value={newTicketData.primary_contact_id || "placeholder"}
+                    onValueChange={(value) => {
+                      if (value !== "placeholder") {
+                        handleNewTicketFormChange("primary_contact_id", value);
+                        
+                        // Also update the customer's primary contact info in Appwrite
+                        if (newTicketData.customer_id) {
+                          const selectedContact = customerContacts.find(contact => contact.$id === value);
+                          if (selectedContact) {
+                            setPrimaryContact(newTicketData.customer_id, selectedContact);
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      aria-label="Select primary contact"
+                    >
+                      <SelectValue placeholder="Select primary contact" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
+                      <SelectGroup>
+                        <SelectItem value="placeholder" disabled>
+                          {customerContactsLoading 
+                            ? "Loading contacts..."
+                            : "Select primary contact"
+                          }
+                        </SelectItem>
+                        {customerContacts && customerContacts.length > 0 ? (
+                          customerContacts.map((contact, index) => (
+                            <SelectItem
+                              key={contact.$id || `contact-${index}`}
+                              value={
+                                contact.$id
+                                  ? contact.$id.toString()
+                                  : `undefined-contact-${index}`
+                              }
+                            >
+                              {contact.first_name} {contact.last_name} - {contact.email}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-contacts" disabled>
+                            No contacts available
                           </SelectItem>
                         )}
                       </SelectGroup>

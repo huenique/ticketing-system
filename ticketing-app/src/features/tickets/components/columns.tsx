@@ -157,6 +157,34 @@ export const columns: ColumnDef<Row>[] = [
   {
     accessorKey: "cells.col-3",
     header: "Customer Name",
+    cell: ({ row }) => {
+      const customerName = row.original.cells["col-3"];
+      
+      // Access the raw customer data from the rawData property
+      const rawData = row.original.rawData || {};
+      const customer = rawData.customer || rawData.customer_id || {};
+      
+      const primaryContactName = customer?.primary_contact_name || "N/A";
+      const primaryContactNumber = customer?.primary_contact_number || "N/A";
+      const primaryEmail = customer?.primary_email || "N/A";
+      
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help">{customerName}</span>
+            </TooltipTrigger>
+            <TooltipContent className="p-3 max-w-sm bg-white text-black">
+              <div className="space-y-1">
+                <p><strong>Contact:</strong> {primaryContactName}</p>
+                <p><strong>Phone:</strong> {primaryContactNumber}</p>
+                <p><strong>Email:</strong> {primaryEmail}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
   },
   {
     accessorKey: "cells.col-4",
@@ -178,7 +206,7 @@ export const columns: ColumnDef<Row>[] = [
 
       return (
         <div className="flex flex-wrap gap-2">
-          {attachmentItems.map((item, index) => {
+          {attachmentItems.map((item: string, index: number) => {
             // Check if the attachment includes a name in format "id:name"
             const parts = item.split(":");
             const fileId = parts[0];
