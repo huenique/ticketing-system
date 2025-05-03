@@ -22,7 +22,9 @@ function SidebarItem({ icon: Icon, title, href }: SidebarItemProps) {
         variant={isActive ? "default" : "ghost"}
         className={cn(
           "w-full justify-start gap-2",
-          isActive ? "bg-neutral-900 text-white" : "text-neutral-600",
+          isActive 
+            ? "bg-neutral-900 text-white hover:bg-neutral-800" 
+            : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900",
         )}
       >
         <Icon size={18} />
