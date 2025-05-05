@@ -875,7 +875,7 @@ function Tickets() {
   // State for the Add Ticket dialog
   const [isAddTicketDialogOpen, setIsAddTicketDialogOpen] = useState(false);
   const [newTicketData, setNewTicketData] = useState<TicketFormData>({
-    status_id: "",
+    status_id: "", // Will be set to "New" when statuses are loaded
     customer_id: "",
     primary_contact_id: "",
     description: "",
@@ -920,6 +920,23 @@ function Tickets() {
         const statusesData = await statusesService.getAllStatuses();
         console.log("Fetched statuses:", statusesData);
         setStatuses(statusesData);
+        
+        // Find the "New" status and set it as default
+        const newStatus = statusesData.find(status => status.label === "New");
+        if (newStatus && newStatus.$id) {
+          console.log("Setting default status to 'New' with ID:", newStatus.$id);
+          // Use setState callback to ensure we get the latest state
+          setNewTicketData(prev => {
+            const updated = {
+              ...prev,
+              status_id: newStatus.$id || ""
+            };
+            console.log("Updated ticket data with New status:", updated);
+            return updated;
+          });
+        } else {
+          console.log("Could not find 'New' status in:", statusesData);
+        }
 
         // Fetch customers
         const customersResponse = await fullCustomersService.getAllCustomers();
@@ -966,7 +983,14 @@ function Tickets() {
 
   // Helper function to get status label from ID
   const getStatusLabel = (statusId: string): string => {
-    if (!statusId || statusId === "placeholder") return "Select status";
+    if (!statusId || statusId === "placeholder") {
+      // Return "New" as the default display value
+      const newStatus = statuses.find(s => s.label === "New");
+      if (newStatus) {
+        return "New";
+      }
+      return "Select status";
+    }
     const status = statuses.find((s) => s.$id === statusId);
     return status ? status.label : "Select status";
   };
@@ -1080,9 +1104,15 @@ function Tickets() {
   // Reset form when dialog opens or closes
   useEffect(() => {
     if (isAddTicketDialogOpen) {
-      // Reset form when opening
+      // Find the "New" status ID first (if statuses are already loaded)
+      const newStatus = statuses.find(status => status.label === "New");
+      const newStatusId = newStatus?.$id || "";
+      
+      console.log("Resetting form with New status ID:", newStatusId);
+      
+      // Reset form when opening with "New" as default status if available
       setNewTicketData({
-        status_id: "",
+        status_id: newStatusId, // Keep "New" as the default status if available
         customer_id: "",
         primary_contact_id: "",
         description: "",
@@ -1091,11 +1121,12 @@ function Tickets() {
         assignee_ids: [],
         attachments: []
       });
+      
       setSelectedAssignees([]);
       setUploadedFiles([]);
       console.log("Form data reset when dialog opened");
     }
-  }, [isAddTicketDialogOpen]);
+  }, [isAddTicketDialogOpen, statuses]);
 
   // State for time entries
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -1304,6 +1335,7 @@ function Tickets() {
                 <div className="col-span-3">
                   <Select
                     value={newTicketData.status_id || "placeholder"}
+                    defaultValue={newTicketData.status_id || "placeholder"}
                     onValueChange={(value) => {
                       if (value !== "placeholder") {
                         handleNewTicketFormChange("status_id", value);
@@ -1314,7 +1346,9 @@ function Tickets() {
                       className="w-full"
                       aria-label={getStatusLabel(newTicketData.status_id)}
                     >
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue>
+                        {newTicketData.status_id ? getStatusLabel(newTicketData.status_id) : "New"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
                       <SelectGroup>
