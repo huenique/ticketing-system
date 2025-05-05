@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Users from "./pages/Users";
+import UserTypes from "./pages/UserTypes";
 import useUserStore from "./stores/userStore";
 
 // Protected route component
@@ -68,6 +69,19 @@ function App() {
             <AdminRoute>
               <DashboardLayout>
                 <Users />
+              </DashboardLayout>
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/user-types"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <DashboardLayout>
+                <UserTypes />
               </DashboardLayout>
             </AdminRoute>
           </ProtectedRoute>

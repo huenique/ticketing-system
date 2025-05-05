@@ -41,6 +41,11 @@ export type NewUser = {
   auth_user_id?: string;
 };
 
+// Type for creating/updating a user type
+export type UserTypeInput = {
+  label: string;
+};
+
 // Users service object
 export const usersService = {
   /**
@@ -71,6 +76,54 @@ export const usersService = {
       return response.documents as UserType[];
     } catch (error) {
       console.error("Error fetching user types:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new user type
+   */
+  createUserType: async (userTypeData: UserTypeInput): Promise<UserType> => {
+    try {
+      const userType = await databases.createDocument(
+        DATABASE_ID,
+        USER_TYPES_COLLECTION,
+        ID.unique(),
+        userTypeData
+      );
+      return userType as UserType;
+    } catch (error) {
+      console.error("Error creating user type:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a user type
+   */
+  updateUserType: async (id: string, userTypeData: UserTypeInput): Promise<UserType> => {
+    try {
+      const userType = await databases.updateDocument(
+        DATABASE_ID,
+        USER_TYPES_COLLECTION,
+        id,
+        userTypeData
+      );
+      return userType as UserType;
+    } catch (error) {
+      console.error(`Error updating user type ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a user type
+   */
+  deleteUserType: async (id: string): Promise<void> => {
+    try {
+      await databases.deleteDocument(DATABASE_ID, USER_TYPES_COLLECTION, id);
+    } catch (error) {
+      console.error(`Error deleting user type ${id}:`, error);
       throw error;
     }
   },

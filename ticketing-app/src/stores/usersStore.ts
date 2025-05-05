@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { authService } from "@/lib/appwrite";
-import { User, usersService, UserType } from "@/services/usersService";
+import { User, usersService, UserType, UserTypeInput } from "@/services/usersService";
 import useUserStore from "./userStore";
 
 import { persist } from "./middleware";
@@ -29,6 +29,10 @@ interface UsersState {
   addUser: (user: UserInput) => Promise<void>;
   updateUser: (id: string, user: Partial<UserInput>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  // User types management
+  addUserType: (userType: UserTypeInput) => Promise<void>;
+  updateUserType: (id: string, userType: UserTypeInput) => Promise<void>;
+  deleteUserType: (id: string) => Promise<void>;
 }
 
 const useUsersStore = create<UsersState>()(
@@ -137,6 +141,60 @@ const useUsersStore = create<UsersState>()(
           console.error("Error deleting user:", error);
           set({
             error: error instanceof Error ? error : new Error("Failed to delete user"),
+            loading: false,
+          });
+        }
+      },
+
+      // User types management
+      addUserType: async (userType) => {
+        set({ loading: true, error: null });
+        try {
+          const newUserType = await usersService.createUserType(userType);
+          set((state) => ({
+            userTypes: [...state.userTypes, newUserType],
+            loading: false,
+          }));
+        } catch (error) {
+          console.error("Error adding user type:", error);
+          set({
+            error: error instanceof Error ? error : new Error("Failed to add user type"),
+            loading: false,
+          });
+        }
+      },
+
+      updateUserType: async (id, userType) => {
+        set({ loading: true, error: null });
+        try {
+          const updatedUserType = await usersService.updateUserType(id, userType);
+          set((state) => ({
+            userTypes: state.userTypes.map((type) => 
+              type.$id === id ? updatedUserType : type
+            ),
+            loading: false,
+          }));
+        } catch (error) {
+          console.error("Error updating user type:", error);
+          set({
+            error: error instanceof Error ? error : new Error("Failed to update user type"),
+            loading: false,
+          });
+        }
+      },
+
+      deleteUserType: async (id) => {
+        set({ loading: true, error: null });
+        try {
+          await usersService.deleteUserType(id);
+          set((state) => ({
+            userTypes: state.userTypes.filter((type) => type.$id !== id),
+            loading: false,
+          }));
+        } catch (error) {
+          console.error("Error deleting user type:", error);
+          set({
+            error: error instanceof Error ? error : new Error("Failed to delete user type"),
             loading: false,
           });
         }

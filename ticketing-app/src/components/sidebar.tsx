@@ -47,6 +47,7 @@ function Sidebar({ className }: SidebarProps) {
   // Admin-only items
   const adminNavItems = [
     { title: "Users", icon: User, href: "/users" },
+    { title: "User Types", icon: User, href: "/user-types" },
     { title: "Customers", icon: Users, href: "/customers" },
     { title: "Settings", icon: Settings, href: "/settings" },
   ];
