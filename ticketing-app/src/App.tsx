@@ -6,6 +6,7 @@ import Customers from "./pages/Customers";
 import Login from "./pages/Login";
 import Logout from "./pages/Logout";
 import NotFound from "./pages/NotFound";
+import Parts from "./pages/Parts";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Users from "./pages/Users";
@@ -97,6 +98,17 @@ function App() {
                 <Customers />
               </DashboardLayout>
             </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/parts"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Parts />
+            </DashboardLayout>
           </ProtectedRoute>
         }
       />

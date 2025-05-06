@@ -1,4 +1,4 @@
-import { LogOut, LucideIcon, Settings, Ticket, User, Users } from "lucide-react";
+import { LogOut, LucideIcon, Settings, Ticket, User, Users, Package } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ function Sidebar({ className }: SidebarProps) {
     { title: "Users", icon: User, href: "/users" },
     { title: "User Types", icon: User, href: "/user-types" },
     { title: "Customers", icon: Users, href: "/customers" },
+    { title: "Parts", icon: Package, href: "/parts" },
     { title: "Settings", icon: Settings, href: "/settings" },
   ];
 
