@@ -420,6 +420,58 @@ async function createCollections() {
     'relationship tickets.assignment_id'
   );
 
+  // 9. parts
+  await safe(
+    () =>
+      databases.createCollection(
+        dbId,
+        'parts',
+        'Parts',
+        ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+      ),
+    'collection parts'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'parts', 'description', 255, true),
+    'attribute parts.description'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'parts', 'quantity', 255, true),
+    'attribute parts.quantity'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'parts', 'price', 255, true),
+    'attribute parts.price'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'parts', 'vendor', 255, true),
+    'attribute parts.vendor'
+  );
+  await safe(
+    () => databases.createDatetimeAttribute(dbId, 'parts', 'created_at', false),
+    'attribute parts.created_at'
+  );
+  await safe(
+    () => databases.createDatetimeAttribute(dbId, 'parts', 'updated_at', false),
+    'attribute parts.updated_at'
+  );
+
+  // 10. add part_ids on tickets
+  await safe(
+    () =>
+      databases.createRelationshipAttribute(
+        dbId,
+        'tickets',
+        'parts',
+        'manyToMany' as RelationshipType,
+        false,
+        'part_ids',
+        undefined,
+        'cascade' as RelationMutate,
+      ),
+    'relationship tickets.part_ids'
+  );
+
   // 9. time_entries
   await safe(
     () =>
