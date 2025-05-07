@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write . && npx eslint . --fix",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "create-db": "tsx scripts/create-db.ts",
+    "import-parts": "tsx scripts/import-parts.ts",
+    "import-customers": "tsx scripts/import-customers.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.7",
