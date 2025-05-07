@@ -37,6 +37,7 @@ import { usersService, User as ServiceUser } from "@/services/usersService";
 import { Customer, Row, Ticket, TimeEntry } from "@/types/tickets";
 import { Status } from "@/services/ticketsService";
 import { convertTicketToRow } from "@/utils/ticketUtils";
+import { partsService, Part } from "@/services/partsService";
 
 // Components
 import TabNavigation from "../components/TabNavigation";
@@ -81,6 +82,7 @@ interface TicketFormData {
   total_hours: number;
   assignee_ids: string[];
   attachments: string[];
+  part_ids: string[]; // Array of selected part IDs
 }
 
 // Helper function to convert ServiceUser to TicketUser
@@ -639,12 +641,14 @@ function Tickets() {
         total_hours: ticketData.total_hours || 0,
         assignee_ids: ticketData.assignee_ids || [],
         attachments: ticketData.attachments || [],
+        part_ids: ticketData.part_ids || [], // Include part_ids from the ticket data
       };
 
       console.log("Formatted ticket data for creation:", {
         status_id: newTicketData.status_id,
         customer_id: newTicketData.customer_id,
         assignee_ids: newTicketData.assignee_ids,
+        part_ids: newTicketData.part_ids,
         description:
           newTicketData.description?.substring(0, 50) +
           (newTicketData.description?.length > 50 ? "..." : ""),
@@ -883,6 +887,7 @@ function Tickets() {
     total_hours: 0,
     assignee_ids: [],
     attachments: [],
+    part_ids: [],
   });
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -891,6 +896,8 @@ function Tickets() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
   const [customerContactsLoading, setCustomerContactsLoading] = useState(false);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [selectedParts, setSelectedParts] = useState<string[]>([]);
 
   // Function to fetch contacts for a customer
   const fetchCustomerContacts = async (customerId: string) => {
@@ -963,6 +970,11 @@ function Tickets() {
         console.log("Fetched users:", usersData);
         // Store the original ServiceUser objects
         setUsers(usersData);
+        
+        // Fetch parts
+        const partsData = await partsService.getAllParts();
+        console.log("Fetched parts:", partsData);
+        setParts(partsData);
       } catch (error) {
         console.error("Error fetching form data:", error);
       }
@@ -1015,6 +1027,19 @@ function Tickets() {
     });
   };
 
+  // Handle part selection
+  const handlePartSelection = (partId: string) => {
+    console.log("Toggling part selection for:", partId);
+    setSelectedParts((prev) => {
+      // If already selected, remove it
+      if (prev.includes(partId)) {
+        return prev.filter((id) => id !== partId);
+      }
+      // Otherwise add it
+      return [...prev, partId];
+    });
+  };
+
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1062,14 +1087,16 @@ function Tickets() {
       const ticketData = {
         ...baseTicketData,
         assignee_ids: selectedAssignees,
-        attachments: uploadedFileIds // Use the file IDs from storage
+        attachments: uploadedFileIds, // Use the file IDs from storage
+        part_ids: selectedParts // Add the selected parts
       };
       
       console.log("Creating ticket with relationship fields:", {
         status_id: ticketData.status_id,
         customer_id: ticketData.customer_id,
         assignee_ids: ticketData.assignee_ids,
-        attachments: ticketData.attachments
+        part_ids: ticketData.part_ids,
+        attachments: ticketData.attachments,
       });
       
       // Create the ticket and update the UI
@@ -1084,10 +1111,12 @@ function Tickets() {
         billable_hours: 0,
         total_hours: 0,
         assignee_ids: [],
-        attachments: []
+        attachments: [],
+        part_ids: []
       });
       setSelectedAssignees([]);
       setUploadedFiles([]);
+      setSelectedParts([]); // Reset selected parts
       setCustomerContacts([]);
       
       // Close dialog
@@ -1119,11 +1148,14 @@ function Tickets() {
         billable_hours: 0,
         total_hours: 0,
         assignee_ids: [],
-        attachments: []
+        attachments: [],
+        part_ids: []
       });
       
       setSelectedAssignees([]);
       setUploadedFiles([]);
+      setSelectedParts([]); // Reset selected parts
+      setCustomerContacts([]);
       console.log("Form data reset when dialog opened");
     }
   }, [isAddTicketDialogOpen, statuses]);
@@ -1666,6 +1698,97 @@ function Tickets() {
                                 )
                               }
                               className="ml-2 text-blue-600 hover:text-blue-800"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Parts */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label className="text-right text-sm font-medium mt-2">Parts</label>
+                <div className="col-span-3">
+                  <Select
+                    value={
+                      selectedParts.length > 0 ? "has-selections" : "placeholder"
+                    }
+                    onValueChange={(value) => {
+                      if (
+                        value &&
+                        value !== "has-selections" &&
+                        value !== "placeholder"
+                      ) {
+                        handlePartSelection(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full" aria-label="Select parts">
+                      <SelectValue placeholder="Select parts" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
+                      <SelectGroup>
+                        <SelectItem value="placeholder" disabled>
+                          Select parts
+                        </SelectItem>
+                        {parts &&
+                          parts.length > 0 &&
+                          parts.map((part, index) => (
+                            <SelectItem
+                              key={part.$id || `part-${index}`}
+                              value={
+                                part.$id
+                                  ? part.$id.toString()
+                                  : `undefined-part-${index}`
+                              }
+                              className={
+                                selectedParts.includes(
+                                  part.$id || `undefined-part-${index}`,
+                                )
+                                  ? "bg-green-100"
+                                  : ""
+                              }
+                            >
+                              {part.description} - {part.quantity} (${part.price})
+                              {selectedParts.includes(
+                                part.$id || `undefined-part-${index}`,
+                              ) && " ✓"}
+                            </SelectItem>
+                          ))}
+                        {(!parts || parts.length === 0) && (
+                          <SelectItem value="no-parts" disabled>
+                            No parts available
+                          </SelectItem>
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Show selected parts as tags */}
+                  {selectedParts.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedParts.map((id) => {
+                        const part = parts.find((p) => p.$id === id);
+                        if (!part) return null;
+
+                        return (
+                          <div
+                            key={id}
+                            className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-sm flex items-center"
+                          >
+                            {part.description} - {part.quantity}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedParts((prev) =>
+                                  prev.filter((partId) => partId !== id),
+                                )
+                              }
+                              className="ml-2 text-green-600 hover:text-green-800"
                             >
                               ×
                             </button>

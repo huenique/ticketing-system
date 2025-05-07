@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Paperclip, X, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getFilePreview, getFileDownload } from "@/services/storageService";
+import { getFilePreview, getFileDownload, getFileInfo } from "@/services/storageService";
 import { Progress } from "@/components/ui/progress";
 
 interface AttachmentsWidgetProps {
@@ -11,6 +11,13 @@ interface AttachmentsWidgetProps {
   isReadOnly?: boolean;
   isUploading?: boolean;
   uploadProgress?: number;
+}
+
+// Type for file info
+interface FileInfo {
+  id: string;
+  name: string | null;
+  loading: boolean;
 }
 
 export default function AttachmentsWidget({
@@ -23,6 +30,69 @@ export default function AttachmentsWidget({
 }: AttachmentsWidgetProps) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [fileInfos, setFileInfos] = useState<Record<string, FileInfo>>({});
+
+  // Fetch file info for each attachment
+  useEffect(() => {
+    const fetchFileInfos = async () => {
+      // Only fetch for valid file IDs (not "uploading...")
+      const validFileIds = attachments.filter(id => id !== "uploading...");
+      
+      // Initialize loading states for files we don't have info for yet
+      validFileIds.forEach(fileId => {
+        if (!fileInfos[fileId]) {
+          setFileInfos(prev => ({
+            ...prev,
+            [fileId]: { id: fileId, name: null, loading: true }
+          }));
+        }
+      });
+      
+      // Fetch file info for each attachment
+      for (const fileId of validFileIds) {
+        // Skip if we already have info for this file and it's not loading
+        if (fileInfos[fileId] && !fileInfos[fileId].loading) continue;
+        
+        try {
+          const info = await getFileInfo(fileId);
+          setFileInfos(prev => ({
+            ...prev,
+            [fileId]: { 
+              id: fileId, 
+              name: info?.name || getDefaultFileName(fileId, attachments.indexOf(fileId)), 
+              loading: false 
+            }
+          }));
+        } catch (error) {
+          console.error(`Error fetching file info for ${fileId}:`, error);
+          setFileInfos(prev => ({
+            ...prev,
+            [fileId]: { 
+              id: fileId, 
+              name: getDefaultFileName(fileId, attachments.indexOf(fileId)), 
+              loading: false 
+            }
+          }));
+        }
+      }
+    };
+    
+    fetchFileInfos();
+  }, [attachments]);
+
+  // Helper function to generate a default file name if actual name can't be fetched
+  const getDefaultFileName = (fileId: string, index: number): string => {
+    // If fileId contains a recognizable pattern that might include the name, extract it
+    if (fileId.includes("_") && fileId.length > 10) {
+      const parts = fileId.split("_");
+      if (parts.length > 1) {
+        return parts[parts.length - 1]; // Get the last part
+      }
+    }
+    
+    // Default to "File" + index
+    return `File ${index + 1}`;
+  };
 
   const handleTriggerFileInput = () => {
     if (fileInputRef.current) {
@@ -80,6 +150,11 @@ export default function AttachmentsWidget({
               }
               
               const fileType = getFileType(fileId);
+              const fileInfo = fileInfos[fileId] || { id: fileId, name: null, loading: true };
+              const displayName = fileInfo.loading ? 
+                "Loading..." : 
+                (fileInfo.name || getDefaultFileName(fileId, index));
+                
               return (
                 <div 
                   key={`file-${fileId}-${index}`} 
@@ -98,7 +173,7 @@ export default function AttachmentsWidget({
                       )}
                     </div>
                     <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-medium truncate">File {index + 1}</p>
+                      <p className="text-sm font-medium truncate">{displayName}</p>
                       <p className="text-xs text-neutral-500 truncate">{fileId.substring(0, 10)}...</p>
                     </div>
                   </div>

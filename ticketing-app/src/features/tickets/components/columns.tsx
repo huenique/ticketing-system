@@ -198,12 +198,37 @@ export const columns: ColumnDef<Row>[] = [
     accessorKey: "cells.col-6",
     header: "Parts Used",
     cell: ({ row }) => {
-      const attachments = row.original.cells["col-6"];
-      if (!attachments) return "-";
+      const parts = row.original.cells["col-6"];
+      if (!parts) return "-";
 
-      // Split attachments string into an array of file IDs or ID:Name pairs
-      const attachmentItems = attachments.split(", ");
+      // If we have raw data, try to get part descriptions from it
+      const rawTicket = row.original.rawData;
+      if (rawTicket && rawTicket.part_ids && Array.isArray(rawTicket.part_ids)) {
+        return (
+          <div className="flex flex-wrap gap-2">
+            {rawTicket.part_ids.map((part: any, index: number) => {
+              let description = "";
+              // Check if it's an object with description
+              if (typeof part === "object" && part !== null && part.description) {
+                description = `${part.description}${part.quantity ? ` (${part.quantity})` : ""}`;
+              } else {
+                // Otherwise just show the ID or string representation
+                description = String(typeof part === "object" ? part.$id || part.id || "Unknown Part" : part);
+              }
+              
+              return (
+                <div key={index} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700">
+                  {description}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
 
+      // Fall back to attachments if no parts are found
+      const attachmentItems = parts.split(", ");
+      
       return (
         <div className="flex flex-wrap gap-2">
           {attachmentItems.map((item: string, index: number) => {

@@ -236,6 +236,28 @@ export const ticketsService = {
         formattedTicketData.assignee_ids = [];
       }
 
+      // Process part_ids (many-to-many relationship)
+      if (formattedTicketData.part_ids) {
+        if (Array.isArray(formattedTicketData.part_ids)) {
+          // Make sure all array elements are strings (not objects)
+          formattedTicketData.part_ids = formattedTicketData.part_ids.map(
+            (item: string | { $id: string }) =>
+              typeof item === "string" ? item : item.$id || "",
+          );
+        } else if (typeof formattedTicketData.part_ids === "string") {
+          // If it's a single string ID, convert to array
+          formattedTicketData.part_ids = [formattedTicketData.part_ids];
+        } else if (
+          typeof formattedTicketData.part_ids === "object" &&
+          "$id" in formattedTicketData.part_ids
+        ) {
+          // If it's an object with $id, extract the ID and convert to array
+          formattedTicketData.part_ids = [
+            (formattedTicketData.part_ids as { $id: string }).$id,
+          ];
+        }
+      }
+
       console.log(
         "Creating ticket with formatted data:",
         JSON.stringify(formattedTicketData, null, 2),
@@ -325,6 +347,28 @@ export const ticketsService = {
           // If it's an object with $id, extract the ID and convert to array
           formattedTicketData.assignee_ids = [
             (formattedTicketData.assignee_ids as { $id: string }).$id,
+          ];
+        }
+      }
+
+      // Process part_ids (many-to-many relationship) if included in the update
+      if (formattedTicketData.part_ids !== undefined) {
+        if (Array.isArray(formattedTicketData.part_ids)) {
+          // Make sure all array elements are strings (not objects)
+          formattedTicketData.part_ids = formattedTicketData.part_ids.map(
+            (item: string | { $id: string }) =>
+              typeof item === "string" ? item : item.$id || "",
+          );
+        } else if (typeof formattedTicketData.part_ids === "string") {
+          // If it's a single string ID, convert to array
+          formattedTicketData.part_ids = [formattedTicketData.part_ids];
+        } else if (
+          typeof formattedTicketData.part_ids === "object" &&
+          "$id" in formattedTicketData.part_ids
+        ) {
+          // If it's an object with $id, extract the ID and convert to array
+          formattedTicketData.part_ids = [
+            (formattedTicketData.part_ids as { $id: string }).$id,
           ];
         }
       }
