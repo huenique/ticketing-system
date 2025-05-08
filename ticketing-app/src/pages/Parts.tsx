@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/table";
 import usePartsStore from "@/stores/partsStore";
 import type { Part, PartInput } from "@/stores/partsStore";
+import { DataTable } from "@/components/ui/data-table";
+import { getPartsColumns, PartActions } from "@/features/parts/components/parts-columns";
 
 function Parts() {
   const { parts, loading, error, fetchParts, addPart, updatePart, deletePart } = usePartsStore();
@@ -143,11 +145,9 @@ function Parts() {
   };
 
   const renderEmptyState = () => (
-    <TableRow key="empty-state">
-      <TableCell colSpan={6} className="text-center py-4 text-neutral-500">
-        No parts found. Add a new part to get started.
-      </TableCell>
-    </TableRow>
+    <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+      No parts found. Add a new part to get started.
+    </div>
   );
 
   if (loading && parts.length === 0) {
@@ -198,51 +198,21 @@ function Parts() {
         </button>
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm p-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {parts.length === 0
-              ? renderEmptyState()
-              : parts.map((part) => (
-                  <TableRow key={part.$id || `part-${Math.random()}`}>
-                    <TableCell>{part.$id}</TableCell>
-                    <TableCell className="font-medium">{part.description}</TableCell>
-                    <TableCell>{part.quantity}</TableCell>
-                    <TableCell>{part.price}</TableCell>
-                    <TableCell>{part.vendor}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditClick(part)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="Edit part"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(part.$id)}
-                          className="p-1 text-red-600 hover:text-red-800"
-                          title="Delete part"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-          </TableBody>
-        </Table>
-      </div>
+      {parts.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <DataTable
+          columns={getPartsColumns({
+            onEdit: (item) => handleEditClick(item as any),
+            onDelete: handleDeleteClick,
+          })}
+          data={parts as any}
+          isLoading={loading && parts.length === 0}
+          searchPlaceholder="Search parts..."
+          searchColumn="description"
+          noResultsMessage="No parts found."
+        />
+      )}
 
       {/* Add Part Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

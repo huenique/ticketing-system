@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { authService } from "@/lib/appwrite";
 import useUsersStore, { User, UserInput } from "@/stores/usersStore";
+import { DataTable } from "@/components/ui/data-table";
+import { getUsersColumns, UserActions } from "@/features/users/components/users-columns";
 
 function Users() {
   const {
@@ -304,13 +306,11 @@ function Users() {
     return "Unknown";
   };
 
-  // Ensure the empty state has a key
+  // Update the renderEmptyState function and the main render return
   const renderEmptyState = () => (
-    <TableRow key="empty-state">
-      <TableCell colSpan={7} className="text-center py-4 text-neutral-500">
-        No users found. Add a new user to get started.
-      </TableCell>
-    </TableRow>
+    <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+      No users found. Add a new user to get started.
+    </div>
   );
 
   if (loading && users.length === 0) {
@@ -349,7 +349,7 @@ function Users() {
         <div>
           <h1 className="text-3xl font-bold">Users</h1>
           <p className="text-neutral-500">
-            Manage your team members and user permissions
+            Manage system users and their permissions
           </p>
         </div>
         <button
@@ -361,62 +361,21 @@ function Users() {
         </button>
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm p-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User ID</TableHead>
-              <TableHead>First Name</TableHead>
-              <TableHead>Last Name</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>User Type</TableHead>
-              <TableHead>Auth Link</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.length === 0
-              ? renderEmptyState()
-              : users.map((user) => (
-                  <TableRow key={user.$id || `user-${Math.random()}`}>
-                    <TableCell>{user.$id}</TableCell>
-                    <TableCell>{user.first_name}</TableCell>
-                    <TableCell>{user.last_name}</TableCell>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>{getUserTypeLabel(user.user_type_id)}</TableCell>
-                    <TableCell>
-                      {user.auth_user_id ? 
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                          Linked
-                        </span> : 
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                          Not linked
-                        </span>
-                      }
-                    </TableCell>
-                    <TableCell>{formatDate(user.$createdAt)}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditClick(user)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(user.$id)}
-                          className="p-1 text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-          </TableBody>
-        </Table>
-      </div>
+      {users.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <DataTable
+          columns={getUsersColumns({
+            onEdit: (item) => handleEditClick(item as any),
+            onDelete: handleDeleteClick,
+          })}
+          data={users as any}
+          isLoading={loading && users.length === 0}
+          searchPlaceholder="Search users..."
+          searchColumn="username"
+          noResultsMessage="No users found."
+        />
+      )}
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

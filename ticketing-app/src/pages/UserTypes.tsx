@@ -19,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import useUsersStore from "@/stores/usersStore";
+import { DataTable } from "@/components/ui/data-table";
+import { getUserTypesColumns, UserTypeActions } from "@/features/users/components/user-types-columns";
 
 type UserType = {
   $id: string;
@@ -118,11 +120,9 @@ function UserTypes() {
   };
 
   const renderEmptyState = () => (
-    <TableRow key="empty-state">
-      <TableCell colSpan={4} className="text-center py-4 text-neutral-500">
-        No user types found. Add a new user type to get started.
-      </TableCell>
-    </TableRow>
+    <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+      No user types found. Add a new user type to get started.
+    </div>
   );
 
   if (loading && userTypes.length === 0) {
@@ -173,51 +173,21 @@ function UserTypes() {
         </button>
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm p-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {userTypes.length === 0
-              ? renderEmptyState()
-              : userTypes.map((userType) => (
-                  <TableRow key={userType.$id || `user-type-${Math.random()}`}>
-                    <TableCell>{userType.$id}</TableCell>
-                    <TableCell className="font-medium">{userType.label}</TableCell>
-                    <TableCell>
-                      {userType.$createdAt 
-                        ? new Date(userType.$createdAt).toLocaleDateString() 
-                        : "Unknown"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditClick(userType)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="Edit user type"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(userType.$id)}
-                          className="p-1 text-red-600 hover:text-red-800"
-                          title="Delete user type"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-          </TableBody>
-        </Table>
-      </div>
+      {userTypes.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <DataTable
+          columns={getUserTypesColumns({
+            onEdit: handleEditClick,
+            onDelete: handleDeleteClick,
+          })}
+          data={userTypes}
+          isLoading={loading && userTypes.length === 0}
+          searchPlaceholder="Search user types..."
+          searchColumn="label"
+          noResultsMessage="No user types found."
+        />
+      )}
 
       {/* Add User Type Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

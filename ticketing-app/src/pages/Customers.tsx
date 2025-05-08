@@ -36,6 +36,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  DataTable
+} from "@/components/ui/data-table";
+import { 
+  getCustomersColumns, 
+  CustomerType,
+  CustomerActions 
+} from "@/features/customers/components/customers-columns";
 
 function Customers() {
   const {
@@ -122,6 +130,8 @@ function Customers() {
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Remove the premature columns definition from here
+  
   // Fetch customers when component mounts
   useEffect(() => {
     const loadData = async () => {
@@ -570,6 +580,16 @@ function Customers() {
     }
   };
 
+  // Define actions for the customer table
+  const customerActions: CustomerActions = {
+    onViewContacts: handleViewContactsClick,
+    onEdit: handleEditClick,
+    onDelete: handleDeleteClick,
+  };
+
+  // Get the columns using the new function
+  const customerColumns = getCustomersColumns(customerActions);
+
   if (loading && customers.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -619,70 +639,20 @@ function Customers() {
         </button>
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm p-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Primary Contact</TableHead>
-              <TableHead>Primary Contact Number</TableHead>
-              <TableHead>Primary Email</TableHead>
-              <TableHead>ABN</TableHead>
-              <TableHead>Last Modified</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.length === 0 ? (
-              <TableRow key="empty-customers">
-                <TableCell colSpan={9} className="text-center py-4 text-neutral-500">
-                  No customers found. Add a new customer to get started.
-                </TableCell>
-              </TableRow>
-            ) : (
-              customers.map((customer) => (
-                <TableRow key={getCustomerId(customer)}>
-                  <TableCell>{getCustomerId(customer)}</TableCell>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>{customer.address}</TableCell>
-                  <TableCell>{customer.primary_contact_name}</TableCell>
-                  <TableCell>{customer.primary_contact_number}</TableCell>
-                  <TableCell>{customer.primary_email}</TableCell>
-                  <TableCell>{customer.abn || "N/A"}</TableCell>
-                  <TableCell>{formatDate(getUpdatedTimestamp(customer))}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleViewContactsClick(customer)}
-                        className="p-1 text-gray-600 hover:text-gray-800"
-                        title="View Contacts"
-                      >
-                        <UserPlus size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleEditClick(customer)}
-                        className="p-1 text-blue-600 hover:text-blue-800"
-                        title="Edit Customer"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(getCustomerId(customer))}
-                        className="p-1 text-red-600 hover:text-red-800"
-                        title="Delete Customer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {customers.length === 0 ? (
+        <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+          No customers found. Add a new customer to get started.
+        </div>
+      ) : (
+        <DataTable
+          columns={customerColumns}
+          data={customers}
+          onRowClick={handleViewContactsClick}
+          isLoading={loading && customers.length === 0}
+          searchPlaceholder="Search customers..."
+          noResultsMessage="No customers found."
+        />
+      )}
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
