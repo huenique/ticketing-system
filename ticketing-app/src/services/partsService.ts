@@ -35,14 +35,61 @@ export const partsService = {
   /**
    * Get all parts
    */
-  getAllParts: async (): Promise<Part[]> => {
+  getAllParts: async (options?: { limit?: number; offset?: number }): Promise<{ parts: Part[], total: number }> => {
     try {
-      const response = await databases.listDocuments(DATABASE_ID, PARTS_COLLECTION, [
-        Query.limit(100),
-      ]);
-      return response.documents as Part[];
+      const limit = options?.limit || 20; // Default to 20 items per page
+      const offset = options?.offset || 0;
+
+      // Use the provided pagination parameters
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        PARTS_COLLECTION,
+        [Query.limit(limit), Query.offset(offset)]
+      );
+
+      console.log(`Fetched ${response.documents.length} parts (page ${Math.floor(offset/limit) + 1})`);
+      
+      return {
+        parts: response.documents as Part[],
+        total: response.total // Appwrite provides the total count
+      };
     } catch (error) {
       console.error("Error fetching parts:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all parts (fetches all pages)
+   */
+  getAllPartsUnpaginated: async (): Promise<Part[]> => {
+    try {
+      const allParts: Part[] = [];
+      const limit = 100; // Maximum allowed by Appwrite
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
+          DATABASE_ID, 
+          PARTS_COLLECTION, 
+          [Query.limit(limit), Query.offset(offset)]
+        );
+
+        allParts.push(...response.documents as Part[]);
+        
+        // Check if we've received fewer documents than requested, meaning we've reached the end
+        if (response.documents.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      }
+
+      console.log(`Fetched ${allParts.length} parts in total`);
+      return allParts;
+    } catch (error) {
+      console.error("Error fetching all parts:", error);
       throw error;
     }
   },

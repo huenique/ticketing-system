@@ -54,6 +54,11 @@ function Customers() {
     createCustomer: addCustomer,
     updateCustomer,
     deleteCustomer,
+    totalCustomers,
+    page,
+    limit,
+    totalPages,
+    setLimit,
   } = useAppwriteCustomers();
 
   type Contact = CustomerContact;
@@ -130,8 +135,15 @@ function Customers() {
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Remove the premature columns definition from here
-  
+  // Pagination handling
+  const handlePageChange = (newPage: number) => {
+    fetchCustomers(newPage);
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+  };
+
   // Fetch customers when component mounts
   useEffect(() => {
     const loadData = async () => {
@@ -656,20 +668,35 @@ function Customers() {
         </button>
       </div>
 
-      {customers.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
-          No customers found. Add a new customer to get started.
-        </div>
-      ) : (
+      {/* Customer table */}
+      <div>
         <DataTable
-          columns={customerColumns}
-          data={customers}
-          onRowClick={handleViewContactsClick}
+          columns={getCustomersColumns({
+            onEdit: handleEditClick,
+            onDelete: handleDeleteClick,
+            onViewContacts: handleViewContactsClick,
+          })}
+          data={customers as any}
           isLoading={loading && customers.length === 0}
           searchPlaceholder="Search customers..."
+          searchColumn="name"
           noResultsMessage="No customers found."
+          pagination={{
+            pageCount: totalPages,
+            currentPage: page,
+            onPageChange: handlePageChange,
+            pageSize: limit,
+            onPageSizeChange: handleLimitChange,
+            pageSizeOptions: [10, 20, 50, 100],
+            totalItems: totalCustomers
+          }}
         />
-      )}
+        {loading && customers.length > 0 && (
+          <div className="flex justify-center my-4">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+          </div>
+        )}
+      </div>
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -12,6 +12,7 @@ import {
   useReactTable,
   Table as ReactTable,
   VisibilityState,
+  PaginationState,
 } from "@tanstack/react-table";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,16 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Search, X } from "lucide-react";
 
+interface PaginationProps {
+  pageCount: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  pageSize: number;
+  onPageSizeChange: (pageSize: number) => void;
+  pageSizeOptions: number[];
+  totalItems: number;
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -44,6 +55,7 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   noResultsMessage?: string;
   initialPageSize?: number;
+  pagination?: PaginationProps;
 }
 
 // Create a context to share the table instance
@@ -284,59 +296,178 @@ export function DataTableContent<TData, TValue>({
   );
 }
 
-export function DataTablePagination<TData>({ table }: { table?: ReactTable<TData> }) {
+export function DataTablePagination<TData>({ 
+  table,
+  serverPagination
+}: { 
+  table?: ReactTable<TData>;
+  serverPagination?: PaginationProps;
+}) {
   // Use the shared table from context if no table is provided
   const sharedTable = useContext(TableContext).tableInstance as ReactTable<TData> | null;
   const tableToUse = table || sharedTable;
   
-  if (!tableToUse) return null;
-
-  return (
-    <div className="flex items-center justify-between space-x-2 py-4">
-      <div className="flex items-center space-x-2">
-        <p className="text-sm font-medium">Rows per page</p>
-        <Select
-          value={`${tableToUse.getState().pagination.pageSize}`}
-          onValueChange={(value) => {
-            tableToUse.setPageSize(Number(value));
-          }}
-        >
-          <SelectTrigger className="h-8 w-[70px]">
-            <SelectValue placeholder={tableToUse.getState().pagination.pageSize} />
-          </SelectTrigger>
-          <SelectContent side="top" className="bg-white">
-            {[5, 10, 20, 50, 100].map((size) => (
-              <SelectItem key={size} value={`${size}`}>
-                {size}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center space-x-2">
-        <div className="text-sm text-muted-foreground">
-          Page {tableToUse.getState().pagination.pageIndex + 1} of{" "}
-          {tableToUse.getPageCount() || 1}
+  if (!tableToUse && !serverPagination) return null;
+  
+  // Server-side pagination
+  if (serverPagination) {
+    const { 
+      pageCount, 
+      currentPage, 
+      onPageChange, 
+      pageSize,
+      onPageSizeChange,
+      pageSizeOptions,
+      totalItems
+    } = serverPagination;
+    
+    return (
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {totalItems} total items
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => tableToUse.previousPage()}
-          disabled={!tableToUse.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => tableToUse.nextPage()}
-          disabled={!tableToUse.getCanNextPage()}
-        >
-          Next
-        </Button>
+        <div className="flex items-center space-x-6 lg:space-x-8">
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Rows per page</p>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={String(pageSize)} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {pageSizeOptions.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Page {currentPage} of {pageCount}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => onPageChange(1)}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">Go to first page</span>
+              <span>{'<<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">Go to previous page</span>
+              <span>{'<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === pageCount}
+            >
+              <span className="sr-only">Go to next page</span>
+              <span>{'>'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => onPageChange(pageCount)}
+              disabled={currentPage === pageCount}
+            >
+              <span className="sr-only">Go to last page</span>
+              <span>{'>>'}</span>
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  
+  // Client-side pagination with react-table
+  if (tableToUse) {
+    return (
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {tableToUse.getFilteredRowModel().rows.length} row(s) displayed
+        </div>
+        <div className="flex items-center space-x-6 lg:space-x-8">
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Rows per page</p>
+            <Select
+              value={`${tableToUse.getState().pagination.pageSize}`}
+              onValueChange={(value) => {
+                tableToUse.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={tableToUse.getState().pagination.pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Page {tableToUse.getState().pagination.pageIndex + 1} of{" "}
+            {tableToUse.getPageCount()}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => tableToUse.setPageIndex(0)}
+              disabled={!tableToUse.getCanPreviousPage()}
+            >
+              <span className="sr-only">Go to first page</span>
+              <span>{'<<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => tableToUse.previousPage()}
+              disabled={!tableToUse.getCanPreviousPage()}
+            >
+              <span className="sr-only">Go to previous page</span>
+              <span>{'<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => tableToUse.nextPage()}
+              disabled={!tableToUse.getCanNextPage()}
+            >
+              <span className="sr-only">Go to next page</span>
+              <span>{'>'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => tableToUse.setPageIndex(tableToUse.getPageCount() - 1)}
+              disabled={!tableToUse.getCanNextPage()}
+            >
+              <span className="sr-only">Go to last page</span>
+              <span>{'>>'}</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Return empty if no pagination is available
+  return null;
 }
 
 // Updated DataTable with context-based sharing
@@ -351,28 +482,47 @@ export function DataTable<TData, TValue>({
   isLoading,
   noResultsMessage,
   initialPageSize = 10,
+  pagination,
 }: DataTableProps<TData, TValue>) {
-  // For backward compatibility and standalone usage
-  if (renderTableOnly || renderPaginationOnly) {
-    const table = useDataTable({ columns, data, initialPageSize });
-    
-    if (renderTableOnly) {
-      return <DataTableContent table={table} onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />;
-    }
-    
-    if (renderPaginationOnly) {
-      return <DataTablePagination table={table} />;
-    }
-  }
   
-  // New context-based approach for shared state
+  // If server-side pagination is provided, disable client-side pagination
+  const manualPagination = !!pagination;
+  
+  // Create a new table instance for this component
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    manualPagination,
+    pageCount: pagination?.pageCount,
+    state: {
+      pagination: manualPagination 
+        ? { 
+            pageIndex: (pagination?.currentPage || 1) - 1, 
+            pageSize: pagination?.pageSize || initialPageSize 
+          } 
+        : undefined,
+    },
+  });
+
+  if (renderTableOnly) {
+    return <DataTableContent table={table} onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />;
+  }
+
+  if (renderPaginationOnly) {
+    return <DataTablePagination table={table} serverPagination={pagination} />;
+  }
+
   return (
     <DataTableProvider columns={columns} data={data} searchColumn={searchColumn} initialPageSize={initialPageSize}>
-      <div className="space-y-4">
-        {searchPlaceholder && <DataTableSearch placeholder={searchPlaceholder} column={searchColumn} />}
-        <DataTableContent onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />
-        <DataTablePagination />
-      </div>
+      {!isLoading && (
+        <DataTableSearch placeholder={searchPlaceholder} column={searchColumn} />
+      )}
+      <DataTableContent onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />
+      <DataTablePagination serverPagination={pagination} />
     </DataTableProvider>
   );
 } 

@@ -8,7 +8,13 @@ interface PartsState {
   parts: Part[];
   loading: boolean;
   error: Error | null;
-  fetchParts: () => Promise<void>;
+  page: number;
+  limit: number;
+  totalParts: number;
+  totalPages: number;
+  fetchParts: (page?: number) => Promise<void>;
+  setPage: (page: number) => void;
+  setLimit: (limit: number) => void;
   addPart: (part: PartInput) => Promise<void>;
   updatePart: (id: string, part: Partial<PartInput>) => Promise<void>;
   deletePart: (id: string) => Promise<void>;
@@ -20,12 +26,36 @@ const usePartsStore = create<PartsState>()(
       parts: [],
       loading: false,
       error: null,
+      page: 1,
+      limit: 20,
+      totalParts: 0,
+      totalPages: 0,
 
-      fetchParts: async () => {
+      setPage: (page) => {
+        set({ page });
+        get().fetchParts(page);
+      },
+
+      setLimit: (limit) => {
+        set({ limit, page: 1 });
+        get().fetchParts(1);
+      },
+
+      fetchParts: async (newPage?: number) => {
+        const { limit } = get();
+        const currentPage = newPage || get().page;
+        const offset = (currentPage - 1) * limit;
+        
         set({ loading: true, error: null });
         try {
-          const parts = await partsService.getAllParts();
-          set({ parts, loading: false });
+          const result = await partsService.getAllParts({ limit, offset });
+          set({ 
+            parts: result.parts, 
+            totalParts: result.total,
+            totalPages: Math.ceil(result.total / limit),
+            loading: false,
+            page: currentPage
+          });
         } catch (error) {
           console.error("Error fetching parts:", error);
           set({
@@ -39,10 +69,8 @@ const usePartsStore = create<PartsState>()(
         set({ loading: true, error: null });
         try {
           const newPart = await partsService.createPart(part);
-          set((state) => ({
-            parts: [...state.parts, newPart],
-            loading: false,
-          }));
+          // Refresh the current page to ensure consistent data
+          await get().fetchParts();
         } catch (error) {
           console.error("Error adding part:", error);
           set({
@@ -55,11 +83,9 @@ const usePartsStore = create<PartsState>()(
       updatePart: async (id, updatedPart) => {
         set({ loading: true, error: null });
         try {
-          const updated = await partsService.updatePart(id, updatedPart);
-          set((state) => ({
-            parts: state.parts.map((part) => (part.$id === id ? updated : part)),
-            loading: false,
-          }));
+          await partsService.updatePart(id, updatedPart);
+          // Refresh the current page to ensure consistent data
+          await get().fetchParts();
         } catch (error) {
           console.error("Error updating part:", error);
           set({
@@ -73,10 +99,8 @@ const usePartsStore = create<PartsState>()(
         set({ loading: true, error: null });
         try {
           await partsService.deletePart(id);
-          set((state) => ({
-            parts: state.parts.filter((part) => part.$id !== id),
-            loading: false,
-          }));
+          // Refresh the current page to ensure consistent data
+          await get().fetchParts();
         } catch (error) {
           console.error("Error deleting part:", error);
           set({
@@ -88,6 +112,9 @@ const usePartsStore = create<PartsState>()(
     }),
     {
       name: "parts-storage",
+      partialize: (state) => ({
+        limit: state.limit,
+      }),
     },
   ),
 );

@@ -1,4 +1,4 @@
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,7 +24,21 @@ import { DataTable } from "@/components/ui/data-table";
 import { getPartsColumns, PartActions } from "@/features/parts/components/parts-columns";
 
 function Parts() {
-  const { parts, loading, error, fetchParts, addPart, updatePart, deletePart } = usePartsStore();
+  const { 
+    parts, 
+    loading, 
+    error, 
+    fetchParts, 
+    addPart, 
+    updatePart, 
+    deletePart,
+    page,
+    limit,
+    totalParts,
+    totalPages,
+    setPage,
+    setLimit
+  } = usePartsStore();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -49,6 +63,15 @@ function Parts() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+  };
 
   // Fetch parts when component mounts
   useEffect(() => {
@@ -198,20 +221,36 @@ function Parts() {
         </button>
       </div>
 
-      {parts.length === 0 ? (
+      {parts.length === 0 && !loading ? (
         renderEmptyState()
       ) : (
-        <DataTable
-          columns={getPartsColumns({
-            onEdit: (item) => handleEditClick(item as any),
-            onDelete: handleDeleteClick,
-          })}
-          data={parts as any}
-          isLoading={loading && parts.length === 0}
-          searchPlaceholder="Search parts..."
-          searchColumn="description"
-          noResultsMessage="No parts found."
-        />
+        <div>
+          <DataTable
+            columns={getPartsColumns({
+              onEdit: (item) => handleEditClick(item as any),
+              onDelete: handleDeleteClick,
+            })}
+            data={parts as any}
+            isLoading={loading && parts.length === 0}
+            searchPlaceholder="Search parts..."
+            searchColumn="description"
+            noResultsMessage="No parts found."
+            pagination={{
+              pageCount: totalPages,
+              currentPage: page,
+              onPageChange: handlePageChange,
+              pageSize: limit,
+              onPageSizeChange: handleLimitChange,
+              pageSizeOptions: [10, 20, 50, 100],
+              totalItems: totalParts
+            }}
+          />
+          {loading && parts.length > 0 && (
+            <div className="flex justify-center my-4">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Add Part Dialog */}

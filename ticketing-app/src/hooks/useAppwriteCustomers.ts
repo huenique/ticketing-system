@@ -6,13 +6,19 @@ import { Customer, CustomerContact } from "@/types/common";
 
 interface UseAppwriteCustomersProps {
   initialFetch?: boolean;
+  initialLimit?: number;
 }
 
 interface UseAppwriteCustomersReturn {
   customers: Customer[];
   isLoading: boolean;
   error: Error | null;
-  fetchCustomers: () => Promise<void>;
+  totalCustomers: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  fetchCustomers: (page?: number) => Promise<void>;
+  setLimit: (limit: number) => void;
   getCustomer: (id: string) => Promise<Customer | undefined>;
   createCustomer: (
     customerData: Omit<Customer, "id" | "createdAt" | "updatedAt">,
@@ -24,19 +30,30 @@ interface UseAppwriteCustomersReturn {
 
 export function useAppwriteCustomers({
   initialFetch = true,
+  initialLimit = 20,
 }: UseAppwriteCustomersProps = {}): UseAppwriteCustomersReturn {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(initialLimit);
+  const [totalCustomers, setTotalCustomers] = useState<number>(0);
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (newPage?: number) => {
     setIsLoading(true);
     setError(null);
+    
+    const currentPage = newPage || page;
+    if (newPage) setPage(newPage);
+    
+    const offset = (currentPage - 1) * limit;
 
     try {
-      const result = await customersService.getAllCustomers();
+      const result = await customersService.getAllCustomers({ limit, offset });
+      setTotalCustomers(result.total);
+      
       // Convert from Appwrite format to Common format
-      const mappedCustomers = result.map((customer) => ({
+      const mappedCustomers = result.customers.map((customer) => ({
         id: customer.$id,
         name: customer.name,
         address: customer.address,
@@ -69,6 +86,21 @@ export function useAppwriteCustomers({
       console.error("Error fetching customers:", err);
     } finally {
       setIsLoading(false);
+    }
+  }, [page, limit]);
+
+  // When limit changes, reset to first page and refetch
+  useEffect(() => {
+    if (initialFetch) {
+      setPage(1);
+      fetchCustomers(1);
+    }
+  }, [limit, initialFetch]);
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    if (initialFetch) {
+      fetchCustomers();
     }
   }, []);
 
@@ -247,17 +279,16 @@ export function useAppwriteCustomers({
     [customers, getCustomer],
   );
 
-  useEffect(() => {
-    if (initialFetch) {
-      fetchCustomers();
-    }
-  }, [fetchCustomers, initialFetch]);
-
   return {
     customers,
     isLoading,
     error,
+    totalCustomers,
+    page,
+    limit,
+    totalPages: Math.ceil(totalCustomers / limit),
     fetchCustomers,
+    setLimit,
     getCustomer,
     createCustomer,
     updateCustomer,

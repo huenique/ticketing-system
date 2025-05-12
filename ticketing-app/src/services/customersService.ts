@@ -48,16 +48,61 @@ export const customersService = {
   /**
    * Get all customers
    */
-  getAllCustomers: async (): Promise<Customer[]> => {
+  getAllCustomers: async (options?: { limit?: number; offset?: number }): Promise<{ customers: Customer[], total: number }> => {
     try {
+      const limit = options?.limit || 20; // Default to 20 items per page
+      const offset = options?.offset || 0;
+
+      // Use the provided pagination parameters
       const response = await databases.listDocuments(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
-        [Query.limit(100)],
+        [Query.limit(limit), Query.offset(offset)]
       );
-      return response.documents as Customer[];
+
+      console.log(`Fetched ${response.documents.length} customers (page ${Math.floor(offset/limit) + 1})`);
+      
+      return {
+        customers: response.documents as Customer[],
+        total: response.total // Appwrite provides the total count
+      };
     } catch (error) {
       console.error("Error fetching customers:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all customers (fetches all pages)
+   */
+  getAllCustomersUnpaginated: async (): Promise<Customer[]> => {
+    try {
+      const allCustomers: Customer[] = [];
+      const limit = 100; // Maximum allowed by Appwrite
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          [Query.limit(limit), Query.offset(offset)]
+        );
+
+        allCustomers.push(...response.documents as Customer[]);
+        
+        // Check if we've received fewer documents than requested, meaning we've reached the end
+        if (response.documents.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      }
+
+      console.log(`Fetched ${allCustomers.length} customers in total`);
+      return allCustomers;
+    } catch (error) {
+      console.error("Error fetching all customers:", error);
       throw error;
     }
   },
