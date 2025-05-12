@@ -950,7 +950,7 @@ function Tickets() {
         console.log("Fetched customers:", customersResponse);
         
         // Convert the customer data to match the expected format
-        const formattedCustomers: Customer[] = customersResponse.map(c => ({
+        const formattedCustomers: Customer[] = customersResponse.customers.map(c => ({
           id: c.$id,
           name: c.name,
           address: c.address,
@@ -974,7 +974,7 @@ function Tickets() {
         // Fetch parts
         const partsData = await partsService.getAllParts();
         console.log("Fetched parts:", partsData);
-        setParts(partsData);
+        setParts(partsData.parts);
       } catch (error) {
         console.error("Error fetching form data:", error);
       }
