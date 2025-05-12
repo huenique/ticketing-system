@@ -297,8 +297,7 @@ function useAssigneeHandlers(state: TicketDialogState) {
     const fieldMappings: Record<string, string> = {
       workDescription: "work_description",
       totalHours: "actual_time",
-      estTime: "estimated_time",
-      priority: "priority"
+      estTime: "estimated_time"
     };
     
     try {
@@ -318,9 +317,37 @@ function useAssigneeHandlers(state: TicketDialogState) {
       
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id) {
-        // Only send the update if the field has a mapping (is stored in the database)
-        // AND we have a real ID (not a temporary index-based one)
-        if (fieldMappings[field] && id && !id.startsWith('index-')) {
+        // Special handling for priority field since it doesn't exist in database
+        if (field === "priority" && id && !id.startsWith('index-')) {
+          // Find the assignee we're updating to get the current work description
+          const assignee = assignees.find((a, index) => 
+            (a.id === id) || (id.startsWith('index-') && id === `index-${index}`)
+          );
+          
+          if (assignee) {
+            // Extract the current work description
+            let workDescription = assignee.workDescription || "";
+            
+            // Remove any existing priority tag
+            workDescription = workDescription.replace(/\[PRIORITY:[0-9]+\]\s*/, "");
+            
+            // Add the new priority tag at the beginning
+            const updatedWorkDescription = `[PRIORITY:${value}] ${workDescription}`;
+            
+            // Update the work_description field in the database
+            const updates: Partial<Record<string, string>> = {
+              work_description: updatedWorkDescription
+            };
+            
+            try {
+              await ticketAssignmentsService.updateTicketAssignment(id, updates);
+            } catch (error) {
+              console.error("Error updating assignment priority in Appwrite:", error);
+            }
+          }
+        }
+        // Regular field update for non-priority fields
+        else if (fieldMappings[field] && id && !id.startsWith('index-')) {
           const updates: Partial<Record<string, string>> = {
             [fieldMappings[field]]: value
           };
@@ -329,14 +356,11 @@ function useAssigneeHandlers(state: TicketDialogState) {
             await ticketAssignmentsService.updateTicketAssignment(id, updates);
           } catch (error) {
             console.error("Error updating assignment in Appwrite:", error);
-            // Don't throw to allow UI update to proceed
           }
         }
       }
     } catch (error) {
       console.error(`Error updating team member field '${field}':`, error);
-      // We don't show an error toast here to avoid disrupting the user experience
-      // during typing, but we log the error
     }
   };
 
