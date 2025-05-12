@@ -210,6 +210,10 @@ export const ticketAssignmentsService = {
     try {
       let userName = "Unknown User";
       
+      // Make sure we have a valid ID
+      // Handle both standard Appwrite response format ($id) and our own model (id)
+      const assignmentId = (assignment as any).$id || assignment.id || `temp-${Date.now()}`;
+      
       if (assignment.user_id) {
         try {
           // Ensure user_id is a string, not an object
@@ -227,12 +231,17 @@ export const ticketAssignmentsService = {
       }
       
       return {
-        id: assignment.id,
+        id: assignmentId,
         name: userName,
-        workDescription: assignment.work_description,
-        totalHours: assignment.actual_time,
-        estTime: assignment.estimated_time,
-        priority: "1", // Default priority
+        workDescription: assignment.work_description || "",
+        totalHours: assignment.actual_time || "0",
+        estTime: assignment.estimated_time || "0",
+        // Use actual priority if available, or extract priority from work description,
+        // or use position order for default priority value
+        priority: (assignment as any).priority || 
+                  (assignment.work_description && 
+                   assignment.work_description.match(/priority[:\s]*(\d+)/i)?.[1]) || 
+                  "5",
         user_id: assignment.user_id,
         ticket_id: assignment.ticket_id
       };

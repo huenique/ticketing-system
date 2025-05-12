@@ -297,25 +297,40 @@ function useAssigneeHandlers(state: TicketDialogState) {
     const fieldMappings: Record<string, string> = {
       workDescription: "work_description",
       totalHours: "actual_time",
-      estTime: "estimated_time"
+      estTime: "estimated_time",
+      priority: "priority"
     };
     
     try {
       // Update in the local state first for immediate UI feedback
-      const updatedAssignees = assignees.map(a => 
-        a.id === id ? { ...a, [field]: value } : a
-      );
+      const updatedAssignees = assignees.map((a, index) => {
+        // Match by ID if available, or by the temp index ID we added
+        const idMatches = (a.id === id) || 
+                         (id && id.startsWith('index-') && id === `index-${index}`);
+                         
+        if (idMatches) {
+          return { ...a, [field]: value };
+        }
+        return a;
+      });
+      
       setAssignees(updatedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id) {
         // Only send the update if the field has a mapping (is stored in the database)
-        if (fieldMappings[field]) {
+        // AND we have a real ID (not a temporary index-based one)
+        if (fieldMappings[field] && id && !id.startsWith('index-')) {
           const updates: Partial<Record<string, string>> = {
             [fieldMappings[field]]: value
           };
           
-          await ticketAssignmentsService.updateTicketAssignment(id, updates);
+          try {
+            await ticketAssignmentsService.updateTicketAssignment(id, updates);
+          } catch (error) {
+            console.error("Error updating assignment in Appwrite:", error);
+            // Don't throw to allow UI update to proceed
+          }
         }
       }
     } catch (error) {

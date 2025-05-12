@@ -120,8 +120,9 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                   }
                   className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 >
+                  {/* Dynamic options for the new assignee (existing count + 1 position) */}
                   {Array.from(
-                    { length: Math.max(1, assignees.length + 1) },
+                    { length: assignees.length + 1 },
                     (_, i) => (
                       <option key={i + 1} value={String(i + 1)}>
                         {i + 1}
@@ -206,13 +207,16 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                 .slice()
                 .sort((a, b) => {
                   // Sort by priority (lowest number first)
-                  const priorityA = parseInt(a.priority || "5");
-                  const priorityB = parseInt(b.priority || "5");
+                  const priorityA = parseInt(a.priority || "5", 10);
+                  const priorityB = parseInt(b.priority || "5", 10);
+                  // If priorities are equal, maintain the current order
+                  if (priorityA === priorityB) return 0;
+                  // Otherwise sort numerically
                   return priorityA - priorityB;
                 })
                 .map((assignee, index) => (
                   <tr
-                    key={`assignee-${assignee.id}-${index}`}
+                    key={`assignee-${assignee.id || `index-${index}`}-${index}`}
                     className={
                       assignee.completed ? "opacity-60 bg-neutral-50" : ""
                     }
@@ -224,7 +228,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         onChange={(e) =>
                           handleUpdateAssignee &&
                           handleUpdateAssignee(
-                            assignee.id,
+                            assignee.id || `index-${index}`,
                             "name",
                             e.target.value,
                           )
@@ -239,7 +243,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         onChange={(e) =>
                           handleUpdateAssignee &&
                           handleUpdateAssignee(
-                            assignee.id,
+                            assignee.id || `index-${index}`,
                             "workDescription",
                             e.target.value,
                           )
@@ -253,15 +257,16 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         onChange={(e) =>
                           handleUpdateAssignee &&
                           handleUpdateAssignee(
-                            assignee.id,
+                            assignee.id || `index-${index}`,
                             "priority",
                             e.target.value,
                           )
                         }
                         className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                       >
+                        {/* Dynamic options based on current number of assignees */}
                         {Array.from(
-                          { length: Math.max(1, assignees.length) },
+                          { length: assignees.length },
                           (_, i) => (
                             <option key={i + 1} value={String(i + 1)}>
                               {i + 1}
@@ -277,7 +282,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         onChange={(e) =>
                           handleUpdateAssignee &&
                           handleUpdateAssignee(
-                            assignee.id,
+                            assignee.id || `index-${index}`,
                             "totalHours",
                             e.target.value,
                           )
@@ -292,7 +297,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         value={assignee.estTime}
                         onChange={(e) =>
                           handleUpdateAssignee &&
-                          handleUpdateAssignee(assignee.id, "estTime", e.target.value)
+                          handleUpdateAssignee(assignee.id || `index-${index}`, "estTime", e.target.value)
                         }
                         className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
                         step="0.1"
@@ -308,7 +313,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                               {handleAddTimeEntry && (
                                 <button
                                   onClick={() =>
-                                    handleAddTimeEntry(assignee.id, assignee.user_id)
+                                    handleAddTimeEntry(assignee.id || `index-${index}`, assignee.user_id)
                                   }
                                   className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                   title="Add time entry"
@@ -333,7 +338,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                 <button
                                   onClick={() =>
                                     markAssigneeCompleted(
-                                      assignee.id,
+                                      assignee.id || `index-${index}`,
                                       !assignee.completed,
                                     )
                                   }
@@ -363,7 +368,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                               {handleRemoveAssignee && (
                                 <button
                                   onClick={() =>
-                                    handleRemoveAssignee(assignee.id)
+                                    handleRemoveAssignee(assignee.id || `index-${index}`)
                                   }
                                   className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                                   title="Remove assignee"
@@ -408,7 +413,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                       }
                                       
                                       // Pass both assignee.id and the userId
-                                      handleAddTimeEntry(assignee.id, userId);
+                                      handleAddTimeEntry(assignee.id || `index-${index}`, userId);
                                     }}
                                     className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
                                     title="Add time entry"
@@ -433,7 +438,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                   <button
                                     onClick={() =>
                                       markAssigneeCompleted(
-                                        assignee.id,
+                                        assignee.id || `index-${index}`,
                                         !assignee.completed,
                                       )
                                     }
