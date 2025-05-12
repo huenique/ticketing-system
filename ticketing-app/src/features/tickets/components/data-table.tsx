@@ -29,12 +29,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
   statusFilter?: string;
+  isLoading?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -42,6 +44,7 @@ export function DataTable<TData, TValue>({
   data,
   onRowClick,
   statusFilter,
+  isLoading,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -84,6 +87,18 @@ export function DataTable<TData, TValue>({
     onPaginationChange: setPagination,
     manualPagination: false,
   });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-md border relative">
+        <div className="absolute inset-0 flex justify-center items-center bg-white bg-opacity-80 z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 font-medium">Loading...</span>
+        </div>
+        <div className="h-64"></div>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -677,7 +677,7 @@ function Customers() {
             onViewContacts: handleViewContactsClick,
           })}
           data={customers as any}
-          isLoading={loading && customers.length === 0}
+          isLoading={loading}
           searchPlaceholder="Search customers..."
           searchColumn="name"
           noResultsMessage="No customers found."
@@ -691,11 +691,6 @@ function Customers() {
             totalItems: totalCustomers
           }}
         />
-        {loading && customers.length > 0 && (
-          <div className="flex justify-center my-4">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-          </div>
-        )}
       </div>
 
       {/* Edit Customer Dialog */}

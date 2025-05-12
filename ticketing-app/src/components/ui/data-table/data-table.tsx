@@ -239,9 +239,12 @@ export function DataTableContent<TData, TValue>({
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span className="ml-2">Loading...</span>
+      <div className="rounded-md border relative">
+        <div className="absolute inset-0 flex justify-center items-center bg-white bg-opacity-80 z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 font-medium">Loading...</span>
+        </div>
+        <div className="h-64"></div>
       </div>
     );
   }
