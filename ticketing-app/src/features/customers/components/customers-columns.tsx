@@ -24,7 +24,6 @@ export interface CustomerActions extends DataTableActions<CustomerType> {
 export const getCustomersColumns = (actions: CustomerActions): ColumnDef<CustomerType>[] => {
   // Create an array of columns
   const columns: ColumnDef<CustomerType>[] = [
-    createIdColumn<CustomerType>("Customer ID"),
     createStandardColumn<CustomerType>("name", "Name"),
     createStandardColumn<CustomerType>("address", "Address"),
     createStandardColumn<CustomerType>("primary_contact_name", "Primary Contact"),
