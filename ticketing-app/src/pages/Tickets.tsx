@@ -31,6 +31,7 @@ import {
   customersService as ticketsCustomersService,
   statusesService,
   ticketsService,
+  ticketAssignmentsService
 } from "@/services/ticketsService";
 import { timeEntriesService } from "@/services";
 import { usersService, User as ServiceUser } from "@/services/usersService";
@@ -1100,7 +1101,28 @@ function Tickets() {
       });
       
       // Create the ticket and update the UI
-      await handleCreateTicket(ticketData);
+      const createdTicket = await handleCreateTicket(ticketData);
+      
+      // Create ticket assignments for each selected assignee
+      if (createdTicket && createdTicket.id && selectedAssignees.length > 0) {
+        console.log(`Creating ${selectedAssignees.length} ticket assignments for ticket ${createdTicket.id}`);
+        
+        // Create a ticket assignment for each assignee
+        const assignmentPromises = selectedAssignees.map(assigneeId => 
+          ticketAssignmentsService.createTicketAssignment({
+            ticket_id: createdTicket.id,
+            user_id: assigneeId,
+            // Leave other fields empty by default
+            work_description: '',
+            estimated_time: '',
+            actual_time: ''
+          })
+        );
+        
+        // Wait for all assignment creations to complete
+        await Promise.all(assignmentPromises);
+        console.log('All ticket assignments created successfully');
+      }
       
       // Reset form data
       setNewTicketData({
