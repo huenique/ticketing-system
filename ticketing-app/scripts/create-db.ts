@@ -170,6 +170,20 @@ async function createCollections() {
     () => databases.createStringAttribute(dbId, 'customers', 'abn', 255, false),
     'attribute customers.abn'
   );
+  await safe(
+    () =>
+      databases.createRelationshipAttribute(
+        dbId,
+        'customers',
+        'customer_contacts',
+        'manyToMany' as RelationshipType,
+        false,
+        'customer_contact_ids',
+        undefined,
+        'cascade' as RelationMutate,
+      ),
+    'relationship customers.customer_contact_ids'
+  );
 
   // 5. customer_contacts
   await safe(
@@ -190,11 +204,11 @@ async function createCollections() {
         'customers',
         'manyToMany' as RelationshipType,
         false,
-        'customer_id',
+        'customer_ids',
         undefined,
         'cascade' as RelationMutate,
       ),
-    'relationship customer_contacts.customer_id'
+    'relationship customer_contacts.customer_ids'
   );
   await safe(
     () =>
