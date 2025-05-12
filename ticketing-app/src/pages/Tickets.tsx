@@ -1613,7 +1613,7 @@ function Tickets() {
 
               {/* Assignees */}
               <div className="grid grid-cols-4 items-start gap-4">
-                <label className="text-right text-sm font-medium mt-2">Assignees</label>
+                <label className="text-right text-sm font-medium mt-2">Team Members</label>
                 <div className="col-span-3">
                   <Select
                     value={
@@ -1629,13 +1629,13 @@ function Tickets() {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full" aria-label="Select assignees">
-                      <SelectValue placeholder="Select assignees" />
+                    <SelectTrigger className="w-full" aria-label="Select team members">
+                      <SelectValue placeholder="Select team members" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
                       <SelectGroup>
                         <SelectItem value="placeholder" disabled>
-                          Select assignees
+                          Select team members
                         </SelectItem>
                         {users &&
                           users.length > 0 &&
