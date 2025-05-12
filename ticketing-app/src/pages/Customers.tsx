@@ -225,14 +225,26 @@ function Customers() {
     }
   };
 
-  // Update the fetchCustomerContacts function with better logging
+  // Update the fetchCustomerContacts function to use the embedded contacts data
   const fetchCustomerContacts = async (customerId: string) => {
     setContactsLoading(true);
     setContactsError(null);
     try {
       console.log(`Fetching contacts for customer ID: ${customerId}`);
+      
+      // First check if the contacts are already in the selectedCustomer data
+      if (selectedCustomer && 'contacts' in selectedCustomer && selectedCustomer.contacts) {
+        console.log(`Using ${selectedCustomer.contacts.length} contacts from customer object directly`);
+        setAppwriteContacts(selectedCustomer.contacts as any[]);
+        setSelectedContacts(selectedCustomer.contacts as any[]);
+        setContactsLoading(false);
+        return;
+      }
+      
+      // If not, we can get them using the getCustomerContacts function which now
+      // directly returns the contact objects from the customer
       const contacts = await customersService.getCustomerContacts(customerId);
-      console.log(`Retrieved ${contacts.length} contacts:`, contacts);
+      console.log(`Retrieved ${contacts.length} contacts via relationship field`);
       setAppwriteContacts(contacts);
       setSelectedContacts(contacts);
     } catch (error) {
@@ -262,17 +274,16 @@ function Customers() {
     });
     setIsEditDialogOpen(true);
     
-    // Fetch contacts for this customer to populate the dropdown
-    const customerId = getCustomerId(customer);
-    fetchCustomerContacts(customerId).then(() => {
-      // After contacts are loaded, try to find a matching contact
-      if (customer.primary_email && appwriteContacts.length > 0) {
-        const matchingContact = findMatchingContact(appwriteContacts, customer.primary_email);
-        if (matchingContact) {
-          console.log("Found matching contact for primary contact:", matchingContact);
-        }
-      }
-    });
+    // If the customer already has contacts, use them directly
+    if ('contacts' in customer && customer.contacts && customer.contacts.length > 0) {
+      console.log("Using contacts directly from customer object:", customer.contacts);
+      setAppwriteContacts(customer.contacts as any[]);
+      setSelectedContacts(customer.contacts as any[]);
+    } else {
+      // Otherwise fetch contacts for this customer
+      const customerId = getCustomerId(customer);
+      fetchCustomerContacts(customerId);
+    }
   };
 
   const handleDeleteClick = (customerId: string) => {
@@ -301,11 +312,17 @@ function Customers() {
     setSelectedCustomer(customer);
     setIsContactsDialogOpen(true);
 
-    // Get customer ID using the helper function
-    const customerId = getCustomerId(customer);
-
-    // Fetch the contacts from Appwrite collection
-    fetchCustomerContacts(customerId);
+    // If the customer already has contacts, use them directly
+    if ('contacts' in customer && customer.contacts && customer.contacts.length > 0) {
+      console.log("Using contacts directly from customer object:", customer.contacts);
+      setAppwriteContacts(customer.contacts as any[]);
+      setSelectedContacts(customer.contacts as any[]);
+      setContactsLoading(false);
+    } else {
+      // Otherwise fetch contacts using the customer ID
+      const customerId = getCustomerId(customer);
+      fetchCustomerContacts(customerId);
+    }
   };
 
   const handleAddContactClick = (customer: CustomerType) => {

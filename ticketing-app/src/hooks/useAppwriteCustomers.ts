@@ -44,6 +44,22 @@ export function useAppwriteCustomers({
         primary_contact_number: customer.primary_contact_number,
         primary_email: customer.primary_email,
         abn: customer.abn || "",
+        // Map contacts if they exist (now they're full objects, not just IDs)
+        customer_contact_ids: customer.customer_contact_ids || [],
+        // Also extract contacts as a convenience property
+        contacts: customer.customer_contact_ids 
+          ? customer.customer_contact_ids.map((contact: any) => ({
+              id: contact.$id,
+              customerId: customer.$id,
+              first_name: contact.first_name,
+              last_name: contact.last_name,
+              position: contact.position || "",
+              contact_number: contact.contact_number,
+              email: contact.email,
+              createdAt: contact.$createdAt,
+              updatedAt: contact.$updatedAt,
+            }))
+          : [],
         createdAt: customer.$createdAt,
         updatedAt: customer.$updatedAt,
       }));
@@ -73,6 +89,22 @@ export function useAppwriteCustomers({
           primary_contact_number: customer.primary_contact_number,
           primary_email: customer.primary_email,
           abn: customer.abn || "",
+          // Map contacts if they exist (now they're full objects, not just IDs)
+          customer_contact_ids: customer.customer_contact_ids || [],
+          // Also extract contacts as a convenience property
+          contacts: customer.customer_contact_ids 
+            ? customer.customer_contact_ids.map((contact: any) => ({
+                id: contact.$id,
+                customerId: customer.$id,
+                first_name: contact.first_name,
+                last_name: contact.last_name,
+                position: contact.position || "",
+                contact_number: contact.contact_number,
+                email: contact.email,
+                createdAt: contact.$createdAt,
+                updatedAt: contact.$updatedAt,
+              }))
+            : [],
           createdAt: customer.$createdAt,
           updatedAt: customer.$updatedAt,
         };
@@ -97,6 +129,7 @@ export function useAppwriteCustomers({
           primary_contact_number: customerData.primary_contact_number,
           primary_email: customerData.primary_email,
           abn: customerData.abn || "",
+          customer_contact_ids: customerData.customer_contact_ids || [], // Initialize as empty array
         };
 
         const newCustomer = await customersService.createCustomer(appwriteData);
@@ -110,6 +143,11 @@ export function useAppwriteCustomers({
           primary_contact_number: newCustomer.primary_contact_number,
           primary_email: newCustomer.primary_email,
           abn: newCustomer.abn || "",
+          customer_contact_ids: newCustomer.customer_contact_ids 
+            ? newCustomer.customer_contact_ids.map((id: any) => 
+                typeof id === 'string' ? id : id.$id
+              )
+            : [],
           createdAt: newCustomer.$createdAt,
           updatedAt: newCustomer.$updatedAt,
         };
@@ -140,6 +178,8 @@ export function useAppwriteCustomers({
         if (customerData.primary_email !== undefined)
           appwriteData.primary_email = customerData.primary_email;
         if (customerData.abn !== undefined) appwriteData.abn = customerData.abn;
+        if (customerData.customer_contact_ids !== undefined) 
+          appwriteData.customer_contact_ids = customerData.customer_contact_ids;
 
         const updatedCustomer = await customersService.updateCustomer(id, appwriteData);
 
@@ -152,6 +192,11 @@ export function useAppwriteCustomers({
           primary_contact_number: updatedCustomer.primary_contact_number,
           primary_email: updatedCustomer.primary_email,
           abn: updatedCustomer.abn || "",
+          customer_contact_ids: updatedCustomer.customer_contact_ids 
+            ? updatedCustomer.customer_contact_ids.map((id: any) => 
+                typeof id === 'string' ? id : id.$id
+              )
+            : [],
           createdAt: updatedCustomer.$createdAt,
           updatedAt: updatedCustomer.$updatedAt,
         };
@@ -185,15 +230,21 @@ export function useAppwriteCustomers({
   const getCustomerContacts = useCallback(
     async (customerId: string): Promise<CustomerContact[]> => {
       try {
-        const contacts =
-          await customerContactsService.getContactsByCustomerId(customerId);
-        return contacts;
+        // Try to find the customer in the local state first
+        const customer = customers.find(c => c.id === customerId);
+        if (customer && customer.contacts) {
+          return customer.contacts;
+        }
+        
+        // If not found or contacts not available, fetch the customer
+        const fetchedCustomer = await getCustomer(customerId);
+        return fetchedCustomer?.contacts || [];
       } catch (err) {
-        console.error(`Error fetching contacts for customer ${customerId}:`, err);
+        console.error(`Error getting contacts for customer ${customerId}:`, err);
         return [];
       }
     },
-    [],
+    [customers, getCustomer],
   );
 
   useEffect(() => {

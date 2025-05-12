@@ -24,6 +24,7 @@ export interface Customer extends DocumentMetadata {
   primary_contact_number: string;
   primary_email: string;
   abn?: string;
+  customer_contact_ids?: Array<string | { $id: string } | CustomerContact>;
 }
 
 // Customer contact interface
@@ -138,45 +139,31 @@ export const customersService = {
 
   /**
    * Get customer contacts
+   * Note: This method is now simplified since contacts are included in the customer data
    */
   getCustomerContacts: async (customerId: string): Promise<CustomerContact[]> => {
     try {
-      console.log(`Fetching contacts for customer ID: ${customerId}`);
-
-      // When querying on relationship fields in Appwrite, we should list all documents
-      // and then filter client-side for contacts that belong to this customer
-      const response = await databases.listDocuments(
+      console.log(`Getting contacts for customer ID: ${customerId}`);
+      
+      // Get the customer document which now includes the full contact objects
+      const customer = await databases.getDocument(
         DATABASE_ID,
-        CUSTOMER_CONTACTS_COLLECTION,
-        [Query.limit(100)],
+        CUSTOMERS_COLLECTION,
+        customerId
       );
-
-      console.log("Raw contacts response:", JSON.stringify(response, null, 2));
-
-      // Filter documents to only include those belonging to the specified customer
-      const customerContacts = response.documents.filter((doc) => {
-        const customerId_field = doc.customer_id;
-
-        // Handle all possible representations of customer_id
-        if (typeof customerId_field === "string") {
-          return customerId_field === customerId;
-        } else if (Array.isArray(customerId_field)) {
-          // When it's an array of customer objects
-          return customerId_field.some((customer) => customer.$id === customerId);
-        } else if (
-          customerId_field &&
-          typeof customerId_field === "object" &&
-          "$id" in customerId_field
-        ) {
-          return customerId_field.$id === customerId;
-        }
-        return false;
-      });
-
-      console.log(`Retrieved ${customerContacts.length} contacts:`, customerContacts);
-      return customerContacts as CustomerContact[];
+      
+      // Check if customer has the contact relationship field
+      if (!customer.customer_contact_ids || !Array.isArray(customer.customer_contact_ids)) {
+        console.log("No contacts found for this customer (relationship field empty)");
+        return [];
+      }
+      
+      console.log(`Found ${customer.customer_contact_ids.length} contacts in customer data`);
+      
+      // Return the contacts directly from the customer object
+      return customer.customer_contact_ids as CustomerContact[];
     } catch (error) {
-      console.error(`Error fetching contacts for customer ${customerId}:`, error);
+      console.error(`Error getting contacts for customer ${customerId}:`, error);
       throw error;
     }
   },
@@ -217,12 +204,62 @@ export const customersService = {
         JSON.stringify(dataToSend, null, 2),
       );
 
+      // Create the contact document
+      const contactId = ID.unique();
       const contact = await databases.createDocument(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
-        ID.unique(),
+        contactId,
         dataToSend,
       );
+
+      // Get the customer ID (ensuring it's a string)
+      const customerId = typeof dataToSend.customer_id[0] === 'string' 
+        ? dataToSend.customer_id[0] 
+        : dataToSend.customer_id[0].$id;
+
+      try {
+        // Get current customer to access existing contact IDs
+        const customer = await databases.getDocument(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          customerId
+        );
+
+        // Prepare the updated customer_contact_ids array
+        let customerContactIds = [];
+        
+        // If the customer already has contact IDs, add to them
+        if (customer.customer_contact_ids && Array.isArray(customer.customer_contact_ids)) {
+          // Extract existing IDs (they might be objects with $id or plain strings)
+          const existingIds = customer.customer_contact_ids.map((item: any) => 
+            typeof item === 'string' ? item : item.$id
+          );
+          
+          // Add the new contact ID if it's not already in the array
+          if (!existingIds.includes(contactId)) {
+            customerContactIds = [...existingIds, contactId];
+          } else {
+            customerContactIds = existingIds;
+          }
+        } else {
+          // If no existing contacts, start with just this one
+          customerContactIds = [contactId];
+        }
+
+        // Update the customer document with the new contact ID in the relationship
+        await databases.updateDocument(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          customerId,
+          { customer_contact_ids: customerContactIds }
+        );
+
+        console.log(`Updated customer ${customerId} with new contact ID ${contactId}`);
+      } catch (updateError) {
+        console.error("Error updating customer with new contact ID:", updateError);
+        // Don't fail the whole operation if this part fails
+      }
 
       return contact as CustomerContact;
     } catch (error) {
@@ -284,11 +321,74 @@ export const customersService = {
   /**
    * Delete a customer contact
    */
-  deleteCustomerContact: async (id: string): Promise<void> => {
+  deleteCustomerContact: async (contactId: string): Promise<void> => {
     try {
-      await databases.deleteDocument(DATABASE_ID, CUSTOMER_CONTACTS_COLLECTION, id);
+      // First, get the contact to find its customer
+      const contact = await databases.getDocument(
+        DATABASE_ID,
+        CUSTOMER_CONTACTS_COLLECTION,
+        contactId
+      );
+
+      // Get the customer ID from the contact
+      let customerId = null;
+      if (contact.customer_id) {
+        if (typeof contact.customer_id === 'string') {
+          customerId = contact.customer_id;
+        } else if (Array.isArray(contact.customer_id) && contact.customer_id.length > 0) {
+          customerId = typeof contact.customer_id[0] === 'string' 
+            ? contact.customer_id[0] 
+            : contact.customer_id[0].$id;
+        } else if (typeof contact.customer_id === 'object' && '$id' in contact.customer_id) {
+          customerId = contact.customer_id.$id;
+        }
+      }
+
+      if (customerId) {
+        try {
+          // Get the customer to update its contact IDs
+          const customer = await databases.getDocument(
+            DATABASE_ID,
+            CUSTOMERS_COLLECTION,
+            customerId
+          );
+
+          // If customer has contact IDs, remove this contact ID
+          if (customer.customer_contact_ids && Array.isArray(customer.customer_contact_ids)) {
+            // Extract existing contact IDs (they might be objects with $id or plain strings)
+            const existingIds = customer.customer_contact_ids.map((item: any) => 
+              typeof item === 'string' ? item : item.$id
+            );
+            
+            // Remove the contact ID we're deleting
+            const updatedIds = existingIds.filter(id => id !== contactId);
+            
+            // Update the customer document with the filtered contact IDs
+            await databases.updateDocument(
+              DATABASE_ID,
+              CUSTOMERS_COLLECTION,
+              customerId,
+              { customer_contact_ids: updatedIds }
+            );
+            
+            console.log(`Removed contact ID ${contactId} from customer ${customerId}`);
+          }
+        } catch (updateError) {
+          console.error("Error updating customer when deleting contact:", updateError);
+          // Continue with contact deletion even if this fails
+        }
+      }
+
+      // Delete the contact document
+      await databases.deleteDocument(
+        DATABASE_ID,
+        CUSTOMER_CONTACTS_COLLECTION,
+        contactId
+      );
+      
+      console.log(`Contact ${contactId} deleted successfully`);
     } catch (error) {
-      console.error(`Error deleting customer contact ${id}:`, error);
+      console.error(`Error deleting contact ${contactId}:`, error);
       throw error;
     }
   },

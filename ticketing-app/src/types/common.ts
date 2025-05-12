@@ -18,6 +18,8 @@ export interface Customer {
   primary_contact_number: string;
   primary_email: string;
   abn?: string;
+  customer_contact_ids?: any[];
+  contacts?: CustomerContact[];
   createdAt: string;
   updatedAt: string;
 }
