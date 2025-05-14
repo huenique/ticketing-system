@@ -4,6 +4,7 @@
  */
 
 import { Account, Client, Databases, ID, Query, Storage } from "appwrite";
+import * as sdk from "node-appwrite";
 
 // Retrieve environment variables
 const API_ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
@@ -216,6 +217,30 @@ export const authService = {
       return await account.updateVerification(userId, secret);
     } catch (error) {
       console.error("Error confirming verification:", error);
+      throw error;
+    }
+  },
+
+  // Get auth user by ID
+  async getAuthUser(userId: string) {
+    try {
+      // Create a server client to make API call
+      const serverClient = new sdk.Client();
+      serverClient
+        .setEndpoint(API_ENDPOINT)
+        .setProject(PROJECT_ID)
+        .setKey(import.meta.env.VITE_APPWRITE_API_KEY);
+      
+      // Create a Users service instance
+      const users = new sdk.Users(serverClient);
+      
+      // Get user by ID
+      const user = await users.get(userId);
+      
+      // Return the user's email
+      return user.email;
+    } catch (error) {
+      console.error("Error fetching auth user:", error);
       throw error;
     }
   },

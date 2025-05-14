@@ -4,8 +4,10 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { toast } from "sonner";
 import { Client, Functions, ID, ExecutionMethod } from 'appwrite';
+import { authService } from "@/lib/appwrite";
 
 import useUserStore from "@/stores/userStore";
+import { usersService } from "@/services/usersService";
 
 import TicketWidget from "../../../components/TicketWidget";
 import { WIDGET_TYPES } from "../../../constants/tickets";
@@ -65,6 +67,22 @@ interface TicketDialogProps {
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
   modifiedTimeEntries: Set<string>;
+  usersWithAuthId?: any[]; // Optional prop for debug purposes to pass users with auth_user_id
+}
+
+// Inside your component or function
+async function fetchUserEmail(userId: string) {
+  try {
+    // Call the getAuthUser function
+    const userEmail = await authService.getAuthUser(userId);
+    
+    // Use the email
+    console.log("User's email:", userEmail);
+    return userEmail;
+  } catch (error) {
+    console.error("Failed to fetch user email:", error);
+    // Handle error appropriately
+  }
 }
 
 // Email Dialog Component
@@ -72,16 +90,49 @@ const EmailDialog = ({
   isOpen,
   onClose,
   ticketDetails,
+  auth_user_id,
 }: {
   isOpen: boolean;
   onClose: () => void;
   ticketDetails: Row;
+  auth_user_id?: string;
 }) => {
+  // Initialize state with auth_user_id if available
   const [emailData, setEmailData] = useState({
-    to: "",
+    to: auth_user_id || "",
     message: "",
     subject: `Ticket Details #${ticketDetails?.cells["col-1"] || ""}`,
   });
+  
+  // Add state for resolved email
+  const [resolvedEmail, setResolvedEmail] = useState("");
+  
+  // Update emailData when the dialog opens and auth_user_id changes
+  useEffect(() => {
+    if (isOpen && auth_user_id) {
+      setEmailData(prev => ({
+        ...prev,
+        to: auth_user_id
+      }));
+    }
+  }, [isOpen, auth_user_id]);
+  
+  // Fetch the email address when the userId changes
+  useEffect(() => {
+    async function getEmail() {
+      if (emailData.to) {
+        try {
+          const email = await fetchUserEmail(emailData.to);
+          if (email) setResolvedEmail(email);
+        } catch (error) {
+          console.error("Failed to fetch email:", error);
+        }
+      }
+    }
+    
+    getEmail();
+  }, [emailData.to]);
+  
   const [isSending, setIsSending] = useState(false);
 
   const handleChange = (
@@ -94,8 +145,8 @@ const EmailDialog = ({
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!emailData.to) {
-      toast.error("Please enter a recipient email");
+    if (!emailData.to || emailData.to.trim() === '') {
+      toast.error("Please enter a recipient");
       return;
     }
     
@@ -181,12 +232,12 @@ const EmailDialog = ({
               Send to:
             </label>
             <input
-              type="email"
+              type="text"
               name="to"
-              value={emailData.to}
+              value={resolvedEmail || emailData.to}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="recipient@example.com"
+              placeholder="Recipient ID"
               required
             />
           </div>
@@ -268,87 +319,92 @@ const DialogHeader = ({
   addWidget: (type: string, ticket: Row) => void;
   handleDialogClose: () => void;
   openEmailDialog: () => void;
-}) => (
-  <div className="border-b p-4 flex items-center justify-between">
-    <div>
-      <h2 className="text-xl font-semibold">
-        Ticket Details (ID: {currentTicket.cells["col-1"]})
-      </h2>
-    </div>
-    <div className="flex items-center space-x-3">
-      {/* Send Email Button */}
-      <button
-        onClick={openEmailDialog}
-        className="px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 text-sm hover:bg-blue-100 flex items-center"
-      >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className="h-4 w-4 mr-1" 
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
-        >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
-          />
-        </svg>
-        Email
-      </button>
-      
-      {/* Only show Edit Layout toggle if not a user role */}
-      {currentUser?.role !== "user" && (
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-neutral-600">Edit Layout</span>
-          <button
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-blue-600" : "bg-neutral-200"}`}
-            onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
-          >
-            <span
-              className={`${
-                isEditLayoutMode ? "translate-x-6" : "translate-x-1"
-              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
-          </button>
-        </div>
-      )}
-
-      {/* Update Reset Layout button */}
-      {isEditLayoutMode && currentUser?.role !== "user" && (
+}) => {
+  // Debug logging
+  console.log("DialogHeader - Current User:", currentUser);
+  
+  return (
+    <div className="flex justify-between items-center mb-2 px-4 pt-4">
+      <div className="flex flex-col">
+        <h2 className="text-xl font-semibold">
+          Ticket Details: {currentTicket?.cells["col-1"]}
+        </h2>
+      </div>
+      <div className="flex items-center space-x-3">
+        {/* Send Email Button */}
         <button
-          onClick={handleResetLayout}
-          className="mr-2 px-3 py-1.5 rounded-md bg-red-50 text-red-600 text-sm hover:bg-red-100"
+          onClick={openEmailDialog}
+          className="px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 text-sm hover:bg-blue-100 flex items-center"
         >
-          Reset Layout
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-4 w-4 mr-1" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+            />
+          </svg>
+          Email
         </button>
-      )}
+        
+        {/* Only show Edit Layout toggle if not a user role */}
+        {currentUser?.role !== "user" && (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-neutral-600">Edit Layout</span>
+            <button
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-blue-600" : "bg-neutral-200"}`}
+              onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
+            >
+              <span
+                className={`${
+                  isEditLayoutMode ? "translate-x-6" : "translate-x-1"
+                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
+            </button>
+          </div>
+        )}
 
-      {/* Add widget button */}
-      {isEditLayoutMode && currentUser?.role !== "user" && (
-        <AddWidgetDropdown currentTicket={currentTicket} addWidget={addWidget} />
-      )}
+        {/* Update Reset Layout button */}
+        {isEditLayoutMode && currentUser?.role !== "user" && (
+          <button
+            onClick={handleResetLayout}
+            className="mr-2 px-3 py-1.5 rounded-md bg-red-50 text-red-600 text-sm hover:bg-red-100"
+          >
+            Reset Layout
+          </button>
+        )}
 
-      <button onClick={() => handleDialogClose()} className="text-neutral-500">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
+        {/* Add widget button */}
+        {isEditLayoutMode && currentUser?.role !== "user" && (
+          <AddWidgetDropdown currentTicket={currentTicket} addWidget={addWidget} />
+        )}
+
+        <button onClick={() => handleDialogClose()} className="text-neutral-500">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Component for Add Widget Dropdown
 const AddWidgetDropdown = ({ currentTicket, addWidget }: { currentTicket: Row; addWidget: (type: string, ticket: Row) => void }) => (
@@ -592,6 +648,7 @@ const WidgetGrid = ({
   newAssignee,
   setNewAssignee,
   markAssigneeCompleted,
+  users,
 }: {
   widgets: Widget[];
   isEditLayoutMode: boolean;
@@ -621,6 +678,7 @@ const WidgetGrid = ({
   newAssignee: Assignee;
   setNewAssignee: (assignee: Assignee) => void;
   markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
+  users?: any[]; // Make users optional
 }) => (
   <div className="w-full relative">
     <ResponsiveGridLayout
@@ -753,9 +811,56 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   handleImageUpload,
   markAssigneeCompleted,
   modifiedTimeEntries,
+  usersWithAuthId,
 }) => {
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  // State for local users if usersWithAuthId is empty
+  const [localUsers, setLocalUsers] = useState<any[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  
+  // Get currentUser from the store to access auth_user_id
   const { currentUser } = useUserStore();
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+
+  // Helper function to check if a string looks like an email
+  const isLikelyEmail = (str: string): boolean => {
+    return typeof str === 'string' && str.includes('@');
+  };
+
+  // Fetch users if usersWithAuthId is empty
+  useEffect(() => {
+    const fetchUsers = async () => {
+      // Only fetch if usersWithAuthId is empty or has no auth_user_id
+      if (!usersWithAuthId || usersWithAuthId.length === 0 || 
+          !usersWithAuthId.some(u => u.auth_user_id && isLikelyEmail(u.auth_user_id))) {
+        setIsLoadingUsers(true);
+        try {
+          const usersList = await usersService.getAllUsers();
+          setLocalUsers(usersList);
+          
+          // Check if any user has auth_user_id
+          const firstUserWithAuthId = usersList.find(u => u.auth_user_id && isLikelyEmail(u.auth_user_id));
+          if (firstUserWithAuthId && firstUserWithAuthId.auth_user_id) {
+            setUserEmail(firstUserWithAuthId.auth_user_id || "");
+          }
+        } catch (error) {
+          console.error("Error fetching users:", error);
+        } finally {
+          setIsLoadingUsers(false);
+        }
+      } else if (usersWithAuthId && usersWithAuthId.length > 0) {
+        // If usersWithAuthId has data, try to find auth_user_id
+        const firstUserWithAuthId = usersWithAuthId.find(u => u.auth_user_id && isLikelyEmail(u.auth_user_id));
+        if (firstUserWithAuthId && firstUserWithAuthId.auth_user_id) {
+          setUserEmail(firstUserWithAuthId.auth_user_id || "");
+        }
+      }
+    };
+
+    if (viewDialogOpen) {
+      fetchUsers();
+    }
+  }, [viewDialogOpen, usersWithAuthId]);
 
   // Add a function to handle layout reset
   const handleResetLayout = () => {
@@ -887,18 +992,45 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     setCurrentTicketPreset(undefined);
   };
 
-  if (!viewDialogOpen || !currentTicket) return null;
+  // Function to open email dialog with direct user email
+  const openEmailDialog = () => {
+    // Extract auth_user_id from usersWithAuthId if available
+    if (usersWithAuthId && usersWithAuthId.length > 0) {
+      for (const user of usersWithAuthId) {
+        if (user && user.auth_user_id) {
+          setUserEmail(user.auth_user_id);
+          setIsEmailDialogOpen(true);
+          return;
+        }
+      }
+    }
+    
+    // Then try to extract from localUsers
+    if (localUsers.length > 0) {
+      for (const user of localUsers) {
+        if (user && user.auth_user_id) {
+          setUserEmail(user.auth_user_id);
+          setIsEmailDialogOpen(true);
+          return;
+        }
+      }
+    }
+    
+    // If no auth_user_id is found, still open the dialog but without pre-filling
+    setIsEmailDialogOpen(true);
+  };
 
-  return (
+  // If there's no current ticket, render nothing
+  if (!currentTicket) return null;
+
+  // Render dialog only when it's open
+  return viewDialogOpen ? (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-white/30 p-4 overflow-y-auto"
-      onClick={() => handleDialogClose()}
+      className="fixed inset-0 z-50 bg-white/10 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden"
     >
-      <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing
-      >
-        <DialogHeader 
+      <div className="bg-white w-full max-w-7xl mx-auto h-[90vh] rounded-lg shadow-lg flex flex-col">
+        {/* Dialog Header */}
+        <DialogHeader
           currentTicket={currentTicket}
           currentUser={currentUser}
           isEditLayoutMode={isEditLayoutMode}
@@ -906,7 +1038,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
           handleResetLayout={handleResetLayout}
           addWidget={addWidget}
           handleDialogClose={handleDialogClose}
-          openEmailDialog={() => setEmailDialogOpen(true)}
+          openEmailDialog={openEmailDialog}
         />
 
         <div className="flex-1 overflow-auto p-6">
@@ -951,6 +1083,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   newAssignee={newAssignee}
                   setNewAssignee={setNewAssignee}
                   markAssigneeCompleted={markAssigneeCompleted}
+                  users={usersWithAuthId}
                 />
               );
             } else {
@@ -994,6 +1127,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                         newAssignee={newAssignee}
                         setNewAssignee={setNewAssignee}
                         markAssigneeCompleted={markAssigneeCompleted}
+                        users={usersWithAuthId}
                       />
                     </div>
                   )}
@@ -1011,14 +1145,15 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
         {/* Email Dialog */}
         {currentTicket && (
           <EmailDialog 
-            isOpen={emailDialogOpen}
-            onClose={() => setEmailDialogOpen(false)}
+            isOpen={isEmailDialogOpen}
+            onClose={() => setIsEmailDialogOpen(false)}
             ticketDetails={currentTicket}
+            auth_user_id={userEmail}
           />
         )}
       </div>
     </div>
-  );
+  ) : null;
 };
 
 export default TicketDialog;

@@ -399,8 +399,6 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                 {handleAddTimeEntry && (
                                   <button
                                     onClick={() => {
-                                      console.log("Adding time entry for assignee:", assignee);
-                                      
                                       // Extract user_id from the assignee
                                       let userId = assignee.user_id;
                                       
@@ -476,12 +474,13 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
           </table>
         </div>
       ) : (
-        <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
-          No team members assigned yet.
+        <div className="text-center p-6 text-neutral-500">
+          No team members assigned to this task. Click "Add Member" to assign
+          team members.
         </div>
       )}
     </div>
   );
 };
 
-export default AssigneeTableWidget; 
+export default AssigneeTableWidget;

@@ -56,6 +56,26 @@ import { uploadFile } from "@/services/storageService";
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
 
+// Debug component to display auth_user_id for assignees
+const AssigneeDebugInfo = ({ assignees, users }: { assignees: any[], users: any[] }) => {
+  if (!assignees || assignees.length === 0) return null;
+  
+  return (
+    <div className="text-xs bg-gray-100 p-2 mt-2 rounded">
+      <h4 className="font-bold">Debug: Auth User IDs</h4>
+      {assignees.map((assignee, index) => {
+        const user = users.find(u => u.$id === assignee.user_id);
+        return (
+          <div key={index} className="grid grid-cols-2 gap-2">
+            <div>{assignee.name}</div>
+            <div>{user?.auth_user_id || 'No auth_user_id'}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Import the customer contact types
 import {
   customersService as fullCustomersService,
@@ -1854,6 +1874,7 @@ function Tickets() {
         handleImageUpload={ticketDialogHandlers.handleImageUpload}
         markAssigneeCompleted={ticketDialogHandlers.markAssigneeCompleted}
         modifiedTimeEntries={ticketDialogHandlers.modifiedTimeEntries}
+        usersWithAuthId={users}
       />
     </div>
   );

@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-
-import { WIDGET_TYPES } from "../constants/tickets";
 import { cn } from "../lib/utils";
 import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
@@ -124,7 +119,7 @@ function TicketWidget({
       // Handle table-type fields specifically
       if (widget.fieldType === "table") {
         // Handle the assignee table and time entries table
-        if (widget.type === "field_assignee_table") {
+        if (widget.type === "field_assignee_table") {   
           return (
             <AssigneeTableWidget
               assignees={assignees}
