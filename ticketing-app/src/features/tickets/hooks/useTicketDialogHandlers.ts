@@ -301,18 +301,82 @@ function useAssigneeHandlers(state: TicketDialogState) {
     };
     
     try {
-      // Update in the local state first for immediate UI feedback
-      const updatedAssignees = assignees.map((a, index) => {
-        // Match by ID if available, or by the temp index ID we added
-        const idMatches = (a.id === id) || 
-                         (id && id.startsWith('index-') && id === `index-${index}`);
-                         
-        if (idMatches) {
-          return { ...a, [field]: value };
-        }
-        return a;
-      });
+      let updatedAssignees: Assignee[] = [...assignees];
       
+      // Special handling for priority field to prevent duplicates
+      if (field === "priority") {
+        // Find the assignee we're updating
+        const currentAssigneeIndex = assignees.findIndex((a, index) => 
+          (a.id === id) || (id.startsWith('index-') && id === `index-${index}`)
+        );
+        
+        if (currentAssigneeIndex !== -1) {
+          const currentAssignee = assignees[currentAssigneeIndex];
+          
+          // Find any existing assignee with the same priority value
+          const existingWithSamePriorityIndex = assignees.findIndex(a => 
+            a.id !== currentAssignee.id && a.priority === value
+          );
+          
+          // If there's already an assignee with this priority, swap their priorities
+          if (existingWithSamePriorityIndex !== -1) {
+            const existingWithSamePriority = assignees[existingWithSamePriorityIndex];
+            const oldPriority = currentAssignee.priority;
+            
+            // Update both assignees in a single state update
+            updatedAssignees = assignees.map((a, index) => {
+              if (index === currentAssigneeIndex) {
+                // Update the current assignee with the new priority
+                return { ...a, priority: value };
+              } else if (index === existingWithSamePriorityIndex) {
+                // Update the other assignee with the current assignee's old priority
+                
+                // Also update in database if we have a valid ID
+                if (a.id && !a.id.startsWith('index-') && currentTicket && currentTicket.id) {
+                  // Update work description with new priority tag
+                  let workDescription = a.workDescription || "";
+                  workDescription = workDescription.replace(/\[PRIORITY:[0-9]+\]\s*/, "");
+                  const updatedWorkDescription = `[PRIORITY:${oldPriority}] ${workDescription}`;
+                  
+                  // Update in database
+                  ticketAssignmentsService.updateTicketAssignment(a.id, {
+                    work_description: updatedWorkDescription
+                  }).catch(error => {
+                    console.error("Error updating swapped assignment priority in Appwrite:", error);
+                  });
+                }
+                
+                return { ...a, priority: oldPriority };
+              }
+              return a;
+            });
+          } else {
+            // No duplicate priority, just update the current assignee
+            updatedAssignees = assignees.map((a, index) => {
+              const idMatches = (a.id === id) || 
+                              (id && id.startsWith('index-') && id === `index-${index}`);
+              
+              if (idMatches) {
+                return { ...a, priority: value };
+              }
+              return a;
+            });
+          }
+        }
+      } else {
+        // For non-priority fields, just update the field normally
+        updatedAssignees = assignees.map((a, index) => {
+          const idMatches = (a.id === id) || 
+                          (id && id.startsWith('index-') && id === `index-${index}`);
+          
+          if (idMatches) {
+            return { ...a, [field]: value };
+          }
+          return a;
+        });
+      }
+      
+      // Update state with all changes in a single call
       setAssignees(updatedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
