@@ -1,8 +1,11 @@
-import { LogOut, LucideIcon, Settings, Ticket, User, Users, Package } from "lucide-react";
+import { LogOut, LucideIcon, Settings, Ticket, User, Users, Package, Check, X } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { sidebarService, SidebarSettings } from "@/services/sidebarService";
 import useUserStore from "@/stores/userStore";
 
 interface SidebarItemProps {
@@ -40,6 +43,12 @@ interface SidebarProps {
 
 function Sidebar({ className }: SidebarProps) {
   const { currentUser, hasPermission } = useUserStore();
+  const [sidebarTitle, setSidebarTitle] = useState("Ticketing System");
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
+  const [settings, setSettings] = useState<SidebarSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Base navigation items for all users
   const baseNavItems = [{ title: "Tickets", icon: Ticket, href: "/tickets" }];
@@ -58,6 +67,87 @@ function Sidebar({ className }: SidebarProps) {
     ? [...baseNavItems, ...adminNavItems]
     : baseNavItems;
 
+  // Fetch sidebar title when component mounts
+  useEffect(() => {
+    async function loadSidebarSettings() {
+      try {
+        setIsLoading(true);
+        const sidebarSettings = await sidebarService.getSidebarSettings();
+        if (sidebarSettings) {
+          setSidebarTitle(sidebarSettings.title);
+          setSettings(sidebarSettings);
+        }
+      } catch (error) {
+        console.error("Failed to load sidebar settings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadSidebarSettings();
+  }, []);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  const handleTitleClick = () => {
+    if (hasPermission("admin")) {
+      setTempTitle(sidebarTitle);
+      setIsEditing(true);
+    }
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempTitle(e.target.value);
+  };
+
+  const handleSave = useCallback(async () => {
+    if (!settings) return;
+    
+    try {
+      await sidebarService.updateSidebarTitle(settings.$id, tempTitle);
+      setSidebarTitle(tempTitle);
+      setIsEditing(false);
+      toast.success("Title updated successfully");
+    } catch (error) {
+      console.error("Failed to update title:", error);
+      toast.error("Failed to update title");
+    }
+  }, [settings, tempTitle]);
+
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+  };
+
+  // Handle clicks outside the input to save
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        handleSave();
+      }
+    }
+
+    if (isEditing) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditing, handleSave]);
+
   return (
     <div
       className={cn(
@@ -66,7 +156,45 @@ function Sidebar({ className }: SidebarProps) {
       )}
     >
       <div className="mb-6 px-2">
-        <h1 className="text-xl font-bold">Ticketing System</h1>
+        {isLoading ? (
+          <div className="h-7 w-48 bg-gray-200 animate-pulse rounded"></div>
+        ) : isEditing ? (
+          <div className="flex items-center gap-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={tempTitle}
+              onChange={handleTitleChange}
+              onKeyDown={handleKeyDown}
+              className="text-xl font-bold bg-gray-100 px-1 py-0.5 rounded border border-gray-300 focus:outline-none focus:border-blue-500 w-full"
+            />
+            <button 
+              onClick={handleSave} 
+              className="p-1 text-green-600 hover:text-green-800"
+              title="Save"
+            >
+              <Check size={16} />
+            </button>
+            <button 
+              onClick={handleCancel} 
+              className="p-1 text-red-600 hover:text-red-800"
+              title="Cancel"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <h1 
+            className={cn(
+              "text-xl font-bold",
+              hasPermission("admin") && "cursor-pointer hover:text-blue-600"
+            )}
+            onClick={handleTitleClick}
+            title={hasPermission("admin") ? "Click to edit" : ""}
+          >
+            {sidebarTitle}
+          </h1>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-1">
