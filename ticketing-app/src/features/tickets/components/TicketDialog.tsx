@@ -3,6 +3,7 @@ import { Layout, Layouts, Responsive, WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { toast } from "sonner";
+import { Client, Functions, ID, ExecutionMethod } from 'appwrite';
 
 import useUserStore from "@/stores/userStore";
 
@@ -66,6 +67,188 @@ interface TicketDialogProps {
   modifiedTimeEntries: Set<string>;
 }
 
+// Email Dialog Component
+const EmailDialog = ({
+  isOpen,
+  onClose,
+  ticketDetails,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  ticketDetails: Row;
+}) => {
+  const [emailData, setEmailData] = useState({
+    to: "",
+    message: "",
+    subject: `Ticket Details #${ticketDetails?.cells["col-1"] || ""}`,
+  });
+  const [isSending, setIsSending] = useState(false);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setEmailData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!emailData.to) {
+      toast.error("Please enter a recipient email");
+      return;
+    }
+    
+    try {
+      setIsSending(true);
+      
+      // Set up Appwrite client and functions
+      const client = new Client()
+        .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+        .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+      
+      const functions = new Functions(client);
+      
+      // Create simplified message content - only include the actual message
+      const messageContent = emailData.message;
+      
+      // Create form data for the endpoint with proper subject
+      const formData = new URLSearchParams();
+      formData.append('email', emailData.to);
+      formData.append('message', messageContent);
+      formData.append('subject', emailData.subject);
+
+      // Call the function using the Appwrite SDK
+      const result = await functions.createExecution(
+        import.meta.env.VITE_APPWRITE_FUNCTION_ID,
+        formData.toString(),
+        false,
+        '/',
+        ExecutionMethod.POST,
+        {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      );
+      
+      if (result.responseStatusCode >= 200 && result.responseStatusCode < 300) {
+        toast.success("Message sent successfully!");
+        onClose();
+      } else {
+        throw new Error(`Server responded with ${result.responseStatusCode}: ${result.responseBody}`);
+      }
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      toast.error(`Failed to send message: ${error?.message || "Unknown error"}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-md bg-white/30 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Send Ticket Details</h2>
+          <button onClick={onClose} className="text-neutral-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSendEmail}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Send to:
+            </label>
+            <input
+              type="email"
+              name="to"
+              value={emailData.to}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="recipient@example.com"
+              required
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subject:
+            </label>
+            <input
+              type="text"
+              name="subject"
+              value={emailData.subject}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Message:
+            </label>
+            <textarea
+              name="message"
+              value={emailData.message}
+              onChange={handleChange}
+              rows={5}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Add your message here..."
+              required
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSending}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center"
+            >
+              {isSending ? (
+                <>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  Sending...
+                </>
+              ) : (
+                "Send Email"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Component for Header section
 const DialogHeader = ({
   currentTicket,
@@ -75,6 +258,7 @@ const DialogHeader = ({
   handleResetLayout,
   addWidget,
   handleDialogClose,
+  openEmailDialog,
 }: {
   currentTicket: Row;
   currentUser: any;
@@ -83,6 +267,7 @@ const DialogHeader = ({
   handleResetLayout: () => void;
   addWidget: (type: string, ticket: Row) => void;
   handleDialogClose: () => void;
+  openEmailDialog: () => void;
 }) => (
   <div className="border-b p-4 flex items-center justify-between">
     <div>
@@ -91,6 +276,28 @@ const DialogHeader = ({
       </h2>
     </div>
     <div className="flex items-center space-x-3">
+      {/* Send Email Button */}
+      <button
+        onClick={openEmailDialog}
+        className="px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 text-sm hover:bg-blue-100 flex items-center"
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="h-4 w-4 mr-1" 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+          />
+        </svg>
+        Email
+      </button>
+      
       {/* Only show Edit Layout toggle if not a user role */}
       {currentUser?.role !== "user" && (
         <div className="flex items-center space-x-2">
@@ -548,6 +755,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   modifiedTimeEntries,
 }) => {
   const { currentUser } = useUserStore();
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
 
   // Add a function to handle layout reset
   const handleResetLayout = () => {
@@ -698,6 +906,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
           handleResetLayout={handleResetLayout}
           addWidget={addWidget}
           handleDialogClose={handleDialogClose}
+          openEmailDialog={() => setEmailDialogOpen(true)}
         />
 
         <div className="flex-1 overflow-auto p-6">
@@ -798,6 +1007,15 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
           handleDialogClose={handleDialogClose}
           handleSaveTicketChanges={handleSaveTicketChanges} 
         />
+
+        {/* Email Dialog */}
+        {currentTicket && (
+          <EmailDialog 
+            isOpen={emailDialogOpen}
+            onClose={() => setEmailDialogOpen(false)}
+            ticketDetails={currentTicket}
+          />
+        )}
       </div>
     </div>
   );
