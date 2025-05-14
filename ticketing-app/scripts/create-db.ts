@@ -582,6 +582,22 @@ async function createCollections() {
       ),
     'relationship time_entries.user_id'
   );
+
+  // 11. sidebar
+  await safe(
+    () =>
+      databases.createCollection(
+        dbId,
+        'sidebar',
+        'Sidebar',
+        ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+      ),
+    'collection sidebar'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'sidebar', 'title', 255, true),
+    'attribute sidebar.title'
+  );
 }
 
 createCollections().catch(err => {
