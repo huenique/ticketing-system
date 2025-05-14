@@ -176,7 +176,6 @@ function Tickets() {
   // Tables Store
   const {
     tables,
-
     resetTabs,
     createNewTable,
   } = useTablesStore();
@@ -1285,7 +1284,36 @@ function Tickets() {
             Apply Engineering Preset
           </Button>
           <Button
-            onClick={resetTabs}
+            onClick={async () => {
+              try {
+                setTicketsLoading(true);
+                
+                // First call the original resetTabs function
+                resetTabs();
+                
+                // Then delete all statuses
+                const allStatuses = await statusesService.getAllStatuses();
+                console.log(`Deleting ${allStatuses.length} statuses from collection`);
+                
+                // Delete each status one by one
+                for (const status of allStatuses) {
+                  if (status.$id) {
+                    await statusesService.deleteStatus(status.$id);
+                    console.log(`Deleted status ${status.label} with ID ${status.$id}`);
+                  }
+                }
+                
+                // Increment the refresh counter to update the UI
+                setTicketsRefreshCounter(prev => prev + 1);
+                
+                console.log("All statuses deleted successfully");
+              } catch (error) {
+                console.error("Error resetting data:", error);
+                setTicketsError(error instanceof Error ? error : new Error("Failed to reset data"));
+              } finally {
+                setTicketsLoading(false);
+              }
+            }}
             className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
           >
             Reset
