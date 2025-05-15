@@ -165,7 +165,7 @@ const EmailDialog = ({
       
       // Create form data for the endpoint with proper subject
       const formData = new URLSearchParams();
-      formData.append('email', emailData.to);
+      formData.append('email', resolvedEmail);
       formData.append('message', messageContent);
       formData.append('subject', emailData.subject);
 
