@@ -2,9 +2,9 @@
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
-import { Plus } from "lucide-react";
+import { Plus, Search, Check, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 // React and Hooks
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +46,7 @@ import { columns } from "../features/tickets/components/columns";
 import { DataTable } from "../features/tickets/components/data-table";
 import TicketDialog from "../features/tickets/components/TicketDialog";
 import useTicketDialogHandlers from "../features/tickets/hooks/useTicketDialogHandlers";
+
 // Zustand Stores
 import { useSettingsStore } from "../stores/settingsStore";
 import useTablesStore from "../stores/tablesStore";
@@ -53,6 +54,7 @@ import useTabsStore from "../stores/tabsStore";
 import useWidgetsStore from "../stores/widgetsStore";
 import useUserStore from "../stores/userStore";
 import { uploadFile } from "@/services/storageService";
+
 // Utils and Hooks
 import { getSavedTabsData } from "../utils/ticketUtils";
 
@@ -730,7 +732,7 @@ function Tickets() {
         };
       }
 
-      // Also update the current status tab if applicable
+      // Also update the current tab if applicable
       // Only do this if we successfully got the status
       if (newRow.cells["col-7"] !== "Loading...") {
         const statusTabs = tabs.filter((tab) => tab.status === newRow.cells["col-7"]);
@@ -919,6 +921,30 @@ function Tickets() {
   const [parts, setParts] = useState<Part[]>([]);
   const [selectedParts, setSelectedParts] = useState<string[]>([]);
 
+  // State for customer selection
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [customersPage, setCustomersPage] = useState(1);
+  const [customersTotalPages, setCustomersTotalPages] = useState(1);
+  const [customersTotalItems, setCustomersTotalItems] = useState(0);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [displayedCustomers, setDisplayedCustomers] = useState<Customer[]>([]);
+  const customersLimit = 20; // Items per page
+
+  // State for parts selection
+  const [partsSearchQuery, setPartsSearchQuery] = useState("");
+  const [partsPage, setPartsPage] = useState(1);
+  const [partsTotalPages, setPartsTotalPages] = useState(1);
+  const [partsTotalItems, setPartsTotalItems] = useState(0);
+  const [isLoadingParts, setIsLoadingParts] = useState(false);
+  const [displayedParts, setDisplayedParts] = useState<Part[]>([]);
+  const partsLimit = 20; // Items per page
+
+  // Customer selection dialog
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+  const [isParsDialogOpen, setIsParsDialogOpen] = useState(false);
+  const customerSearchInputRef = useRef<HTMLInputElement>(null);
+  const partsSearchInputRef = useRef<HTMLInputElement>(null);
+
   // Function to fetch contacts for a customer
   const fetchCustomerContacts = async (customerId: string) => {
     if (!customerId) return;
@@ -984,6 +1010,8 @@ function Tickets() {
         }));
         
         setCustomers(formattedCustomers);
+        // Initially set the first page of customers to display
+        setDisplayedCustomers(formattedCustomers.slice(0, customersLimit));
 
         // Fetch users and map them to the expected format
         const usersData = await usersService.getAllUsers();
@@ -995,6 +1023,8 @@ function Tickets() {
         const partsData = await partsService.getAllParts();
         console.log("Fetched parts:", partsData);
         setParts(partsData.parts);
+        // Initially set the first page of parts to display
+        setDisplayedParts(partsData.parts.slice(0, partsLimit));
       } catch (error) {
         console.error("Error fetching form data:", error);
       }
@@ -1002,6 +1032,148 @@ function Tickets() {
 
     if (isAddTicketDialogOpen) {
       fetchTicketFormData();
+    }
+  }, [isAddTicketDialogOpen]);
+
+  // Load customers with pagination and search
+  const loadCustomers = async (page = 1, query = "") => {
+    setIsLoadingCustomers(true);
+    try {
+      // Use the customer service to get paginated results
+      // The service might not have a dedicated pagination method, so we'll use the existing one with limits
+      const result = await fullCustomersService.getAllCustomers({
+        limit: customersLimit, 
+        offset: (page - 1) * customersLimit
+      });
+      
+      // Filter results on client side if query is provided
+      const filteredCustomers = query 
+        ? result.customers.filter(c => 
+            c.name.toLowerCase().includes(query.toLowerCase())
+          )
+        : result.customers;
+      
+      // Convert the customer data to match the expected format
+      const formattedCustomers: Customer[] = filteredCustomers.map(c => ({
+        id: c.$id,
+        name: c.name,
+        address: c.address,
+        primary_contact_name: c.primary_contact_name,
+        primary_contact_number: c.primary_contact_number,
+        primary_email: c.primary_email,
+        abn: c.abn,
+        $id: c.$id,
+        $createdAt: c.$createdAt,
+        $updatedAt: c.$updatedAt,
+      }));
+      
+      setDisplayedCustomers(formattedCustomers);
+      setCustomersTotalItems(result.total);
+      setCustomersTotalPages(Math.ceil(result.total / customersLimit));
+      setCustomers(prev => {
+        // Merge with existing customers to maintain selected state
+        const existingMap = new Map(prev.map(c => [c.$id, c]));
+        formattedCustomers.forEach(c => existingMap.set(c.$id, c));
+        return Array.from(existingMap.values());
+      });
+    } catch (error) {
+      console.error("Error loading customers:", error);
+      setDisplayedCustomers([]);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  // Load parts with pagination and search
+  const loadParts = async (page = 1, query = "") => {
+    setIsLoadingParts(true);
+    try {
+      // Use the parts service to get paginated results
+      const result = await partsService.getAllParts({
+        limit: partsLimit,
+        offset: (page - 1) * partsLimit
+      });
+
+      // Filter results on client side if query is provided
+      const filteredParts = query 
+        ? result.parts.filter(p => 
+            p.description.toLowerCase().includes(query.toLowerCase())
+          )
+        : result.parts;
+      
+      setDisplayedParts(filteredParts);
+      setPartsTotalItems(result.total);
+      setPartsTotalPages(Math.ceil(result.total / partsLimit));
+      setParts(prev => {
+        // Merge with existing parts to maintain selected state
+        const existingMap = new Map(prev.map(p => [p.$id, p]));
+        filteredParts.forEach(p => existingMap.set(p.$id, p));
+        return Array.from(existingMap.values());
+      });
+    } catch (error) {
+      console.error("Error loading parts:", error);
+      setDisplayedParts([]);
+    } finally {
+      setIsLoadingParts(false);
+    }
+  };
+
+  // Hook for customer search and pagination
+  useEffect(() => {
+    if (isCustomerDialogOpen) {
+      loadCustomers(customersPage, customerSearchQuery);
+    }
+  }, [isCustomerDialogOpen, customersPage, customerSearchQuery]);
+
+  // Hook for parts search and pagination
+  useEffect(() => {
+    if (isParsDialogOpen) {
+      loadParts(partsPage, partsSearchQuery);
+    }
+  }, [isParsDialogOpen, partsPage, partsSearchQuery]);
+
+  // Fetch customers and parts only when dialog first opens
+  useEffect(() => {
+    if (isAddTicketDialogOpen) {
+      // Only fetch initial status options when dialog opens
+      const fetchInitialData = async () => {
+        try {
+          console.log("Fetching ticket form initial data...");
+
+          // Fetch statuses
+          const statusesData = await statusesService.getAllStatuses();
+          console.log("Fetched statuses:", statusesData);
+          setStatuses(statusesData);
+          
+          // Find the "New" status and set it as default
+          const newStatus = statusesData.find(status => status.label === "New");
+          if (newStatus && newStatus.$id) {
+            console.log("Setting default status to 'New' with ID:", newStatus.$id);
+            // Use setState callback to ensure we get the latest state
+            setNewTicketData(prev => {
+              const updated = {
+                ...prev,
+                status_id: newStatus.$id || ""
+              };
+              console.log("Updated ticket data with New status:", updated);
+              return updated;
+            });
+          } else {
+            console.log("Could not find 'New' status in:", statusesData);
+          }
+
+          // Fetch users and map them to the expected format
+          const usersData = await usersService.getAllUsers();
+          console.log("Fetched users:", usersData);
+          // Store the original ServiceUser objects
+          setUsers(usersData);
+          
+        } catch (error) {
+          console.error("Error fetching form data:", error);
+        }
+      };
+
+      fetchInitialData();
     }
   }, [isAddTicketDialogOpen]);
 
@@ -1264,6 +1436,32 @@ function Tickets() {
     }
   };
 
+  // Focus search input when dialog opens
+  useEffect(() => {
+    if (isCustomerDialogOpen && customerSearchInputRef.current) {
+      setTimeout(() => {
+        customerSearchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isCustomerDialogOpen]);
+
+  useEffect(() => {
+    if (isParsDialogOpen && partsSearchInputRef.current) {
+      setTimeout(() => {
+        partsSearchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isParsDialogOpen]);
+
+  // Reset pagination when search query changes
+  useEffect(() => {
+    setCustomersPage(1);
+  }, [customerSearchQuery]);
+
+  useEffect(() => {
+    setPartsPage(1);
+  }, [partsSearchQuery]);
+
   return (
     <div className="p-8 max-w-full">
       <div className="flex items-center justify-between mb-6">
@@ -1378,6 +1576,13 @@ function Tickets() {
           // Prevent closing the dialog when loading
           if (ticketsLoading && !open) return;
           setIsAddTicketDialogOpen(open);
+          // Reset search and pagination when dialog closes
+          if (!open) {
+            setCustomerSearchQuery("");
+            setCustomersPage(1);
+            setPartsSearchQuery("");
+            setPartsPage(1);
+          }
         }}
       >
         <DialogTrigger asChild>
@@ -1449,56 +1654,154 @@ function Tickets() {
                 </div>
               </div>
 
-              {/* Customer */}
+              {/* Customer - Simple Button + Dialog */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="customer_id" className="text-right text-sm font-medium">
                   Customer
                 </label>
                 <div className="col-span-3">
-                  <Select
-                    value={newTicketData.customer_id || "placeholder"}
-                    onValueChange={(value) => {
-                      if (value !== "placeholder") {
-                        handleNewTicketFormChange("customer_id", value);
-                        // When customer changes, fetch their contacts
-                        fetchCustomerContacts(value);
-                      }
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsCustomerDialogOpen(true);
                     }}
                   >
-                    <SelectTrigger
-                      className="w-full"
-                      aria-label={getCustomerName(newTicketData.customer_id)}
-                    >
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
-                      <SelectGroup>
-                        <SelectItem value="placeholder" disabled>
-                          Select customer
-                        </SelectItem>
-                        {customers && customers.length > 0 ? (
-                          customers.map((customer, index) => (
-                            <SelectItem
-                              key={customer.$id || `customer-${index}`}
-                              value={
-                                customer.$id
-                                  ? customer.$id.toString()
-                                  : `undefined-customer-${index}`
-                              }
-                            >
-                              {customer.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-customers" disabled>
-                            No customers available
-                          </SelectItem>
-                        )}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                    {newTicketData.customer_id
+                      ? getCustomerName(newTicketData.customer_id)
+                      : "Select customer..."}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
                 </div>
               </div>
+
+              {/* Customer Selection Dialog */}
+              <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+                <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Select Customer</DialogTitle>
+                    <DialogDescription>
+                      Search and select the customer for this ticket.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      ref={customerSearchInputRef}
+                      placeholder="Search customers..."
+                      className="pl-8"
+                      value={customerSearchQuery}
+                      onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 overflow-y-auto border rounded-md mb-4" style={{ maxHeight: "300px" }}>
+                    {isLoadingCustomers ? (
+                      <div className="flex justify-center items-center h-32">
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                        <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                      </div>
+                    ) : displayedCustomers.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">No customers found</div>
+                    ) : (
+                      <div className="divide-y">
+                        {displayedCustomers.map((customer) => (
+                          <div
+                            key={customer.$id}
+                            className={`p-2 cursor-pointer hover:bg-gray-100 flex items-center ${
+                              newTicketData.customer_id === customer.$id ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => {
+                              handleNewTicketFormChange("customer_id", customer.$id || "");
+                              fetchCustomerContacts(customer.$id || "");
+                              setIsCustomerDialogOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={
+                                newTicketData.customer_id === customer.$id
+                                  ? "mr-2 h-4 w-4"
+                                  : "mr-2 h-4 w-4 invisible"
+                              }
+                            />
+                            <span>{customer.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Pagination control */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
+                        {customersTotalItems > 0 ? (
+                          <>
+                            Showing page {customersPage} of {customersTotalPages}
+                            <span className="mx-1">·</span>
+                            {customersTotalItems} total
+                          </>
+                        ) : (
+                          "No results"
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCustomersPage(prev => Math.max(prev - 1, 1))}
+                          disabled={customersPage <= 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        {Array.from({ length: Math.min(3, customersTotalPages) }, (_, i) => {
+                          // Show current page and surrounding pages
+                          let pageToShow;
+                          if (customersTotalPages <= 3) {
+                            pageToShow = i + 1;
+                          } else if (customersPage === 1) {
+                            pageToShow = i + 1;
+                          } else if (customersPage === customersTotalPages) {
+                            pageToShow = customersTotalPages - 2 + i;
+                          } else {
+                            pageToShow = customersPage - 1 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={i}
+                              variant={pageToShow === customersPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCustomersPage(pageToShow)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageToShow}
+                            </Button>
+                          );
+                        })}
+                        {customersTotalPages > 3 && customersPage < customersTotalPages - 1 && (
+                          <span className="text-gray-500">...</span>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCustomersPage(prev => prev < customersTotalPages ? prev + 1 : prev)}
+                          disabled={customersPage >= customersTotalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCustomerDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Primary Contact */}
               <div className="grid grid-cols-4 items-center gap-4">
@@ -1747,64 +2050,23 @@ function Tickets() {
                 </div>
               </div>
               
-              {/* Parts */}
+              {/* Parts - Simple Button + Dialog */}
               <div className="grid grid-cols-4 items-start gap-4">
                 <label className="text-right text-sm font-medium mt-2">Parts</label>
                 <div className="col-span-3">
-                  <Select
-                    value={
-                      selectedParts.length > 0 ? "has-selections" : "placeholder"
-                    }
-                    onValueChange={(value) => {
-                      if (
-                        value &&
-                        value !== "has-selections" &&
-                        value !== "placeholder"
-                      ) {
-                        handlePartSelection(value);
-                      }
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsParsDialogOpen(true);
                     }}
                   >
-                    <SelectTrigger className="w-full" aria-label="Select parts">
-                      <SelectValue placeholder="Select parts" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-950 border rounded-md shadow-md">
-                      <SelectGroup>
-                        <SelectItem value="placeholder" disabled>
-                          Select parts
-                        </SelectItem>
-                        {parts &&
-                          parts.length > 0 &&
-                          parts.map((part, index) => (
-                            <SelectItem
-                              key={part.$id || `part-${index}`}
-                              value={
-                                part.$id
-                                  ? part.$id.toString()
-                                  : `undefined-part-${index}`
-                              }
-                              className={
-                                selectedParts.includes(
-                                  part.$id || `undefined-part-${index}`,
-                                )
-                                  ? "bg-green-100"
-                                  : ""
-                              }
-                            >
-                              {part.description} - {part.quantity} (${part.price})
-                              {selectedParts.includes(
-                                part.$id || `undefined-part-${index}`,
-                              ) && " ✓"}
-                            </SelectItem>
-                          ))}
-                        {(!parts || parts.length === 0) && (
-                          <SelectItem value="no-parts" disabled>
-                            No parts available
-                          </SelectItem>
-                        )}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                    {selectedParts.length > 0
+                      ? `${selectedParts.length} part${selectedParts.length > 1 ? 's' : ''} selected`
+                      : "Select parts..."}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
 
                   {/* Show selected parts as tags */}
                   {selectedParts.length > 0 && (
@@ -1837,6 +2099,134 @@ function Tickets() {
                   )}
                 </div>
               </div>
+
+              {/* Parts Selection Dialog */}
+              <Dialog open={isParsDialogOpen} onOpenChange={setIsParsDialogOpen}>
+                <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Select Parts</DialogTitle>
+                    <DialogDescription>
+                      Search and select parts for this ticket. You can select multiple parts.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      ref={partsSearchInputRef}
+                      placeholder="Search parts..."
+                      className="pl-8"
+                      value={partsSearchQuery}
+                      onChange={(e) => setPartsSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 overflow-y-auto border rounded-md mb-4" style={{ maxHeight: "300px" }}>
+                    {isLoadingParts ? (
+                      <div className="flex justify-center items-center h-32">
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                        <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                      </div>
+                    ) : displayedParts.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">No parts found</div>
+                    ) : (
+                      <div className="divide-y">
+                        {displayedParts.map((part) => (
+                          <div
+                            key={part.$id}
+                            className={`p-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                              selectedParts.includes(part.$id || "") ? 'bg-green-50' : ''
+                            }`}
+                            onClick={() => handlePartSelection(part.$id || "")}
+                          >
+                            <div className="flex items-center">
+                              <Check
+                                className={
+                                  selectedParts.includes(part.$id || "")
+                                    ? "mr-2 h-4 w-4"
+                                    : "mr-2 h-4 w-4 invisible"
+                                }
+                              />
+                              <span>{part.description}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              {part.quantity} | ${part.price}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Pagination control */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
+                        {partsTotalItems > 0 ? (
+                          <>
+                            Showing page {partsPage} of {partsTotalPages}
+                            <span className="mx-1">·</span>
+                            {partsTotalItems} total
+                          </>
+                        ) : (
+                          "No results"
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPartsPage(prev => Math.max(prev - 1, 1))}
+                          disabled={partsPage <= 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        {Array.from({ length: Math.min(3, partsTotalPages) }, (_, i) => {
+                          // Show current page and surrounding pages
+                          let pageToShow;
+                          if (partsTotalPages <= 3) {
+                            pageToShow = i + 1;
+                          } else if (partsPage === 1) {
+                            pageToShow = i + 1;
+                          } else if (partsPage === partsTotalPages) {
+                            pageToShow = partsTotalPages - 2 + i;
+                          } else {
+                            pageToShow = partsPage - 1 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={i}
+                              variant={pageToShow === partsPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setPartsPage(pageToShow)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageToShow}
+                            </Button>
+                          );
+                        })}
+                        {partsTotalPages > 3 && partsPage < partsTotalPages - 1 && (
+                          <span className="text-gray-500">...</span>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPartsPage(prev => prev < partsTotalPages ? prev + 1 : prev)}
+                          disabled={partsPage >= partsTotalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsParsDialogOpen(false)}>
+                      Done
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
             <DialogFooter>
               <Button
