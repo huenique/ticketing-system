@@ -145,8 +145,17 @@ const EmailDialog = ({
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!emailData.to || emailData.to.trim() === '') {
-      toast.error("Please enter a recipient");
+    // Simple email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailToSend = resolvedEmail || emailData.to;
+    
+    if (!emailToSend || emailToSend.trim() === '') {
+      toast.error("Please enter a recipient email");
+      return;
+    }
+    
+    if (!emailRegex.test(emailToSend)) {
+      toast.error("Please enter a valid email address");
       return;
     }
     
@@ -165,7 +174,8 @@ const EmailDialog = ({
       
       // Create form data for the endpoint with proper subject
       const formData = new URLSearchParams();
-      formData.append('email', resolvedEmail);
+      // Use the manually entered email if no resolved email exists
+      formData.append('email', emailToSend);
       formData.append('message', messageContent);
       formData.append('subject', emailData.subject);
 
@@ -237,7 +247,7 @@ const EmailDialog = ({
               value={resolvedEmail || emailData.to}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Recipient ID"
+              placeholder="Enter email address"
               required
             />
           </div>
