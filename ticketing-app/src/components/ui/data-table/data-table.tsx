@@ -87,10 +87,19 @@ export function DataTableProvider<TData, TValue>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
+
+  // Track initialPageSize changes
+  useEffect(() => {
+    console.log(`DataTableProvider: initialPageSize changed to ${initialPageSize}`);
+    setPagination(prev => ({
+      ...prev,
+      pageSize: initialPageSize
+    }));
+  }, [initialPageSize]);
 
   const table = useReactTable({
     data,
@@ -110,6 +119,11 @@ export function DataTableProvider<TData, TValue>({
     },
     onPaginationChange: setPagination,
     manualPagination: false,
+    initialState: {
+      pagination: {
+        pageSize: initialPageSize
+      }
+    }
   });
   
   // Update the context with the latest table instance
@@ -146,10 +160,18 @@ export function useDataTable<TData, TValue>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,
   });
+
+  // Update pagination when initialPageSize changes
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      pageSize: initialPageSize
+    }));
+  }, [initialPageSize]);
 
   const table = useReactTable({
     data,
@@ -339,7 +361,7 @@ export function DataTablePagination<TData>({
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue placeholder={String(pageSize)} />
               </SelectTrigger>
-              <SelectContent side="top">
+              <SelectContent side="top" className="bg-white">
                 {pageSizeOptions.map((option) => (
                   <SelectItem key={option} value={String(option)}>
                     {option}
@@ -349,7 +371,7 @@ export function DataTablePagination<TData>({
             </Select>
           </div>
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            Page {currentPage} of {pageCount}
+            Page {currentPage} of {pageCount || 1}
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -396,10 +418,20 @@ export function DataTablePagination<TData>({
   
   // Client-side pagination with react-table
   if (tableToUse) {
+    // Use same page size options as the server-side pagination for consistency
+    const pageSizes = [5, 10, 20, 50, 100];
+    
+    // Calculate the total number of displayed rows
+    const totalDisplayed = tableToUse.getFilteredRowModel().rows.length;
+    const pageSize = tableToUse.getState().pagination.pageSize;
+    const currentPageIndex = tableToUse.getState().pagination.pageIndex;
+    const startRow = currentPageIndex * pageSize + 1;
+    const endRow = Math.min(startRow + pageSize - 1, totalDisplayed);
+    
     return (
       <div className="flex items-center justify-between px-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {tableToUse.getFilteredRowModel().rows.length} row(s) displayed
+          {startRow}-{endRow} of {totalDisplayed} row(s)
         </div>
         <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex items-center space-x-2">
@@ -414,7 +446,7 @@ export function DataTablePagination<TData>({
                 <SelectValue placeholder={tableToUse.getState().pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((pageSize) => (
+                {pageSizes.map((pageSize) => (
                   <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>
@@ -424,7 +456,7 @@ export function DataTablePagination<TData>({
           </div>
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
             Page {tableToUse.getState().pagination.pageIndex + 1} of{" "}
-            {tableToUse.getPageCount()}
+            {tableToUse.getPageCount() || 1}
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -488,8 +520,17 @@ export function DataTable<TData, TValue>({
   pagination,
 }: DataTableProps<TData, TValue>) {
   
+  // If server-side pagination is provided, use its pageSize as initialPageSize
+  const effectiveInitialPageSize = pagination?.pageSize || initialPageSize;
+  
   // If server-side pagination is provided, disable client-side pagination
   const manualPagination = !!pagination;
+  
+  // State for pagination
+  const [paginationState, setPaginationState] = useState({
+    pageIndex: manualPagination ? (pagination?.currentPage || 1) - 1 : 0,
+    pageSize: effectiveInitialPageSize
+  });
   
   // Create a new table instance for this component
   const table = useReactTable({
@@ -502,14 +543,20 @@ export function DataTable<TData, TValue>({
     manualPagination,
     pageCount: pagination?.pageCount,
     state: {
-      pagination: manualPagination 
-        ? { 
-            pageIndex: (pagination?.currentPage || 1) - 1, 
-            pageSize: pagination?.pageSize || initialPageSize 
-          } 
-        : undefined,
+      pagination: paginationState,
     },
+    onPaginationChange: manualPagination ? undefined : setPaginationState,
   });
+
+  // Update pagination state when server pagination changes
+  useEffect(() => {
+    if (pagination) {
+      setPaginationState({
+        pageIndex: (pagination.currentPage || 1) - 1,
+        pageSize: pagination.pageSize || effectiveInitialPageSize
+      });
+    }
+  }, [pagination?.currentPage, pagination?.pageSize]);
 
   if (renderTableOnly) {
     return <DataTableContent table={table} onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />;
@@ -520,7 +567,7 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <DataTableProvider columns={columns} data={data} searchColumn={searchColumn} initialPageSize={initialPageSize}>
+    <DataTableProvider columns={columns} data={data} searchColumn={searchColumn} initialPageSize={effectiveInitialPageSize}>
       {!isLoading && (
         <DataTableSearch placeholder={searchPlaceholder} column={searchColumn} />
       )}

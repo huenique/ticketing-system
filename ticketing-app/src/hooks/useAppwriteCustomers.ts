@@ -47,9 +47,11 @@ export function useAppwriteCustomers({
     if (newPage) setPage(newPage);
     
     const offset = (currentPage - 1) * limit;
+    console.log(`fetchCustomers: Fetching page ${currentPage} with limit ${limit}, offset ${offset}`);
 
     try {
       const result = await customersService.getAllCustomers({ limit, offset });
+      console.log(`fetchCustomers: Received ${result.customers.length} customers out of ${result.total} total`);
       setTotalCustomers(result.total);
       
       // Convert from Appwrite format to Common format
@@ -75,12 +77,14 @@ export function useAppwriteCustomers({
               email: contact.email,
               createdAt: contact.$createdAt,
               updatedAt: contact.$updatedAt,
-            }))
+              customer_ids: [customer.$id]
+            })) as CustomerContact[]
           : [],
         createdAt: customer.$createdAt,
         updatedAt: customer.$updatedAt,
       }));
       setCustomers(mappedCustomers);
+      console.log(`fetchCustomers: Successfully updated state with ${mappedCustomers.length} customers`);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to fetch customers"));
       console.error("Error fetching customers:", err);
@@ -91,15 +95,65 @@ export function useAppwriteCustomers({
 
   // When limit changes, reset to first page and refetch
   useEffect(() => {
+    console.log(`useAppwriteCustomers: Effect triggered by limit change to ${limit}`);
     if (initialFetch) {
+      console.log(`useAppwriteCustomers: Setting page to 1 and fetching for limit=${limit}`);
       setPage(1);
-      fetchCustomers(1);
+      // Use a function reference to avoid dependency on fetchCustomers
+      const offset = 0; // For page 1
+      (async () => {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+          console.log(`useAppwriteCustomers effect: Fetching page 1 with limit ${limit}, offset ${offset}`);
+          const result = await customersService.getAllCustomers({ limit, offset });
+          console.log(`useAppwriteCustomers effect: Received ${result.customers.length} customers out of ${result.total} total`);
+          setTotalCustomers(result.total);
+          
+          // Convert from Appwrite format to Common format
+          const mappedCustomers = result.customers.map((customer) => ({
+            id: customer.$id,
+            name: customer.name,
+            address: customer.address,
+            primary_contact_name: customer.primary_contact_name,
+            primary_contact_number: customer.primary_contact_number,
+            primary_email: customer.primary_email,
+            abn: customer.abn || "",
+            customer_contact_ids: customer.customer_contact_ids || [],
+            contacts: customer.customer_contact_ids 
+              ? customer.customer_contact_ids.map((contact: any) => ({
+                  id: contact.$id,
+                  customerId: customer.$id,
+                  first_name: contact.first_name,
+                  last_name: contact.last_name,
+                  position: contact.position || "",
+                  contact_number: contact.contact_number,
+                  email: contact.email,
+                  createdAt: contact.$createdAt,
+                  updatedAt: contact.$updatedAt,
+                  customer_ids: [customer.$id]
+                })) as CustomerContact[]
+              : [],
+            createdAt: customer.$createdAt,
+            updatedAt: customer.$updatedAt,
+          })) as any;
+          setCustomers(mappedCustomers);
+          console.log(`useAppwriteCustomers effect: Successfully updated state with ${mappedCustomers.length} customers`);
+        } catch (err) {
+          setError(err instanceof Error ? err : new Error("Failed to fetch customers"));
+          console.error("Error fetching customers:", err);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
     }
   }, [limit, initialFetch]);
 
-  // Initial fetch on component mount
+  // Initial fetch on component mount - only run once
   useEffect(() => {
     if (initialFetch) {
+      console.log(`useAppwriteCustomers: Initial mount fetch with limit=${limit}`);
       fetchCustomers();
     }
   }, []);
@@ -135,7 +189,8 @@ export function useAppwriteCustomers({
                 email: contact.email,
                 createdAt: contact.$createdAt,
                 updatedAt: contact.$updatedAt,
-              }))
+                customer_ids: [customer.$id]
+              })) as CustomerContact[]
             : [],
           createdAt: customer.$createdAt,
           updatedAt: customer.$updatedAt,

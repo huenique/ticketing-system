@@ -138,11 +138,15 @@ function Customers() {
 
   // Pagination handling
   const handlePageChange = (newPage: number) => {
+    console.log(`handlePageChange: Changing to page ${newPage}`);
     fetchCustomers(newPage);
   };
 
   const handleLimitChange = (newLimit: number) => {
+    console.log(`handleLimitChange: Changing limit from ${limit} to ${newLimit}`);
+    // Just set the limit - the useEffect in useAppwriteCustomers will handle the fetch
     setLimit(newLimit);
+    // No need to call fetchCustomers here, the useEffect will do that
   };
 
   // Fetch customers when component mounts
@@ -876,6 +880,7 @@ function Customers() {
           searchPlaceholder="Search customers..."
           searchColumn="name"
           noResultsMessage="No customers found."
+          initialPageSize={limit}
           pagination={{
             pageCount: totalPages,
             currentPage: page,
