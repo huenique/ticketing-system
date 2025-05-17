@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { Tab } from "@/types/tickets";
+import { statusesService } from "@/services/ticketsService";
 
 import { persist } from "./middleware";
 
@@ -23,10 +24,10 @@ interface TabsState {
   handleDragEnd: () => void;
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, targetTabId: string) => void;
-  addTab: () => void;
+  addTab: () => Promise<void>;
   closeTab: (tabId: string, e: React.MouseEvent) => void;
   handleDoubleClick: (tabId: string) => void;
-  saveTabName: () => void;
+  saveTabName: () => Promise<void>;
   cancelTabRename: () => void;
   handleRenameKeyDown: (e: React.KeyboardEvent) => void;
 }
@@ -99,18 +100,43 @@ const useTabsStore = create<TabsState>()(
         });
       },
 
-      addTab: () => {
+      addTab: async () => {
         const { tabs } = get();
+        const newTabTitle = `Tickets ${tabs.length + 1}`;
         const newTabId = `tab-${tabs.length + 1}`;
-        const newTab: Tab = {
-          id: newTabId,
-          title: `Tickets ${tabs.length + 1}`,
-          content: "all",
-        };
-        set({
-          tabs: [...tabs, newTab],
-          activeTab: newTabId,
-        });
+        
+        // Create a new status in Appwrite
+        try {
+          // Create status in Appwrite first
+          await statusesService.createStatus({ label: newTabTitle });
+          console.log(`Created new status "${newTabTitle}" in Appwrite`);
+          
+          // Add the tab locally after successful API request
+          const newTab: Tab = {
+            id: newTabId,
+            title: newTabTitle,
+            content: "all",
+            status: newTabTitle, // Link the tab to the status
+          };
+          
+          set({
+            tabs: [...tabs, newTab],
+            activeTab: newTabId,
+          });
+        } catch (error) {
+          console.error("Error creating status in Appwrite:", error);
+          // Create the tab locally even if API request fails
+          const newTab: Tab = {
+            id: newTabId,
+            title: newTabTitle,
+            content: "all",
+          };
+          
+          set({
+            tabs: [...tabs, newTab],
+            activeTab: newTabId,
+          });
+        }
       },
 
       closeTab: (tabId, e) => {
@@ -138,7 +164,7 @@ const useTabsStore = create<TabsState>()(
         });
       },
 
-      saveTabName: () => {
+      saveTabName: async () => {
         const { editingTab, editingTitle, tabs } = get();
         if (!editingTab) return;
 
@@ -151,13 +177,43 @@ const useTabsStore = create<TabsState>()(
           return;
         }
 
+        // Get the tab being edited
+        const tabBeingEdited = tabs.find((tab) => tab.id === editingTab);
+        if (!tabBeingEdited) {
+          set({
+            editingTab: null,
+            editingTitle: "",
+          });
+          return;
+        }
+        
+        // Update the tab locally
         set({
           tabs: tabs.map((tab) =>
-            tab.id === editingTab ? { ...tab, title: editingTitle.trim() } : tab,
+            tab.id === editingTab ? { ...tab, title: editingTitle.trim(), status: editingTitle.trim() } : tab,
           ),
           editingTab: null,
           editingTitle: "",
         });
+        
+        // Update the corresponding status in Appwrite if this tab is linked to a status
+        if (tabBeingEdited.status) {
+          try {
+            // Find the status in Appwrite that matches the old tab name
+            const statuses = await statusesService.getAllStatuses();
+            const statusToUpdate = statuses.find(status => status.label === tabBeingEdited.title);
+            
+            // If we found a matching status, update it
+            if (statusToUpdate && statusToUpdate.$id) {
+              await statusesService.updateStatus(statusToUpdate.$id, { 
+                label: editingTitle.trim() 
+              });
+              console.log(`Updated status from "${tabBeingEdited.title}" to "${editingTitle.trim()}" in Appwrite`);
+            }
+          } catch (error) {
+            console.error("Error updating status in Appwrite:", error);
+          }
+        }
       },
 
       cancelTabRename: () => {

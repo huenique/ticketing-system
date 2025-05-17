@@ -167,7 +167,7 @@ function Customers() {
 
       // Format the data for Appwrite
       const appwriteContactData = {
-        customer_id: customerId,
+        customer_ids: [customerId],
         first_name: contactData.first_name,
         last_name: contactData.last_name,
         position: contactData.position || "",
@@ -227,10 +227,15 @@ function Customers() {
 
   const deleteContact = async (contactId: string) => {
     try {
+      console.log(`Deleting contact with ID: ${contactId}`);
       await customersService.deleteCustomerContact(contactId);
+      console.log("Contact deleted successfully from database");
+      
       if (selectedCustomer) {
+        console.log(`Refreshing contacts for customer ID: ${getCustomerId(selectedCustomer)}`);
         await fetchCustomerContacts(getCustomerId(selectedCustomer));
       }
+      return true;
     } catch (error) {
       console.error("Error deleting contact:", error);
       throw error;
@@ -360,15 +365,6 @@ function Customers() {
       position: contact.position || "",
     });
     setIsEditContactDialogOpen(true);
-  };
-
-  const handleDeleteContactClick = async (contactId: string) => {
-    if (window.confirm("Are you sure you want to delete this contact?")) {
-      if (selectedCustomer) {
-        await deleteContact(contactId);
-        // Contacts will be refreshed by the deleteContact function
-      }
-    }
   };
 
   const handleEditFormChange = (
@@ -504,6 +500,24 @@ function Customers() {
           }
           
           toast.success(`${newContact.first_name} ${newContact.last_name} automatically set as primary contact`);
+        } else {
+          toast.success(`Contact added successfully: ${newContact.first_name} ${newContact.last_name}`);
+        }
+        
+        // Refresh the contacts list after adding the new contact
+        const updatedContacts = await customersService.getCustomerContacts(customerId);
+        setAppwriteContacts(updatedContacts);
+        setSelectedContacts(updatedContacts);
+        
+        // Refresh the customer data to get updated contact relationships
+        if (selectedCustomer) {
+          // Force a refresh of the full customers list to update any related data
+          await fetchCustomers();
+          // Get the latest version of this customer
+          const refreshedCustomer = customers.find(c => getCustomerId(c) === customerId);
+          if (refreshedCustomer) {
+            setSelectedCustomer(refreshedCustomer);
+          }
         }
 
         setIsAddContactDialogOpen(false);
@@ -529,6 +543,27 @@ function Customers() {
       try {
         const contactId = selectedContact.$id;
         await updateContact(contactId, editContactFormData);
+        
+        toast.success(`Contact updated successfully`);
+        
+        // If we have a selected customer, refresh their contacts
+        if (selectedCustomer) {
+          const customerId = getCustomerId(selectedCustomer);
+          
+          // Refresh the contacts list
+          const updatedContacts = await customersService.getCustomerContacts(customerId);
+          setAppwriteContacts(updatedContacts);
+          setSelectedContacts(updatedContacts);
+          
+          // Refresh the customer data to get updated relationships
+          await fetchCustomers();
+          
+          // Get the latest version of this customer
+          const refreshedCustomer = customers.find(c => getCustomerId(c) === customerId);
+          if (refreshedCustomer) {
+            setSelectedCustomer(refreshedCustomer);
+          }
+        }
 
         setIsEditContactDialogOpen(false);
         setSelectedContact(null);
@@ -540,45 +575,50 @@ function Customers() {
     }
   };
 
-  const handleDeleteContactFromAppwrite = async (contactId: string) => {
-    if (window.confirm("Are you sure you want to delete this contact?")) {
-      try {
-        await deleteContact(contactId);
+  // State for contact deletion dialog
+  const [isContactDeleteDialogOpen, setIsContactDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null);
+  const [isDeletingContact, setIsDeletingContact] = useState(false);
 
-        // Update the UI
-        setAppwriteContacts((prev) => prev.filter((c) => c.$id !== contactId));
-        setSelectedContacts((prev) => prev.filter((c) => c.$id !== contactId));
-      } catch (error) {
-        console.error("Error deleting contact:", error);
-        toast.error("Failed to delete contact. Please try again.");
-      }
-    }
+  const handleDeleteContactFromAppwrite = (contactId: string) => {
+    setContactToDelete(contactId);
+    setIsContactDeleteDialogOpen(true);
   };
-
-  // Helper function to get updated timestamp regardless of customer type
-  const getUpdatedTimestamp = (customer: CustomerType): string | undefined => {
-    if ("$updatedAt" in customer) {
-      return customer.$updatedAt;
-    }
-    return customer.updatedAt;
-  };
-
-  // Helper function to format date
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "N/A";
-
+  
+  const confirmDeleteContact = async () => {
+    if (!contactToDelete) return;
+    
     try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
-    } catch (e) {
-      console.error("Error formatting date:", e);
-      return dateString;
+      setIsDeletingContact(true);
+      await deleteContact(contactToDelete);
+      
+      // If we have a selected customer, refresh their contacts
+      if (selectedCustomer) {
+        const customerId = getCustomerId(selectedCustomer);
+        
+        // Refresh the contacts list
+        const updatedContacts = await customersService.getCustomerContacts(customerId);
+        setAppwriteContacts(updatedContacts);
+        setSelectedContacts(updatedContacts);
+        
+        // Refresh the customer data to get updated relationships
+        await fetchCustomers();
+        
+        // Get the latest version of this customer
+        const refreshedCustomer = customers.find(c => getCustomerId(c) === customerId);
+        if (refreshedCustomer) {
+          setSelectedCustomer(refreshedCustomer);
+        }
+      }
+      
+      toast.success("Contact deleted successfully");
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      toast.error("Failed to delete contact. Please try again.");
+    } finally {
+      setIsDeletingContact(false);
+      setIsContactDeleteDialogOpen(false);
+      setContactToDelete(null);
     }
   };
 
@@ -616,8 +656,6 @@ function Customers() {
     onDelete: handleDeleteClick,
   };
 
-  // Get the columns using the new function
-  const customerColumns = getCustomersColumns(customerActions);
 
   if (loading && customers.length === 0) {
     return (
@@ -931,13 +969,13 @@ function Customers() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {appwriteContacts.map((contact) => {
+                    {appwriteContacts.map((contact, index) => {
                       const isPrimaryContact = selectedCustomer && 
                         selectedCustomer.primary_email === contact.email;
                       
                       return (
                         <TableRow 
-                          key={contact.$id}
+                          key={contact.$id || `contact-${index}`}
                           className={isPrimaryContact ? "bg-green-50" : ""}
                         >
                           <TableCell>{contact.first_name}</TableCell>
@@ -986,7 +1024,7 @@ function Customers() {
             )}
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsContactsDialogOpen(false)}>Close</Button>
+            <Button className="bg-gray-200 text-black hover:bg-gray-300" onClick={() => setIsContactsDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1071,7 +1109,7 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="bg-blue-600 text-white" type="submit">Add Contact</Button>
+              <Button className="bg-blue-600 text-white hover:bg-blue-700" type="submit">Add Contact</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1182,6 +1220,44 @@ function Customers() {
                 "Delete"
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Contact Dialog */}
+      <Dialog open={isContactDeleteDialogOpen} onOpenChange={setIsContactDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Contact</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this contact?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button 
+              disabled={isDeletingContact} 
+              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm"
+              onClick={() => setIsContactDeleteDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              disabled={isDeletingContact} 
+              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm ml-2"
+              onClick={confirmDeleteContact}
+            >
+              {isDeletingContact ? (
+                <>
+                  <svg className="mr-2 h-4 w-4 animate-spin inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -29,7 +29,7 @@ export interface Customer extends DocumentMetadata {
 
 // Customer contact interface
 export interface CustomerContact extends DocumentMetadata {
-  customer_id: string | { $id: string };
+  customer_ids: string | { $id: string } | string[] | { $id: string }[];
   first_name: string;
   last_name: string;
   position?: string;
@@ -223,24 +223,11 @@ export const customersService = {
       // Make a copy of the contactData to modify
       const dataToSend: any = { ...contactData };
 
-      // For relationship fields, we need to provide an array of IDs
-      // Handle different possible formats of customer_id
-      if (contactData.customer_id) {
-        if (typeof contactData.customer_id === "string") {
-          // If it's a string ID, convert to array of IDs
-          dataToSend.customer_id = [contactData.customer_id];
-        } else if (
-          typeof contactData.customer_id === "object" &&
-          "$id" in contactData.customer_id
-        ) {
-          // If it's an object with $id, extract the ID and convert to array
-          dataToSend.customer_id = [contactData.customer_id.$id];
-        } else if (Array.isArray(contactData.customer_id)) {
-          // If it's already an array, keep it as is
-          // (but make sure it contains strings/IDs not objects)
-          dataToSend.customer_id = (contactData.customer_id as any[]).map(
-            (item: any) => (typeof item === "string" ? item : item.$id),
-          );
+      // Ensure customer_ids is an array of strings for the relationship field
+      if (contactData.customer_ids) {
+        // If it's not already an array, convert it to an array
+        if (!Array.isArray(contactData.customer_ids)) {
+          dataToSend.customer_ids = [contactData.customer_ids];
         }
       }
 
@@ -258,10 +245,16 @@ export const customersService = {
         dataToSend,
       );
 
-      // Get the customer ID (ensuring it's a string)
-      const customerId = typeof dataToSend.customer_id[0] === 'string' 
-        ? dataToSend.customer_id[0] 
-        : dataToSend.customer_id[0].$id;
+      // Get the customer ID from the array - at this point we should have an array of strings
+      let customerId = null;
+      if (Array.isArray(dataToSend.customer_ids) && dataToSend.customer_ids.length > 0) {
+        customerId = dataToSend.customer_ids[0];
+      }
+      
+      if (!customerId) {
+        console.error("No valid customer ID found in the data");
+        throw new Error("No valid customer ID provided");
+      }
 
       try {
         // Get current customer to access existing contact IDs
@@ -324,23 +317,11 @@ export const customersService = {
       // Make a copy of the contactData to modify
       const dataToSend: any = { ...contactData };
 
-      // Ensure customer_id is properly formatted if it's being updated
-      if (contactData.customer_id) {
-        if (typeof contactData.customer_id === "string") {
-          // If it's a string ID, convert to array of IDs
-          dataToSend.customer_id = [contactData.customer_id];
-        } else if (
-          typeof contactData.customer_id === "object" &&
-          "$id" in contactData.customer_id
-        ) {
-          // If it's an object with $id, extract the ID and convert to array
-          dataToSend.customer_id = [contactData.customer_id.$id];
-        } else if (Array.isArray(contactData.customer_id)) {
-          // If it's already an array, keep it as is
-          // (but make sure it contains strings/IDs not objects)
-          dataToSend.customer_id = (contactData.customer_id as any[]).map(
-            (item: any) => (typeof item === "string" ? item : item.$id),
-          );
+      // Ensure customer_ids is an array if it's being updated
+      if (contactData.customer_ids) {
+        // If it's not already an array, convert it to an array
+        if (!Array.isArray(contactData.customer_ids)) {
+          dataToSend.customer_ids = [contactData.customer_ids];
         }
       }
 
@@ -377,15 +358,15 @@ export const customersService = {
 
       // Get the customer ID from the contact
       let customerId = null;
-      if (contact.customer_id) {
-        if (typeof contact.customer_id === 'string') {
-          customerId = contact.customer_id;
-        } else if (Array.isArray(contact.customer_id) && contact.customer_id.length > 0) {
-          customerId = typeof contact.customer_id[0] === 'string' 
-            ? contact.customer_id[0] 
-            : contact.customer_id[0].$id;
-        } else if (typeof contact.customer_id === 'object' && '$id' in contact.customer_id) {
-          customerId = contact.customer_id.$id;
+      if (contact.customer_ids) {
+        if (typeof contact.customer_ids === 'string') {
+          customerId = contact.customer_ids;
+        } else if (Array.isArray(contact.customer_ids) && contact.customer_ids.length > 0) {
+          customerId = typeof contact.customer_ids[0] === 'string' 
+            ? contact.customer_ids[0] 
+            : contact.customer_ids[0].$id;
+        } else if (typeof contact.customer_ids === 'object' && '$id' in contact.customer_ids) {
+          customerId = contact.customer_ids.$id;
         }
       }
 

@@ -27,7 +27,7 @@ interface TabNavigationProps {
   onDrop: (e: React.DragEvent, targetTabId: string) => void;
   onEditingTitleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRenameKeyDown: (e: React.KeyboardEvent) => void;
-  onRenameBlur?: () => void;
+  onRenameBlur: () => void;
 }
 
 /**

@@ -5,10 +5,14 @@ import { CustomerContact as CommonCustomerContact } from "@/types/common";
 const mapToCommonContact = (contact: CustomerContact): CommonCustomerContact => {
   // Extract customerId from the relationship structure
   let customerId = "";
-  if (typeof contact.customer_id === "object" && contact.customer_id) {
-    customerId = contact.customer_id.$id;
-  } else if (typeof contact.customer_id === "string") {
-    customerId = contact.customer_id;
+  // Just use the first customer ID if available
+  if (Array.isArray(contact.customer_ids) && contact.customer_ids.length > 0) {
+    const firstCustomer = contact.customer_ids[0];
+    if (typeof firstCustomer === 'string') {
+      customerId = firstCustomer;
+    } else if (firstCustomer && typeof firstCustomer === 'object' && '$id' in firstCustomer) {
+      customerId = firstCustomer.$id;
+    }
   }
 
   return {
@@ -31,11 +35,11 @@ export const getAllContacts = async (): Promise<CommonCustomerContact[]> => {
   try {
     // We'll need to fetch contacts for all customers
     // This is not optimal but will work for now
-    const customers = await customersService.getAllCustomers();
+    const result = await customersService.getAllCustomers();
     const allContacts: CustomerContact[] = [];
 
     // Fetch contacts for each customer
-    for (const customer of customers) {
+    for (const customer of result.customers) {
       const customerContacts = await customersService.getCustomerContacts(customer.$id);
       allContacts.push(...customerContacts);
     }
@@ -71,9 +75,9 @@ export const getContactById = async (
   try {
     // Since we don't have a direct method to get a contact by ID,
     // we need to fetch all contacts and find the one we need
-    const customers = await customersService.getAllCustomers();
+    const result = await customersService.getAllCustomers();
 
-    for (const customer of customers) {
+    for (const customer of result.customers) {
       const contacts = await customersService.getCustomerContacts(customer.$id);
       const contact = contacts.find((c) => c.$id === contactId);
       if (contact) {
@@ -97,7 +101,7 @@ export const createContact = async (
   try {
     // Convert from common format to Appwrite format
     const appwriteData = {
-      customer_id: contactData.customerId,
+      customer_ids: contactData.customerId,
       first_name: contactData.first_name,
       last_name: contactData.last_name,
       position: contactData.position || "",
@@ -125,7 +129,7 @@ export const updateContact = async (
     const appwriteData: any = {};
 
     // Handle relationship field properly
-    if (contactData.customerId) appwriteData.customer_id = contactData.customerId;
+    if (contactData.customerId) appwriteData.customer_ids = contactData.customerId;
     if (contactData.first_name) appwriteData.first_name = contactData.first_name;
     if (contactData.last_name) appwriteData.last_name = contactData.last_name;
     if (contactData.position !== undefined)

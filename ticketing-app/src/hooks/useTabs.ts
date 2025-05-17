@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Tables } from "@/types/tables";
 import { Tab } from "@/types/tickets";
+import { statusesService } from "@/services/ticketsService";
 
 /**
  * Custom hook to manage tab operations
@@ -56,15 +57,38 @@ export function useTabs(initialTabs: Tab[], initialActiveTab: string) {
   };
 
   // Add a new tab
-  const addTab = () => {
+  const addTab = async () => {
+    const newTabTitle = `Tickets ${tabs.length + 1}`;
     const newTabId = `tab-${tabs.length + 1}`;
-    const newTab: Tab = {
-      id: newTabId,
-      title: `Tickets ${tabs.length + 1}`,
-      content: "all",
-    };
-    setTabs([...tabs, newTab]);
-    setActiveTab(newTabId);
+    
+    // Create a new status in Appwrite
+    try {
+      // Create status in Appwrite first
+      await statusesService.createStatus({ label: newTabTitle });
+      console.log(`Created new status "${newTabTitle}" in Appwrite`);
+      
+      // Add the tab locally after successful API request
+      const newTab: Tab = {
+        id: newTabId,
+        title: newTabTitle,
+        content: "all",
+        status: newTabTitle, // Link the tab to the status
+      };
+      
+      setTabs([...tabs, newTab]);
+      setActiveTab(newTabId);
+    } catch (error) {
+      console.error("Error creating status in Appwrite:", error);
+      // Create the tab locally even if API request fails
+      const newTab: Tab = {
+        id: newTabId,
+        title: newTabTitle,
+        content: "all",
+      };
+      
+      setTabs([...tabs, newTab]);
+      setActiveTab(newTabId);
+    }
   };
 
   // Close a tab
@@ -101,7 +125,7 @@ export function useTabs(initialTabs: Tab[], initialActiveTab: string) {
   };
 
   // Save the new tab name
-  const saveTabName = () => {
+  const saveTabName = async () => {
     if (!editingTab) return;
 
     // Don't save empty titles
@@ -110,11 +134,40 @@ export function useTabs(initialTabs: Tab[], initialActiveTab: string) {
       return;
     }
 
+    // Get the tab being edited
+    const tabBeingEdited = tabs.find((tab) => tab.id === editingTab);
+    if (!tabBeingEdited) {
+      cancelTabRename();
+      return;
+    }
+    
+    // Update the tab locally
     setTabs((prev) =>
       prev.map((tab) =>
-        tab.id === editingTab ? { ...tab, title: editingTitle.trim() } : tab,
+        tab.id === editingTab ? { ...tab, title: editingTitle.trim(), status: editingTitle.trim() } : tab,
       ),
     );
+    
+    // Update the corresponding status in Appwrite if this tab is linked to a status
+    if (tabBeingEdited.status) {
+      try {
+        // Find the status in Appwrite that matches the old tab name
+        const statuses = await statusesService.getAllStatuses();
+        const statusToUpdate = statuses.find(status => status.label === tabBeingEdited.title);
+        
+        // If we found a matching status, update it
+        if (statusToUpdate && statusToUpdate.$id) {
+          await statusesService.updateStatus(statusToUpdate.$id, { 
+            label: editingTitle.trim() 
+          });
+          console.log(`Updated status from "${tabBeingEdited.title}" to "${editingTitle.trim()}" in Appwrite`);
+        }
+      } catch (error) {
+        console.error("Error updating status in Appwrite:", error);
+      }
+    }
+    
+    // Clear editing state
     setEditingTab(null);
     setEditingTitle("");
   };
