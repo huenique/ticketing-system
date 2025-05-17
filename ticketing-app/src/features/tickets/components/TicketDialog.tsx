@@ -478,7 +478,6 @@ const WidgetDropdownContent = ({
       { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
       { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
       { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
-      { type: WIDGET_TYPES.NOTES, label: "Notes" },
     ].map((item) => (
       <button
         key={item.type}

@@ -51,7 +51,6 @@ const useWidgetsStore = create<WidgetsState>()(
           widgetType === WIDGET_TYPES.ASSIGNEES ||
           widgetType === WIDGET_TYPES.TIME_ENTRIES ||
           widgetType === WIDGET_TYPES.ATTACHMENTS ||
-          widgetType === WIDGET_TYPES.NOTES ||
           widgetType === WIDGET_TYPES.FIELD_ASSIGNEE_TABLE ||
           widgetType === WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE ||
           widgetType === WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY
@@ -120,15 +119,6 @@ const useWidgetsStore = create<WidgetsState>()(
               id: `widget-${Date.now()}-attachments`,
               type: WIDGET_TYPES.ATTACHMENTS,
               title: "Attachments",
-              collapsed: false,
-            };
-            break;
-
-          case WIDGET_TYPES.NOTES:
-            newWidget = {
-              id: `widget-${Date.now()}-notes`,
-              type: WIDGET_TYPES.NOTES,
-              title: "Notes",
               collapsed: false,
             };
             break;
