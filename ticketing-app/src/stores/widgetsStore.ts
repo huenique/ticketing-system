@@ -22,7 +22,7 @@ interface WidgetsState {
 }
 
 const useWidgetsStore = create<WidgetsState>()(
-  persist(
+  persist<WidgetsState>(
     (set, get) => ({
       // State
       widgets: [],

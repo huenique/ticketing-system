@@ -26,7 +26,7 @@ export interface Customer {
 
 export interface CustomerContact {
   id: string;
-  customerId: string;
+  customer_ids: string[];
   first_name: string;
   last_name: string;
   position?: string;

@@ -35,13 +35,18 @@ export interface CustomerContact extends DocumentMetadata {
   position?: string;
   contact_number: string;
   email: string;
+  created_at?: Date | string;
+  updated_at?: Date | string;
 }
 
 // Type for creating a new customer (without metadata fields)
 export type NewCustomer = Omit<Customer, keyof DocumentMetadata>;
 
 // Type for creating a new customer contact (without metadata fields)
-export type NewCustomerContact = Omit<CustomerContact, keyof DocumentMetadata>;
+export type NewCustomerContact = Omit<CustomerContact, keyof DocumentMetadata> & {
+  // Override customer_ids to ensure it's required and correctly typed
+  customer_ids: string | string[];
+};
 
 // Customers service object
 export const customersService = {
@@ -184,29 +189,53 @@ export const customersService = {
 
   /**
    * Get customer contacts
-   * Note: This method is now simplified since contacts are included in the customer data
+   * This function handles the many-to-many relationship between customers and contacts
    */
   getCustomerContacts: async (customerId: string): Promise<CustomerContact[]> => {
     try {
       console.log(`Getting contacts for customer ID: ${customerId}`);
       
-      // Get the customer document which now includes the full contact objects
+      // First get the customer to access its customer_contact_ids
       const customer = await databases.getDocument(
         DATABASE_ID,
         CUSTOMERS_COLLECTION,
         customerId
       );
       
-      // Check if customer has the contact relationship field
-      if (!customer.customer_contact_ids || !Array.isArray(customer.customer_contact_ids)) {
-        console.log("No contacts found for this customer (relationship field empty)");
+      // If the customer document doesn't have contact IDs, return empty array
+      if (!customer.customer_contact_ids || !Array.isArray(customer.customer_contact_ids) || customer.customer_contact_ids.length === 0) {
+        console.log("No contact IDs found in customer document");
         return [];
       }
       
-      console.log(`Found ${customer.customer_contact_ids.length} contacts in customer data`);
+      // Extract just the ID values from the customer_contact_ids
+      // (which may contain strings or objects with $id property)
+      const contactIds = customer.customer_contact_ids.map((item: any) => 
+        typeof item === 'string' ? item : item.$id
+      );
       
-      // Return the contacts directly from the customer object
-      return customer.customer_contact_ids as CustomerContact[];
+      console.log(`Found ${contactIds.length} contact IDs in customer data: ${JSON.stringify(contactIds)}`);
+      
+      // Create an array to store the contacts
+      const contacts: CustomerContact[] = [];
+      
+      // Fetch each contact document using its ID
+      for (const contactId of contactIds) {
+        try {
+          const contact = await databases.getDocument(
+            DATABASE_ID,
+            CUSTOMER_CONTACTS_COLLECTION,
+            contactId
+          );
+          contacts.push(contact as CustomerContact);
+        } catch (contactError) {
+          console.error(`Error fetching contact ${contactId}:`, contactError);
+          // Continue with the next contact even if one fails
+        }
+      }
+      
+      console.log(`Successfully retrieved ${contacts.length} contacts for customer ${customerId}`);
+      return contacts;
     } catch (error) {
       console.error(`Error getting contacts for customer ${customerId}:`, error);
       throw error;
@@ -215,6 +244,7 @@ export const customersService = {
 
   /**
    * Create a new customer contact
+   * Handles both sides of the many-to-many relationship
    */
   createCustomerContact: async (
     contactData: NewCustomerContact,
@@ -223,12 +253,21 @@ export const customersService = {
       // Make a copy of the contactData to modify
       const dataToSend: any = { ...contactData };
 
+      // Get the customer ID from the customer_ids field
+      let customerId: string | null = null;
+      if (Array.isArray(dataToSend.customer_ids) && dataToSend.customer_ids.length > 0) {
+        customerId = dataToSend.customer_ids[0];
+      } else if (typeof dataToSend.customer_ids === 'string') {
+        customerId = dataToSend.customer_ids;
+      } else if (typeof dataToSend.customer_ids === 'object' && '$id' in dataToSend.customer_ids) {
+        customerId = dataToSend.customer_ids.$id;
+      }
+
       // Ensure customer_ids is an array of strings for the relationship field
-      if (contactData.customer_ids) {
-        // If it's not already an array, convert it to an array
-        if (!Array.isArray(contactData.customer_ids)) {
-          dataToSend.customer_ids = [contactData.customer_ids];
-        }
+      if (!dataToSend.customer_ids) {
+        dataToSend.customer_ids = [];
+      } else if (!Array.isArray(dataToSend.customer_ids)) {
+        dataToSend.customer_ids = [dataToSend.customer_ids];
       }
 
       console.log(
@@ -246,11 +285,6 @@ export const customersService = {
       );
 
       // Get the customer ID from the array - at this point we should have an array of strings
-      let customerId = null;
-      if (Array.isArray(dataToSend.customer_ids) && dataToSend.customer_ids.length > 0) {
-        customerId = dataToSend.customer_ids[0];
-      }
-      
       if (!customerId) {
         console.error("No valid customer ID found in the data");
         throw new Error("No valid customer ID provided");
@@ -308,6 +342,7 @@ export const customersService = {
 
   /**
    * Update a customer contact
+   * Handles the many-to-many relationship, including changes to customer assignments
    */
   updateCustomerContact: async (
     id: string,
@@ -317,12 +352,45 @@ export const customersService = {
       // Make a copy of the contactData to modify
       const dataToSend: any = { ...contactData };
 
-      // Ensure customer_ids is an array if it's being updated
-      if (contactData.customer_ids) {
-        // If it's not already an array, convert it to an array
-        if (!Array.isArray(contactData.customer_ids)) {
-          dataToSend.customer_ids = [contactData.customer_ids];
+      // First, get the contact to see if we're changing its customer assignment
+      const existingContact = await databases.getDocument(
+        DATABASE_ID,
+        CUSTOMER_CONTACTS_COLLECTION,
+        id
+      );
+      
+      // Get current customer IDs (may be a string or an array)
+      const currentCustomerIds: string[] = [];
+      if (existingContact.customer_ids) {
+        if (Array.isArray(existingContact.customer_ids)) {
+          existingContact.customer_ids.forEach((item: any) => {
+            currentCustomerIds.push(typeof item === 'string' ? item : item.$id);
+          });
+        } else if (typeof existingContact.customer_ids === 'string') {
+          currentCustomerIds.push(existingContact.customer_ids);
+        } else if (typeof existingContact.customer_ids === 'object' && '$id' in existingContact.customer_ids) {
+          currentCustomerIds.push(existingContact.customer_ids.$id);
         }
+      }
+      
+      // Get new customer IDs if provided in update
+      let newCustomerIds: string[] = [];
+      if (contactData.customer_ids) {
+        // Convert to array if not already
+        const customerIdsArray = Array.isArray(contactData.customer_ids) 
+          ? contactData.customer_ids 
+          : [contactData.customer_ids];
+          
+        // Extract string IDs from any objects
+        customerIdsArray.forEach((item: any) => {
+          newCustomerIds.push(typeof item === 'string' ? item : item.$id);
+        });
+        
+        // Ensure customer_ids is stored as array in data to send
+        dataToSend.customer_ids = newCustomerIds;
+      } else {
+        // If not changing customer assignment, use current values
+        newCustomerIds = currentCustomerIds;
       }
 
       console.log(
@@ -330,12 +398,99 @@ export const customersService = {
         JSON.stringify(dataToSend, null, 2),
       );
 
+      // Update the contact document
       const contact = await databases.updateDocument(
         DATABASE_ID,
         CUSTOMER_CONTACTS_COLLECTION,
         id,
         dataToSend,
       );
+      
+      // Now handle the customer side of the relationship
+      
+      // For each customer that's no longer associated, remove this contact
+      for (const oldCustomerId of currentCustomerIds) {
+        if (!newCustomerIds.includes(oldCustomerId)) {
+          try {
+            // Need to remove this contact ID from the old customer
+            const oldCustomer = await databases.getDocument(
+              DATABASE_ID, 
+              CUSTOMERS_COLLECTION, 
+              oldCustomerId
+            );
+            
+            if (oldCustomer.customer_contact_ids && Array.isArray(oldCustomer.customer_contact_ids)) {
+              // Convert possible objects to string IDs
+              const existingContactIds = oldCustomer.customer_contact_ids.map((item: any) => 
+                typeof item === 'string' ? item : item.$id
+              );
+              
+              // Remove this contact ID
+              const updatedContactIds = existingContactIds.filter((contactId: string) => contactId !== id);
+              
+              // Update the customer
+              await databases.updateDocument(
+                DATABASE_ID,
+                CUSTOMERS_COLLECTION,
+                oldCustomerId,
+                { customer_contact_ids: updatedContactIds }
+              );
+              
+              console.log(`Removed contact ${id} from customer ${oldCustomerId}`);
+            }
+          } catch (removeError) {
+            console.error(`Error removing contact from old customer ${oldCustomerId}:`, removeError);
+            // Continue even if this update fails
+          }
+        }
+      }
+      
+      // For each new customer, add this contact ID
+      for (const newCustomerId of newCustomerIds) {
+        if (!currentCustomerIds.includes(newCustomerId)) {
+          try {
+            // Need to add this contact ID to the new customer
+            const newCustomer = await databases.getDocument(
+              DATABASE_ID,
+              CUSTOMERS_COLLECTION,
+              newCustomerId
+            );
+            
+            // Initialize or update customer_contact_ids
+            let customerContactIds = [];
+            
+            if (newCustomer.customer_contact_ids && Array.isArray(newCustomer.customer_contact_ids)) {
+              // Convert possible objects to string IDs
+              const existingContactIds = newCustomer.customer_contact_ids.map((item: any) => 
+                typeof item === 'string' ? item : item.$id
+              );
+              
+              // Add this contact ID if not already present
+              if (!existingContactIds.includes(id)) {
+                customerContactIds = [...existingContactIds, id];
+              } else {
+                customerContactIds = existingContactIds;
+              }
+            } else {
+              // If no existing contacts, start with just this one
+              customerContactIds = [id];
+            }
+            
+            // Update the customer
+            await databases.updateDocument(
+              DATABASE_ID, 
+              CUSTOMERS_COLLECTION,
+              newCustomerId,
+              { customer_contact_ids: customerContactIds }
+            );
+            
+            console.log(`Added contact ${id} to customer ${newCustomerId}`);
+          } catch (addError) {
+            console.error(`Error adding contact to new customer ${newCustomerId}:`, addError);
+            // Continue even if this update fails
+          }
+        }
+      }
 
       return contact as CustomerContact;
     } catch (error) {

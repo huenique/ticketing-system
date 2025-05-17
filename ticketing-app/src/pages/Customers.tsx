@@ -61,7 +61,9 @@ function Customers() {
     setLimit,
   } = useAppwriteCustomers();
 
-  type Contact = CustomerContact;
+  type Contact = CustomerContact & {
+    id?: string; // Some contacts may use id instead of $id
+  };
   // Use a union type to handle both formats of Customer
   type CustomerType = CommonCustomer | AppwriteCustomer;
 
@@ -94,7 +96,7 @@ function Customers() {
     contact_number: string;
     email: string;
     position: string;
-    customerId: string;
+    customer_ids?: string[];
   };
 
   // Helper function to get customer ID regardless of type
@@ -123,7 +125,6 @@ function Customers() {
     contact_number: "",
     email: "",
     position: "",
-    customerId: "",
   });
 
   const [editContactFormData, setEditContactFormData] = useState<
@@ -160,14 +161,14 @@ function Customers() {
   // Function to handle contact operations
   const addContact = async (
     customerId: string,
-    contactData: Omit<ContactFormData, "customerId">,
+    contactData: Omit<ContactFormData, "customer_ids">,
   ) => {
     try {
       console.log(`Adding contact for customer ID: ${customerId}`);
 
-      // Format the data for Appwrite
+      // Format the data for Appwrite - updated for many-to-many relationship
       const appwriteContactData = {
-        customer_ids: [customerId],
+        customer_ids: [customerId], // For many-to-many relationship
         first_name: contactData.first_name,
         last_name: contactData.last_name,
         position: contactData.position || "",
@@ -178,6 +179,35 @@ function Customers() {
       console.log("Contact data to send:", appwriteContactData);
       const result = await customersService.createCustomerContact(appwriteContactData);
       console.log("Contact created successfully:", result);
+
+      // After creating contact, update the customer with the new contact ID
+      if (result && result.$id) {
+        // First fetch the current customer to get existing contact IDs
+        const currentCustomer = await customersService.getCustomer(customerId);
+        
+        // Get existing contact IDs or initialize as empty array
+        let existingContactIds = [];
+        if (currentCustomer && currentCustomer.customer_contact_ids && 
+            Array.isArray(currentCustomer.customer_contact_ids)) {
+          // Extract the IDs (they could be strings or objects)
+          existingContactIds = currentCustomer.customer_contact_ids.map((item: any) => 
+            typeof item === 'string' ? item : item.$id
+          );
+        }
+        
+        // Check if the new contact ID is already in the array (should not be)
+        if (!existingContactIds.includes(result.$id)) {
+          // Append the new contact ID to the existing ones
+          const updatedContactIds = [...existingContactIds, result.$id];
+          
+          // Update the customer with the combined array
+          await customersService.updateCustomer(customerId, {
+            customer_contact_ids: updatedContactIds
+          });
+          
+          console.log(`Updated customer ${customerId} with contact IDs: ${updatedContactIds.join(', ')}`);
+        }
+      }
 
       await fetchCustomerContacts(customerId);
       return result;
@@ -192,6 +222,10 @@ function Customers() {
     updates: Partial<ContactFormData>,
   ) => {
     try {
+      if (!contactId) {
+        throw new Error("Missing contact ID");
+      }
+      
       console.log(`Updating contact with ID: ${contactId}`, updates);
 
       // Format the data for Appwrite
@@ -228,6 +262,77 @@ function Customers() {
   const deleteContact = async (contactId: string) => {
     try {
       console.log(`Deleting contact with ID: ${contactId}`);
+      
+      // If we have a selected customer, we need to update its customer_contact_ids
+      // to remove this contact before deleting the contact itself
+      if (selectedCustomer) {
+        const customerId = getCustomerId(selectedCustomer);
+        
+        // First fetch the customer to get current customer_contact_ids
+        const customer = await customersService.getCustomer(customerId);
+        
+        // Get the contact being deleted to check if it's the primary contact
+        const contactBeingDeleted = appwriteContacts.find(
+          c => c.$id === contactId || (c as any).id === contactId
+        );
+        
+        const isPrimaryContact = contactBeingDeleted && 
+          customer.primary_email === contactBeingDeleted.email;
+        
+        // If the customer has customer_contact_ids with this contact, remove it
+        if (customer && customer.customer_contact_ids && 
+            Array.isArray(customer.customer_contact_ids) && 
+            customer.customer_contact_ids.some(item => {
+              // Check if item is string or has $id property
+              return (typeof item === 'string' && item === contactId) || 
+                     (item && typeof item === 'object' && '$id' in item && item.$id === contactId);
+            })) {
+          
+          // Filter out the contact ID from the list
+          const updatedContactIds = customer.customer_contact_ids.filter(
+            (value) => {
+              // Handle different possible types in the array
+              if (typeof value === 'string') {
+                return value !== contactId;
+              }
+              // For objects with $id property
+              if (value && typeof value === 'object' && '$id' in value) {
+                return value.$id !== contactId;
+              }
+              return true; // Keep any other types
+            }
+          );
+          
+          // Prepare update data
+          const updateData: any = {
+            customer_contact_ids: updatedContactIds
+          };
+          
+          // If we're deleting the primary contact or if no contacts will remain
+          if (isPrimaryContact || updatedContactIds.length === 0) {
+            // If no contacts remain or if we're deleting the primary contact, reset all primary contact fields
+            if (updatedContactIds.length === 0) {
+              console.log("No contacts remain, clearing primary contact fields");
+              updateData.primary_contact_name = null;
+              updateData.primary_contact_number = null;
+              updateData.primary_email = null;
+            } else if (isPrimaryContact) {
+              // If we're deleting the primary contact but other contacts remain,
+              // we could automatically set another contact as primary
+              // For now, we'll just clear the fields
+              console.log("Deleting primary contact, clearing primary contact fields");
+              updateData.primary_contact_name = null;
+              updateData.primary_contact_number = null;
+              updateData.primary_email = null;
+            }
+          }
+          
+          // Update the customer with the filtered list
+          await customersService.updateCustomer(customerId, updateData);
+        }
+      }
+      
+      // Now delete the contact
       await customersService.deleteCustomerContact(contactId);
       console.log("Contact deleted successfully from database");
       
@@ -242,26 +347,18 @@ function Customers() {
     }
   };
 
-  // Update the fetchCustomerContacts function to use the embedded contacts data
+  // Update the fetchCustomerContacts function to use the many-to-many relationship
   const fetchCustomerContacts = async (customerId: string) => {
     setContactsLoading(true);
     setContactsError(null);
     try {
       console.log(`Fetching contacts for customer ID: ${customerId}`);
       
-      // First check if the contacts are already in the selectedCustomer data
-      if (selectedCustomer && 'contacts' in selectedCustomer && selectedCustomer.contacts) {
-        console.log(`Using ${selectedCustomer.contacts.length} contacts from customer object directly`);
-        setAppwriteContacts(selectedCustomer.contacts as any[]);
-        setSelectedContacts(selectedCustomer.contacts as any[]);
-        setContactsLoading(false);
-        return;
-      }
-      
-      // If not, we can get them using the getCustomerContacts function which now
-      // directly returns the contact objects from the customer
+      // Always fetch fresh contacts from the server
       const contacts = await customersService.getCustomerContacts(customerId);
-      console.log(`Retrieved ${contacts.length} contacts via relationship field`);
+      console.log(`Retrieved ${contacts.length} contacts via many-to-many relationship fields`);
+      
+      // Update the state with the fresh contacts
       setAppwriteContacts(contacts);
       setSelectedContacts(contacts);
     } catch (error) {
@@ -291,16 +388,9 @@ function Customers() {
     });
     setIsEditDialogOpen(true);
     
-    // If the customer already has contacts, use them directly
-    if ('contacts' in customer && customer.contacts && customer.contacts.length > 0) {
-      console.log("Using contacts directly from customer object:", customer.contacts);
-      setAppwriteContacts(customer.contacts as any[]);
-      setSelectedContacts(customer.contacts as any[]);
-    } else {
-      // Otherwise fetch contacts for this customer
-      const customerId = getCustomerId(customer);
-      fetchCustomerContacts(customerId);
-    }
+    // Always fetch fresh contacts for this customer
+    const customerId = getCustomerId(customer);
+    fetchCustomerContacts(customerId);
   };
 
   const handleDeleteClick = (customerId: string) => {
@@ -329,17 +419,9 @@ function Customers() {
     setSelectedCustomer(customer);
     setIsContactsDialogOpen(true);
 
-    // If the customer already has contacts, use them directly
-    if ('contacts' in customer && customer.contacts && customer.contacts.length > 0) {
-      console.log("Using contacts directly from customer object:", customer.contacts);
-      setAppwriteContacts(customer.contacts as any[]);
-      setSelectedContacts(customer.contacts as any[]);
-      setContactsLoading(false);
-    } else {
-      // Otherwise fetch contacts using the customer ID
-      const customerId = getCustomerId(customer);
-      fetchCustomerContacts(customerId);
-    }
+    // Always fetch fresh contacts from the server instead of using potentially stale cached data
+    const customerId = getCustomerId(customer);
+    fetchCustomerContacts(customerId);
   };
 
   const handleAddContactClick = (customer: CustomerType) => {
@@ -349,14 +431,21 @@ function Customers() {
 
     setNewContactData((prev) => ({
       ...prev,
-      customerId,
+      customer_ids: [customerId],
     }));
     setIsAddContactDialogOpen(true);
   };
 
   const handleEditContactClick = (contact: Contact) => {
-    console.log("Edit contact:", contact);
-    setSelectedContact(contact);
+    // Some contacts may use 'id' instead of '$id' depending on the data source
+    const contactId = contact.$id || (contact as any).id;
+    console.log("Edit contact:", contact, "Contact ID:", contactId);
+    
+    setSelectedContact({
+      ...contact,
+      $id: contactId // Ensure $id is set for consistency
+    });
+    
     setEditContactFormData({
       first_name: contact.first_name,
       last_name: contact.last_name,
@@ -464,6 +553,7 @@ function Customers() {
 
     if (selectedCustomer) {
       try {
+        setIsAddingContact(true);
         // Get customer ID using the helper function
         const customerId = getCustomerId(selectedCustomer);
         
@@ -471,7 +561,7 @@ function Customers() {
         const existingContacts = await customersService.getCustomerContacts(customerId);
         const isFirstContact = existingContacts.length === 0;
         
-        // Add the new contact
+        // Add the new contact - the addContact function now handles the many-to-many relationship
         const newContact = await addContact(customerId, {
           first_name: newContactData.first_name,
           last_name: newContactData.last_name,
@@ -487,6 +577,7 @@ function Customers() {
             primary_contact_name: `${newContact.first_name} ${newContact.last_name}`,
             primary_contact_number: newContact.contact_number,
             primary_email: newContact.email,
+            // Don't need to update customer_contact_ids here as addContact already did it
           };
           
           await updateCustomer(customerId, updateData);
@@ -527,11 +618,12 @@ function Customers() {
           contact_number: "",
           email: "",
           position: "",
-          customerId: customerId,
         });
       } catch (error) {
         console.error("Error adding contact:", error);
         toast.error("Failed to add contact. Please try again.");
+      } finally {
+        setIsAddingContact(false);
       }
     }
   };
@@ -539,9 +631,14 @@ function Customers() {
   const handleSubmitEditContactToAppwrite = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedContact) {
+    // Get contact ID from either $id or id property
+    const contactId = selectedContact?.$id || (selectedContact as any)?.id;
+    
+    if (selectedContact && contactId) {
       try {
-        const contactId = selectedContact.$id;
+        // Log the contact ID to verify it's valid
+        console.log("Updating contact with ID:", contactId);
+        
         await updateContact(contactId, editContactFormData);
         
         toast.success(`Contact updated successfully`);
@@ -549,6 +646,15 @@ function Customers() {
         // If we have a selected customer, refresh their contacts
         if (selectedCustomer) {
           const customerId = getCustomerId(selectedCustomer);
+          
+          // If this contact is the primary contact, update the customer's primary contact info
+          if (selectedCustomer.primary_email === selectedContact.email) {
+            await updateCustomer(customerId, {
+              primary_contact_name: `${editContactFormData.first_name} ${editContactFormData.last_name}`,
+              primary_contact_number: editContactFormData.contact_number,
+              primary_email: editContactFormData.email,
+            });
+          }
           
           // Refresh the contacts list
           const updatedContacts = await customersService.getCustomerContacts(customerId);
@@ -572,6 +678,9 @@ function Customers() {
         console.error("Error updating contact:", error);
         toast.error("Failed to update contact. Please try again.");
       }
+    } else {
+      console.error("Cannot update contact: no selected contact or missing contact ID");
+      toast.error("Cannot update contact: missing contact ID");
     }
   };
 
@@ -579,8 +688,15 @@ function Customers() {
   const [isContactDeleteDialogOpen, setIsContactDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [isDeletingContact, setIsDeletingContact] = useState(false);
+  const [isAddingContact, setIsAddingContact] = useState(false);
 
   const handleDeleteContactFromAppwrite = (contactId: string) => {
+    if (!contactId) {
+      console.error("Cannot delete contact: missing contact ID");
+      toast.error("Cannot delete contact: missing ID");
+      return;
+    }
+    console.log("Preparing to delete contact with ID:", contactId);
     setContactToDelete(contactId);
     setIsContactDeleteDialogOpen(true);
   };
@@ -601,12 +717,14 @@ function Customers() {
         setAppwriteContacts(updatedContacts);
         setSelectedContacts(updatedContacts);
         
-        // Refresh the customer data to get updated relationships
+        // Refresh the customer data to get updated relationships and primary contact fields
         await fetchCustomers();
         
         // Get the latest version of this customer
         const refreshedCustomer = customers.find(c => getCustomerId(c) === customerId);
         if (refreshedCustomer) {
+          // Make sure we update the selected customer with the refreshed data
+          // which may include cleared primary contact fields
           setSelectedCustomer(refreshedCustomer);
         }
       }
@@ -626,13 +744,52 @@ function Customers() {
   const setPrimaryContact = async (contact: Contact) => {
     if (!selectedCustomer) return;
     
+    // Get contact ID from either $id or id property
+    const contactId = contact.$id || (contact as any).id;
+    if (!contactId) {
+      toast.error("Cannot set as primary: missing contact ID");
+      return;
+    }
+    
     try {
       const customerId = getCustomerId(selectedCustomer);
-      const updateData = {
+      const updateData: { 
+        primary_contact_name: string; 
+        primary_contact_number: string; 
+        primary_email: string;
+        customer_contact_ids?: any[];
+      } = {
         primary_contact_name: `${contact.first_name} ${contact.last_name}`,
         primary_contact_number: contact.contact_number,
         primary_email: contact.email,
       };
+      
+      // Ensure this contact ID is in the customer_contact_ids array
+      const customer = await customersService.getCustomer(customerId);
+      
+      if (customer) {
+        const currentContactIds: any[] = customer.customer_contact_ids || [];
+        
+        // Check if contact ID is already in the array
+        const hasContactId = Array.isArray(currentContactIds) && 
+          currentContactIds.some(item => {
+            if (typeof item === 'string') {
+              return item === contactId;
+            }
+            if (item && typeof item === 'object' && '$id' in item) {
+              return item.$id === contactId;
+            }
+            if (item && typeof item === 'object' && 'id' in item) {
+              return item.id === contactId;
+            }
+            return false;
+          });
+        
+        // If not, add it to the array
+        if (!hasContactId) {
+          updateData.customer_contact_ids = [...currentContactIds, contactId];
+        }
+      }
       
       await updateCustomer(customerId, updateData);
       
@@ -975,7 +1132,7 @@ function Customers() {
                       
                       return (
                         <TableRow 
-                          key={contact.$id || `contact-${index}`}
+                          key={contact.$id || (contact as any).id || `contact-${index}`}
                           className={isPrimaryContact ? "bg-green-50" : ""}
                         >
                           <TableCell>{contact.first_name}</TableCell>
@@ -994,7 +1151,7 @@ function Customers() {
                               </button>
                               <button
                                 onClick={() =>
-                                  handleDeleteContactFromAppwrite(contact.$id)
+                                  handleDeleteContactFromAppwrite(contact.$id || (contact as any).id)
                                 }
                                 className="p-1 text-red-600 hover:text-red-800"
                                 title="Delete Contact"
@@ -1109,7 +1266,18 @@ function Customers() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="bg-blue-600 text-white hover:bg-blue-700" type="submit">Add Contact</Button>
+              <Button 
+                className="bg-blue-600 text-white hover:bg-blue-700" 
+                type="submit"
+                disabled={isAddingContact}
+              >
+                {isAddingContact ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : "Add Contact"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
