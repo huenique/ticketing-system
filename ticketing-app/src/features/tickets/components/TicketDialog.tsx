@@ -915,7 +915,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       if (hasEngineeringPreset && widgets.length === 0) {
         console.log("Adding default widgets for Engineering preset in TicketDialog");
         
-        // Use default widgets and layouts instead of adding widgets one by one
+        // Use default widgets and layouts from constants
         setWidgets(defaultTicketWidgets);
         setWidgetLayouts(defaultTicketLayouts);
         

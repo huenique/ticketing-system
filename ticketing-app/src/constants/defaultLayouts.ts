@@ -242,8 +242,8 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      w: 12,
-      h: 10,
+      w: 6,
+      h: 9,
       x: 0,
       y: 4,
       i: "widget-1747758922082-assignee-table",
@@ -262,10 +262,10 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      w: 12,
-      h: 8,
-      x: 0,
-      y: 14,
+      w: 6,
+      h: 9,
+      x: 6,
+      y: 4,
       i: "widget-1747758922082-time-entries-table",
       minW: 4,
       minH: 4,
@@ -285,7 +285,7 @@ export const defaultTicketLayouts: Layouts = {
       w: 12,
       h: 5,
       x: 0,
-      y: 22,
+      y: 13,
       i: "widget-1747758922082-attachments-gallery",
       minW: 4,
       minH: 4,
@@ -1075,21 +1075,19 @@ export const defaultTicketLayouts: Layouts = {
 // Initialize the localStorage with default layouts
 export const initializeDefaultLayouts = () => {
   if (typeof window !== 'undefined') {
-    const storedData = window.localStorage.getItem("rgl-ticket-layouts");
-    const layouts = storedData ? JSON.parse(storedData) : {};
-    
-    // Set default layouts for engineering-layouts
-    layouts["engineering-layouts"] = {
-      widgets: defaultTicketWidgets,
-      layouts: defaultTicketLayouts
+    // Create the complete structure with both engineering-layouts and tab-tab-1
+    const layouts = {
+      "engineering-layouts": {
+        widgets: defaultTicketWidgets,
+        layouts: defaultTicketLayouts
+      },
+      "tab-tab-1": {
+        widgets: defaultTicketWidgets,
+        layouts: defaultTicketLayouts
+      }
     };
     
-    // Set default layouts for tab-tab-1
-    layouts["tab-tab-1"] = {
-      widgets: defaultTicketWidgets,
-      layouts: defaultTicketLayouts
-    };
-    
+    // Save to localStorage
     window.localStorage.setItem("rgl-ticket-layouts", JSON.stringify(layouts));
   }
 }; 
