@@ -224,7 +224,7 @@ function Parts() {
   };
 
   const renderEmptyState = () => (
-    <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+    <div className="rounded-lg border-2 border-gray-300 bg-white shadow-sm p-2 text-center py-8 text-gray-700 font-medium">
       No parts found. Add a new part to get started.
     </div>
   );
@@ -233,8 +233,8 @@ function Parts() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Loading parts...</h2>
-          <p className="text-neutral-500">Please wait while we fetch the data.</p>
+          <h2 className="text-xl font-semibold mb-2 text-gray-900">Loading parts...</h2>
+          <p className="text-gray-700">Please wait while we fetch the data.</p>
         </div>
       </div>
     );
@@ -244,15 +244,15 @@ function Parts() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-red-600">
+          <h2 className="text-xl font-semibold mb-2 text-red-700">
             Error loading parts
           </h2>
-          <p className="text-neutral-500 mb-4">{serverError.message}</p>
+          <p className="text-gray-700 mb-4">{serverError.message}</p>
           <button
             onClick={() => refreshParts()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            className="bg-blue-700 text-white px-4 py-2 rounded-md hover:bg-blue-800 font-medium"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -263,8 +263,8 @@ function Parts() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Parts</h1>
-          <p className="text-neutral-500">
+          <h1 className="text-3xl font-bold text-gray-900">Parts</h1>
+          <p className="text-gray-700">
             Manage parts inventory for your service operations
           </p>
         </div>
@@ -278,7 +278,7 @@ function Parts() {
               placeholder="Search parts..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="w-full"
+              className="w-full border-2 border-gray-300 focus:border-blue-600 text-gray-900"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleSearch();
@@ -295,7 +295,7 @@ function Parts() {
                 pagination.onSearch('');
                 searchValueRef.current = '';
               }}
-              className="px-3 flex items-center gap-1 border border-gray-300"
+              className="px-3 flex items-center gap-1 border-2 border-gray-400 bg-white text-gray-700 hover:bg-gray-100"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -305,7 +305,7 @@ function Parts() {
           <Button 
             onClick={handleSearch}
             disabled={isLoading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-blue-700 text-white hover:bg-blue-800 font-medium"
           >
             {isLoading ? (
               <>
@@ -319,17 +319,17 @@ function Parts() {
         </div>
         <button
           onClick={() => setIsAddDialogOpen(true)}
-          className="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+          className="flex items-center gap-1 rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
         >
           <Plus size={16} />
-          Add Part
+          <span>Add Part</span>
         </button>
       </div>
 
       {serverParts.length === 0 && !isLoading ? (
         renderEmptyState()
       ) : (
-        <div>
+        <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
           <DataTable
             columns={getPartsColumns({
               onEdit: (item) => handleEditClick(item as any),
@@ -354,17 +354,17 @@ function Parts() {
 
       {/* Add Part Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="bg-white p-6 rounded-lg border shadow-md max-w-md">
+        <DialogContent className="bg-white p-6 rounded-lg border-2 border-gray-300 shadow-md max-w-md">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-bold">Add New Part</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Add New Part</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Create a new part in the inventory.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleAddPart} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium block">
+              <label htmlFor="description" className="text-sm font-medium block text-gray-800">
                 Description
               </label>
               <input
@@ -374,13 +374,13 @@ function Parts() {
                 value={newPart.description}
                 onChange={(e) => handleInputChange(e)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 placeholder="Part description"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="quantity" className="text-sm font-medium block">
+              <label htmlFor="quantity" className="text-sm font-medium block text-gray-800">
                 Quantity
               </label>
               <input
@@ -390,13 +390,13 @@ function Parts() {
                 value={newPart.quantity}
                 onChange={(e) => handleInputChange(e)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 placeholder="Available quantity"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="price" className="text-sm font-medium block">
+              <label htmlFor="price" className="text-sm font-medium block text-gray-800">
                 Price
               </label>
               <input
@@ -406,13 +406,13 @@ function Parts() {
                 value={newPart.price}
                 onChange={(e) => handleInputChange(e)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 placeholder="Unit price"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="vendor" className="text-sm font-medium block">
+              <label htmlFor="vendor" className="text-sm font-medium block text-gray-800">
                 Vendor
               </label>
               <input
@@ -422,7 +422,7 @@ function Parts() {
                 value={newPart.vendor}
                 onChange={(e) => handleInputChange(e)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 placeholder="Supplier/vendor name"
               />
             </div>
@@ -431,14 +431,14 @@ function Parts() {
               <button
                 type="button"
                 onClick={() => setIsAddDialogOpen(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium"
+                className="rounded-md bg-gray-100 border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Adding..." : "Add Part"}
@@ -450,17 +450,17 @@ function Parts() {
 
       {/* Edit Part Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-white p-6 rounded-lg border shadow-md max-w-md">
+        <DialogContent className="bg-white p-6 rounded-lg border-2 border-gray-300 shadow-md max-w-md">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-bold">Edit Part</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Edit Part</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Update the part information.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleUpdatePart} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="edit-description" className="text-sm font-medium block">
+              <label htmlFor="edit-description" className="text-sm font-medium block text-gray-800">
                 Description
               </label>
               <input
@@ -470,12 +470,12 @@ function Parts() {
                 value={editPart.description}
                 onChange={(e) => handleInputChange(e, true)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="edit-quantity" className="text-sm font-medium block">
+              <label htmlFor="edit-quantity" className="text-sm font-medium block text-gray-800">
                 Quantity
               </label>
               <input
@@ -485,12 +485,12 @@ function Parts() {
                 value={editPart.quantity}
                 onChange={(e) => handleInputChange(e, true)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="edit-price" className="text-sm font-medium block">
+              <label htmlFor="edit-price" className="text-sm font-medium block text-gray-800">
                 Price
               </label>
               <input
@@ -500,12 +500,12 @@ function Parts() {
                 value={editPart.price}
                 onChange={(e) => handleInputChange(e, true)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="edit-vendor" className="text-sm font-medium block">
+              <label htmlFor="edit-vendor" className="text-sm font-medium block text-gray-800">
                 Vendor
               </label>
               <input
@@ -515,7 +515,7 @@ function Parts() {
                 value={editPart.vendor}
                 onChange={(e) => handleInputChange(e, true)}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
             </div>
 
@@ -523,14 +523,14 @@ function Parts() {
               <button
                 type="button"
                 onClick={() => setIsEditDialogOpen(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium"
+                className="rounded-md bg-gray-100 border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Updating..." : "Update Part"}
@@ -542,27 +542,27 @@ function Parts() {
 
       {/* Delete Part Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] bg-white border-2 border-gray-300">
           <DialogHeader>
-            <DialogTitle>Delete Part</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Delete Part</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Are you sure you want to delete this part? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="my-4 p-3 bg-yellow-50 text-yellow-800 rounded-md text-sm">
+          <div className="my-4 p-3 bg-yellow-50 text-yellow-800 rounded-md text-sm border border-yellow-200 font-medium">
             <p>Warning: Deleting a part will permanently remove it from inventory.</p>
           </div>
           <DialogFooter>
             <button 
               disabled={isDeleting} 
-              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm"
+              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm font-medium"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
               Cancel
             </button>
             <button 
               disabled={isDeleting} 
-              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm ml-2"
+              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm font-medium ml-2"
               onClick={confirmDelete}
             >
               {isDeleting ? (

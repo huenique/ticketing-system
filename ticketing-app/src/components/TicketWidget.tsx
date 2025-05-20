@@ -13,6 +13,7 @@ import TimeEntriesWidget from "./widgets/TimeEntriesWidget";
 import DetailsWidget from "./widgets/DetailsWidget";
 import TimeEntriesCardWidget from "./widgets/TimeEntriesCardWidget";
 import AttachmentsWidget from "./widgets/AttachmentsWidget";
+import CompositeWidget from "./widgets/CompositeWidget";
 
 interface TicketWidgetProps {
   widget: Widget;
@@ -113,6 +114,20 @@ function TicketWidget({
 
   const renderWidgetContent = () => {
     if (widget.collapsed) return null;
+
+    // Check for composite widget types
+    if (widget.type === "composite" && widget.children && widget.children.length > 0) {
+      return (
+        <CompositeWidget
+          widgets={widget.children}
+          ticketForm={ticketForm}
+          currentTicket={currentTicket}
+          handleFieldChange={handleFieldChange}
+          setTicketForm={setTicketForm}
+          title={widget.groupTitle}
+        />
+      );
+    }
 
     // First check if it's an individual field widget
     if (widget.fieldType) {
@@ -351,13 +366,13 @@ function TicketWidget({
                   <div className="mt-4 flex justify-end space-x-2">
                     <button
                       onClick={() => setShowAssigneeForm(false)}
-                      className="px-3 py-1.5 border border-neutral-300 rounded-md text-sm text-neutral-700 hover:bg-neutral-50"
+                      className="px-3 py-1.5 border border-border rounded-md text-sm text-muted-foreground hover:bg-accent"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleAddAssignee}
-                      className="px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
+                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90"
                     >
                       Add
                     </button>
@@ -370,7 +385,7 @@ function TicketWidget({
               {currentUser?.role !== "user" && (
                 <button
                   onClick={() => setShowAssigneeForm(true)}
-                  className="flex items-center rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600"
+                  className="flex items-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   title="Add assignee"
                 >
                   <svg
@@ -438,7 +453,7 @@ function TicketWidget({
                 <label className="block text-sm font-medium text-neutral-700">
                   Upload Images or Files
                 </label>
-                <label className="cursor-pointer rounded-md bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600">
+                <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                   <span className="flex items-center">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -552,7 +567,7 @@ function TicketWidget({
       {/* Widget content - adjust to fill remaining height */}
       <div
         className={cn(
-          "p-3 flex-1 overflow-y-auto",
+          "p-2 flex-1 overflow-y-auto",
           widget.collapsed ? "hidden" : "flex flex-col h-full",
         )}
       >

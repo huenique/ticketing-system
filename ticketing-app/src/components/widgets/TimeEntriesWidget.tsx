@@ -221,7 +221,7 @@ const TimeEntriesWidget: React.FC<TimeEntriesWidgetProps> = ({
                         
                         {entry.files && entry.files.length > 0 ? (
                           <div className="flex items-center gap-1">
-                            <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium">
+                            <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
                               {entry.files.length} {entry.files.length === 1 ? 'file' : 'files'}
                             </span>
                             <button

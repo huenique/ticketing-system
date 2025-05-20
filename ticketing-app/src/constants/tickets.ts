@@ -8,6 +8,7 @@ export const WIDGET_TYPES = {
   TIME_ENTRIES: "timeEntries",
   ATTACHMENTS: "attachments",
   NOTES: "notes",
+  COMPOSITE: "composite",
 
   // Individual form fields
   FIELD_STATUS: "field_status",

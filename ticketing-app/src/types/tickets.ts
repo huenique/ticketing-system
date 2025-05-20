@@ -127,6 +127,10 @@ export interface Widget {
   data?: never;
   options?: string[];
   isCollapsed?: boolean;
+  
+  // For composite widgets
+  children?: Widget[];
+  groupTitle?: string;
 }
 
 export interface Column {

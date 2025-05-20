@@ -53,8 +53,8 @@ export function SearchIndexCheck({ collectionId, searchField = "name" }: SearchI
   return (
     <div className="p-4 max-w-2xl mx-auto">
       {status === "checking" && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <Loader2 className="h-4 w-4 text-blue-500 animate-spin mr-2" />
+        <Alert className="bg-primary/10 border-primary/20">
+          <Loader2 className="h-4 w-4 text-primary animate-spin mr-2" />
           <AlertTitle>Checking search capability</AlertTitle>
           <AlertDescription>
             Verifying if fulltext search is available for {collectionId}.{searchField}...
@@ -63,8 +63,8 @@ export function SearchIndexCheck({ collectionId, searchField = "name" }: SearchI
       )}
       
       {status === "available" && (
-        <Alert className="bg-green-50 border-green-200">
-          <Check className="h-4 w-4 text-green-500 mr-2" />
+        <Alert className="bg-chart-4/10 border-chart-4/20">
+          <Check className="h-4 w-4 text-chart-4 mr-2" />
           <AlertTitle>Fulltext search available</AlertTitle>
           <AlertDescription>
             {message}
@@ -73,8 +73,8 @@ export function SearchIndexCheck({ collectionId, searchField = "name" }: SearchI
       )}
       
       {status === "unavailable" && (
-        <Alert className="bg-yellow-50 border-yellow-200">
-          <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
+        <Alert className="bg-accent/10 border-accent/20">
+          <AlertTriangle className="h-4 w-4 text-accent-foreground mr-2" />
           <AlertTitle>Fulltext search unavailable</AlertTitle>
           <AlertDescription className="space-y-4">
             <p>{message}</p>
@@ -99,14 +99,14 @@ export function SearchIndexCheck({ collectionId, searchField = "name" }: SearchI
                   ))}
                 </ol>
                 
-                <div className="bg-gray-900 text-gray-100 p-3 rounded mt-4 overflow-x-auto">
-                  <p className="text-xs text-gray-400 mb-2">CLI Command:</p>
+                <div className="bg-background text-foreground border border-border p-3 rounded mt-4 overflow-x-auto">
+                  <p className="text-xs text-muted-foreground mb-2">CLI Command:</p>
                   <code className="text-sm">{setupInstructions.cli_command}</code>
                 </div>
                 
                 <div className="mt-4">
                   <p className="font-medium">Error Details</p>
-                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto mt-2">
+                  <pre className="bg-muted/30 p-3 rounded text-sm overflow-x-auto mt-2">
                     {errorDetails}
                   </pre>
                 </div>
@@ -133,12 +133,12 @@ export function SearchIndexCheck({ collectionId, searchField = "name" }: SearchI
       )}
       
       {status === "error" && (
-        <Alert className="bg-red-50 border-red-200">
-          <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
+        <Alert className="bg-destructive/10 border-destructive/20">
+          <AlertTriangle className="h-4 w-4 text-destructive mr-2" />
           <AlertTitle>Error checking search capability</AlertTitle>
           <AlertDescription className="space-y-4">
             <p>{message}</p>
-            <p className="text-sm text-red-600">{errorDetails}</p>
+            <p className="text-sm text-destructive">{errorDetails}</p>
             
             <div className="pt-2">
               <Button 

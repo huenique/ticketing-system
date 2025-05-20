@@ -32,28 +32,28 @@ export default function Login() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Ticketing System</CardTitle>
-          <CardDescription>Login to access the system</CardDescription>
+    <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+      <Card className="w-full max-w-md border-2 border-gray-300 shadow-lg">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-3xl font-bold text-gray-900">Ticketing System</CardTitle>
+          <CardDescription className="text-base text-gray-700 mt-2">Login to access the system</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant="destructive" className="border-2 border-red-400 bg-red-50 text-red-700">
+                <AlertDescription className="font-medium">{error}</AlertDescription>
               </Alert>
             )}
 
             <div className="space-y-2">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Mail size={18} />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">
+                  <Mail size={20} />
                 </span>
                 <Input
-                  className="pl-10"
+                  className="pl-10 h-11 border-2 border-gray-300 focus:border-blue-600 text-gray-900 text-base"
                   type="email"
                   placeholder="Email"
                   value={email}
@@ -66,11 +66,11 @@ export default function Login() {
 
             <div className="space-y-2">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Lock size={18} />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">
+                  <Lock size={20} />
                 </span>
                 <Input
-                  className="pl-10"
+                  className="pl-10 h-11 border-2 border-gray-300 focus:border-blue-600 text-gray-900 text-base"
                   type="password"
                   placeholder="Password"
                   value={password}
@@ -83,7 +83,7 @@ export default function Login() {
           </CardContent>
 
           <CardFooter>
-            <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white" type="submit" disabled={isLoading}>
+            <Button className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium text-base h-11" type="submit" disabled={isLoading}>
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </CardFooter>

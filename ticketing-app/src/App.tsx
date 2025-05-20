@@ -12,6 +12,7 @@ import Tickets from "./pages/Tickets";
 import Users from "./pages/Users";
 import UserTypes from "./pages/UserTypes";
 import useUserStore from "./stores/userStore";
+import { initializeDefaultLayouts } from "./constants/defaultLayouts";
 
 // Protected route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // Initialize default layouts when the app first loads
+  useEffect(() => {
+    initializeDefaultLayouts();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/tickets" replace />} />

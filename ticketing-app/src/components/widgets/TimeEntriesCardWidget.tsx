@@ -86,7 +86,7 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
               handleAddTimeEntry("", currentUser?.id || "");
             }}
             size="sm"
-            className="bg-blue-500 hover:bg-blue-600 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Add Time Entry
           </Button>

@@ -158,14 +158,14 @@ export default function Customers() {
   return (
     <div className="container mx-auto py-10">
       <Toaster />
-      <h1 className="text-2xl font-bold mb-6">Customers</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-900">Customers</h1>
 
       {error && (
-        <div className="border border-red-200 rounded bg-red-50 p-4 mb-4 text-red-500">
+        <div className="border-2 border-red-400 rounded bg-red-50 p-4 mb-4 text-red-700 font-medium">
           <p className="font-semibold">Error: {error.message}</p>
           {error.message.includes("search requires") && (
             <>
-              <p className="mt-2 text-sm">
+              <p className="mt-2 text-sm text-red-700">
                 Note: For optimal search performance, create a fulltext index on the name field in your Appwrite database. 
                 Currently using a fallback method with limited results.
               </p>
@@ -187,7 +187,7 @@ export default function Customers() {
               placeholder="Search customers..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="w-full"
+              className="w-full border-2 border-gray-300 focus:border-blue-600 text-gray-900"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleSearch();
@@ -204,17 +204,17 @@ export default function Customers() {
                 updateSearch('', "all");
                 searchValueRef.current = '';
               }}
-              className="px-3 flex items-center gap-1 border border-gray-300"
+              className="px-3 flex items-center gap-1 border-2 border-gray-400 bg-white text-gray-700 hover:bg-gray-100"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
               Clear
             </Button>
           )}
-          <Button 
+          <Button
+            className="bg-blue-700 text-white hover:bg-blue-800 font-medium border-0"
             onClick={handleSearch}
             disabled={isLoading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
           >
             {isLoading ? (
               <>
@@ -222,47 +222,49 @@ export default function Customers() {
                 Searching...
               </>
             ) : (
-              'Search'
+              "Search"
             )}
           </Button>
         </div>
-        <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setIsAddDialogOpen(true)}>
+        <Button className="bg-green-700 text-white hover:bg-green-800 font-medium" onClick={() => setIsAddDialogOpen(true)}>
           <UserPlus className="mr-2 h-4 w-4" />
           Add Customer
         </Button>
       </div>
 
       {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={customers}
-        noSearchBar={true}
-        pagination={{
-          pageCount: pagination.totalPages,
-          pageSize: pagination.pageSize,
-          currentPage: pagination.currentPage,
-          totalItems: pagination.totalItems,
-          onPageChange: goToPage,
-          onPageSizeChange: () => {}, // Not used in this implementation
-          pageSizeOptions: [10, 20, 50], // Default options
-          isLoading: isLoading,
-          onSearch: updateSearch
-        }}
-        isLoading={isLoading}
-      />
+      <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={customers}
+          noSearchBar={true}
+          pagination={{
+            pageCount: pagination.totalPages,
+            pageSize: pagination.pageSize,
+            currentPage: pagination.currentPage,
+            totalItems: pagination.totalItems,
+            onPageChange: goToPage,
+            onPageSizeChange: () => {}, // Not used in this implementation
+            pageSizeOptions: [10, 20, 50], // Default options
+            isLoading: isLoading,
+            onSearch: updateSearch
+          }}
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Add Customer Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-white border-2 border-gray-300">
           <DialogHeader>
-            <DialogTitle>Add Customer</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl text-gray-900 font-bold">Add Customer</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Enter the customer details below to add a new customer.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="name" className="text-right">
+              <label htmlFor="name" className="text-right font-medium text-gray-800">
                 Name*
               </label>
               <Input
@@ -271,11 +273,11 @@ export default function Customers() {
                 onChange={(e) =>
                   setNewCustomer({ ...newCustomer, name: e.target.value })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="address" className="text-right">
+              <label htmlFor="address" className="text-right font-medium text-gray-800">
                 Address
               </label>
               <Textarea
@@ -284,11 +286,11 @@ export default function Customers() {
                 onChange={(e) =>
                   setNewCustomer({ ...newCustomer, address: e.target.value })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_name" className="text-right">
+              <label htmlFor="contact_name" className="text-right font-medium text-gray-800">
                 Contact Name*
               </label>
               <Input
@@ -300,11 +302,11 @@ export default function Customers() {
                     primary_contact_name: e.target.value,
                   })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_number" className="text-right">
+              <label htmlFor="contact_number" className="text-right font-medium text-gray-800">
                 Contact Number
               </label>
               <Input
@@ -316,11 +318,11 @@ export default function Customers() {
                     primary_contact_number: e.target.value,
                   })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="email" className="text-right">
+              <label htmlFor="email" className="text-right font-medium text-gray-800">
                 Email*
               </label>
               <Input
@@ -333,11 +335,11 @@ export default function Customers() {
                     primary_email: e.target.value,
                   })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="abn" className="text-right">
+              <label htmlFor="abn" className="text-right font-medium text-gray-800">
                 ABN
               </label>
               <Input
@@ -346,7 +348,7 @@ export default function Customers() {
                 onChange={(e) =>
                   setNewCustomer({ ...newCustomer, abn: e.target.value })
                 }
-                className="col-span-3"
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
               />
             </div>
           </div>
@@ -354,6 +356,7 @@ export default function Customers() {
             <Button
               type="submit"
               onClick={handleAddCustomer}
+              className="bg-green-700 text-white hover:bg-green-800 font-medium"
             >
               Add Customer
             </Button>

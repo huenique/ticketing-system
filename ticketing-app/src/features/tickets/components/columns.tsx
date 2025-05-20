@@ -106,7 +106,7 @@ const FileAttachment = ({
       href={storageService.getFileView(fileId)}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+      className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
       title={`Open attachment: ${fileId}`}
     >
       {fileInfo && fileInfo.mimeType && fileInfo.mimeType.startsWith("image/") ? (
@@ -217,7 +217,7 @@ export const columns: ColumnDef<Row>[] = [
               }
               
               return (
-                <div key={index} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700">
+                <div key={index} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-chart-4/20 text-chart-4">
                   {description}
                 </div>
               );
@@ -253,47 +253,38 @@ export const columns: ColumnDef<Row>[] = [
 
       if (!status) return "N/A";
 
-      let bgColor = "";
-      let textColor = "";
+      let statusClass = "";
 
       switch (status) {
         case "New":
-          bgColor = "bg-blue-100";
-          textColor = "text-blue-800";
+          statusClass = "bg-primary/20 text-primary";
           break;
         case "Open":
-          bgColor = "bg-indigo-100";
-          textColor = "text-indigo-800";
+          statusClass = "bg-secondary/20 text-secondary-foreground";
           break;
         case "In Progress":
-          bgColor = "bg-yellow-100";
-          textColor = "text-yellow-800";
+          statusClass = "bg-accent/20 text-accent-foreground";
           break;
         case "Awaiting Parts":
-          bgColor = "bg-orange-100";
-          textColor = "text-orange-800";
+          statusClass = "bg-muted/20 text-muted-foreground";
           break;
         case "Awaiting Customer Response":
-          bgColor = "bg-purple-100";
-          textColor = "text-purple-800";
+          statusClass = "bg-accent/30 text-accent-foreground";
           break;
         case "Completed":
         case "Done":
-          bgColor = "bg-green-100";
-          textColor = "text-green-800";
+          statusClass = "bg-chart-4/20 text-chart-4";
           break;
         case "Declined":
-          bgColor = "bg-red-100";
-          textColor = "text-red-800";
+          statusClass = "bg-destructive/20 text-destructive";
           break;
         default:
-          bgColor = "bg-gray-100";
-          textColor = "text-gray-800";
+          statusClass = "bg-muted/20 text-muted-foreground";
       }
 
       return (
         <div
-          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
+          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}
         >
           {status}
         </div>
@@ -324,7 +315,7 @@ export const columns: ColumnDef<Row>[] = [
       if (!date) return "";
       return (
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-400" />
+          <Calendar className="h-4 w-4 text-muted-foreground" />
           <span>{formatDate(date)}</span>
         </div>
       );

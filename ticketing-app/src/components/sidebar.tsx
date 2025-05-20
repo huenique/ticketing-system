@@ -26,8 +26,8 @@ function SidebarItem({ icon: Icon, title, href }: SidebarItemProps) {
         className={cn(
           "w-full justify-start gap-2",
           isActive 
-            ? "bg-neutral-900 text-white hover:bg-neutral-800" 
-            : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900",
+            ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" 
+            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
       >
         <Icon size={18} />
@@ -151,13 +151,13 @@ function Sidebar({ className }: SidebarProps) {
   return (
     <div
       className={cn(
-        "flex h-screen w-60 flex-col border-r bg-white px-3 py-4",
+        "flex h-screen w-60 flex-col border-r bg-sidebar px-3 py-4",
         className,
       )}
     >
       <div className="mb-6 px-2">
         {isLoading ? (
-          <div className="h-7 w-48 bg-gray-200 animate-pulse rounded"></div>
+          <div className="h-7 w-48 bg-muted animate-pulse rounded"></div>
         ) : isEditing ? (
           <div className="flex items-center gap-1">
             <input
@@ -166,18 +166,18 @@ function Sidebar({ className }: SidebarProps) {
               value={tempTitle}
               onChange={handleTitleChange}
               onKeyDown={handleKeyDown}
-              className="text-xl font-bold bg-gray-100 px-1 py-0.5 rounded border border-gray-300 focus:outline-none focus:border-blue-500 w-full"
+              className="text-xl font-bold bg-accent px-1 py-0.5 rounded border border-input focus:outline-none focus:border-ring w-full"
             />
             <button 
               onClick={handleSave} 
-              className="p-1 text-green-600 hover:text-green-800"
+              className="p-1 text-chart-4 hover:text-chart-4/80"
               title="Save"
             >
               <Check size={16} />
             </button>
             <button 
               onClick={handleCancel} 
-              className="p-1 text-red-600 hover:text-red-800"
+              className="p-1 text-destructive hover:text-destructive/80"
               title="Cancel"
             >
               <X size={16} />
@@ -187,7 +187,7 @@ function Sidebar({ className }: SidebarProps) {
           <h1 
             className={cn(
               "text-xl font-bold",
-              hasPermission("admin") && "cursor-pointer hover:text-blue-600"
+              hasPermission("admin") && "cursor-pointer hover:text-sidebar-primary"
             )}
             onClick={handleTitleClick}
             title={hasPermission("admin") ? "Click to edit" : ""}
@@ -206,8 +206,8 @@ function Sidebar({ className }: SidebarProps) {
       <div className="mt-auto border-t pt-4">
         {/* User Account Indicator */}
         {currentUser && (
-          <div className="mb-2 flex items-center gap-3 px-3 py-2 rounded-md bg-neutral-50">
-            <div className="h-8 w-8 rounded-full overflow-hidden bg-neutral-200 flex-shrink-0">
+          <div className="mb-2 flex items-center gap-3 px-3 py-2 rounded-md bg-sidebar-accent">
+            <div className="h-8 w-8 rounded-full overflow-hidden bg-sidebar-accent-foreground/10 flex-shrink-0">
               {currentUser.avatar ? (
                 <img
                   src={currentUser.avatar}
@@ -215,7 +215,7 @@ function Sidebar({ className }: SidebarProps) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs">
+                <div className="w-full h-full flex items-center justify-center text-sidebar-accent-foreground/50 text-xs">
                   {currentUser.name
                     .split(" ")
                     .map((n) => n[0])
@@ -225,7 +225,7 @@ function Sidebar({ className }: SidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm truncate">{currentUser.name}</div>
-              <div className="text-xs text-neutral-500 truncate">
+              <div className="text-xs text-sidebar-accent-foreground/70 truncate">
                 <span className="capitalize">{currentUser.role}</span>
               </div>
             </div>

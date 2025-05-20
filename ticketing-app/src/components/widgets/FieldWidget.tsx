@@ -67,7 +67,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                 : String(ticketForm[widget.field as keyof typeof ticketForm] || "")
             }
             onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-            className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+            className="block w-full rounded-md border border-neutral-300 py-1 px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
           >
             <option value="New">New</option>
             <option value="Awaiting Customer Response">
@@ -98,7 +98,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
       }
 
       return (
-        <div className="py-2 px-3 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto">
+        <div className="py-1 px-2 h-full flex items-center bg-neutral-50 rounded-md border border-neutral-200 overflow-auto text-sm">
           {displayValue}
         </div>
       );
@@ -135,7 +135,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                   });
                 }
               }}
-              className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border border-neutral-300 py-1 px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               step="0.1"
               required
             />
@@ -170,7 +170,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                   });
                 }
               }}
-              className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border border-neutral-300 py-1 px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               step="0.1"
               required
             />
@@ -203,7 +203,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                   });
                 }
               }}
-              className="block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border border-neutral-300 py-1 px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               step="0.1"
               required
             />
@@ -222,6 +222,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                 : String(widget.value || "")) as string
             }
             onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
+            className="text-sm"
           />
         </div>
       );

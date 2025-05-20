@@ -43,11 +43,11 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   return (
     <div
       className={cn(
-        "bg-neutral-50 border-b border-neutral-200 p-2 flex items-center justify-between",
+        "bg-neutral-50 border-b border-neutral-200 py-1 px-2 flex items-center justify-between",
         isEditMode ? "react-grid-dragHandle" : "",
       )}
     >
-      <h3 className="text-sm font-medium text-neutral-700 truncate flex-1">
+      <h3 className="text-xs font-medium text-neutral-700 truncate flex-1">
         {isEditingTitle ? (
           <input
             type="text"
@@ -55,7 +55,7 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
             onChange={handleTitleChange}
             onBlur={handleTitleSave}
             onKeyDown={handleTitleKeyDown}
-            className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-1 px-2 text-xs focus:outline-none focus:ring-blue-500"
+            className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-0.5 px-1 text-xs focus:outline-none focus:ring-blue-500"
             autoFocus
             onClick={(e) => {
               e.stopPropagation();
@@ -81,7 +81,7 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
               e.preventDefault();
             }}
             className={cn(
-              "py-1 px-1 rounded",
+              "py-0.5 px-1 rounded",
               isEditMode && updateWidgetTitle
                 ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600"
                 : "",

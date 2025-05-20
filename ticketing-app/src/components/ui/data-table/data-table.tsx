@@ -287,7 +287,7 @@ export function DataTableSearch<TData>({
       {serverSideSearch && (
         <Button 
           onClick={handleSearchClick} 
-          className="ml-2 bg-blue-600 text-white hover:bg-blue-700"
+          className="ml-2 bg-primary text-primary-foreground hover:bg-primary/90"
           disabled={serverSideSearch.isLoading}
         >
           {serverSideSearch.isLoading ? (

@@ -40,7 +40,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
         {currentUser?.role !== "user" && setShowAssigneeForm && (
           <button
             onClick={() => setShowAssigneeForm(!showAssigneeForm)}
-            className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
+            className="text-xs bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20"
           >
             {showAssigneeForm ? "Cancel" : "Add Member"}
           </button>
@@ -169,7 +169,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleAddAssignee}
-                className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
+                className="bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm hover:bg-primary/90"
               >
                 Add Member
               </button>

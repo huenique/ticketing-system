@@ -350,7 +350,7 @@ function Users() {
 
   // Update the renderEmptyState function and the main render return
   const renderEmptyState = () => (
-    <div className="rounded-lg border bg-white shadow-sm p-2 text-center py-8 text-neutral-500">
+    <div className="rounded-lg border-2 border-gray-300 bg-white shadow-sm p-2 text-center py-8 text-gray-700 font-medium">
       No users found. Add a new user to get started.
     </div>
   );
@@ -383,9 +383,9 @@ function Users() {
           <p className="text-neutral-500 mb-4">{error.message}</p>
           <button
             onClick={() => fetchUsers()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -394,7 +394,7 @@ function Users() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-5">User Management</h1>
+      <h1 className="text-3xl font-bold mb-5 text-gray-900">User Management</h1>
 
       {/* Actions Row */}
       <div className="flex justify-between items-center mb-6">
@@ -404,7 +404,7 @@ function Users() {
               placeholder="Search users..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="w-full"
+              className="w-full border-2 border-gray-300 focus:border-blue-600 text-gray-900"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleSearch();
@@ -421,7 +421,7 @@ function Users() {
                 pagination.onSearch('');
                 searchValueRef.current = '';
               }}
-              className="px-3 flex items-center gap-1 border border-gray-300"
+              className="px-3 flex items-center gap-1 border-2 border-gray-400 bg-white text-gray-700 hover:bg-gray-100"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -431,7 +431,7 @@ function Users() {
           <Button 
             onClick={handleSearch}
             disabled={isLoading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-blue-700 text-white hover:bg-blue-800 font-medium"
           >
             {isLoading ? (
               <>
@@ -446,7 +446,7 @@ function Users() {
 
         <button
           onClick={() => setIsAddDialogOpen(true)}
-          className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          className="flex items-center gap-1 bg-green-700 text-white px-4 py-2 rounded-md hover:bg-green-800 font-medium"
         >
           <Plus size={16} />
           Add User
@@ -455,7 +455,7 @@ function Users() {
 
       {/* Server error display */}
       {serverError && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="mb-6 bg-red-50 border-2 border-red-400 text-red-700 px-4 py-3 rounded font-medium">
           <p className="font-medium">Error: {serverError.message}</p>
         </div>
       )}
@@ -464,33 +464,35 @@ function Users() {
       {serverUsers.length === 0 && !isLoading ? (
         renderEmptyState()
       ) : (
-        <DataTable
-          columns={getUsersColumns({
-            onEdit: (item: any) => handleEditClick(item),
-            onDelete: handleDeleteClick
-          })}
-          data={serverUsers as any}
-          isLoading={isLoading}
-          noSearchBar={true}
-          pagination={{
-            pageCount: pagination.pageCount,
-            currentPage: pagination.currentPage,
-            onPageChange: pagination.onPageChange,
-            pageSize: pagination.pageSize,
-            onPageSizeChange: pagination.onPageSizeChange,
-            pageSizeOptions: pagination.pageSizeOptions,
-            totalItems: pagination.totalItems,
-            isLoading: isLoading
-          }}
-        />
+        <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
+          <DataTable
+            columns={getUsersColumns({
+              onEdit: (item: any) => handleEditClick(item),
+              onDelete: handleDeleteClick
+            })}
+            data={serverUsers as any}
+            isLoading={isLoading}
+            noSearchBar={true}
+            pagination={{
+              pageCount: pagination.pageCount,
+              currentPage: pagination.currentPage,
+              onPageChange: pagination.onPageChange,
+              pageSize: pagination.pageSize,
+              onPageSizeChange: pagination.onPageSizeChange,
+              pageSizeOptions: pagination.pageSizeOptions,
+              totalItems: pagination.totalItems,
+              isLoading: isLoading
+            }}
+          />
+        </div>
       )}
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-white p-6 rounded-lg border shadow-md max-w-md">
+        <DialogContent className="bg-white p-6 rounded-lg border-2 border-gray-300 shadow-md max-w-md">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-bold">Edit User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Edit User</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Make changes to the user information here. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
@@ -498,7 +500,7 @@ function Users() {
           <form onSubmit={handleSubmitEdit} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="first_name" className="text-sm font-medium block">
+                <label htmlFor="first_name" className="text-sm font-medium block text-gray-800">
                   First Name
                 </label>
                 <input
@@ -507,12 +509,12 @@ function Users() {
                   type="text"
                   value={editFormData.first_name || ""}
                   onChange={handleEditFormChange}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="last_name" className="text-sm font-medium block">
+                <label htmlFor="last_name" className="text-sm font-medium block text-gray-800">
                   Last Name
                 </label>
                 <input
@@ -521,13 +523,13 @@ function Users() {
                   type="text"
                   value={editFormData.last_name || ""}
                   onChange={handleEditFormChange}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="username" className="text-sm font-medium block">
+              <label htmlFor="username" className="text-sm font-medium block text-gray-800">
                 Username
               </label>
               <input
@@ -536,12 +538,12 @@ function Users() {
                 type="text"
                 value={editFormData.username || ""}
                 onChange={handleEditFormChange}
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="user_type_id" className="text-sm font-medium block">
+              <label htmlFor="user_type_id" className="text-sm font-medium block text-gray-800">
                 User Type
               </label>
               <select
@@ -553,7 +555,7 @@ function Users() {
                     : editFormData.user_type_id?.$id || ""
                 }
                 onChange={handleEditFormChange}
-                className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm bg-white text-gray-900"
               >
                 <option value="">Select a user type</option>
                 {userTypes && userTypes.length > 0 ? (
@@ -574,7 +576,7 @@ function Users() {
             </div>
 
             {selectedUser?.auth_user_id && (
-              <div className="p-2 bg-blue-50 text-blue-700 rounded-md text-sm">
+              <div className="p-3 bg-blue-50 text-blue-700 rounded-md text-sm border border-blue-200 font-medium">
                 This user is linked to authentication ID: {selectedUser.auth_user_id}
               </div>
             )}
@@ -583,16 +585,15 @@ function Users() {
               <button
                 type="button"
                 onClick={() => setIsEditDialogOpen(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium"
+                className="rounded-md bg-gray-100 border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
-                disabled={loading}
+                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
               >
-                {loading ? "Saving..." : "Save Changes"}
+                Save Changes
               </button>
             </DialogFooter>
           </form>
@@ -601,17 +602,17 @@ function Users() {
 
       {/* Add User Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="bg-white p-6 rounded-lg border shadow-md max-w-md">
+        <DialogContent className="bg-white p-6 rounded-lg border-2 border-gray-300 shadow-md max-w-md">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-bold">Add New User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Add New User</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Fill out the form to create a new user account and system user record.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmitNewUser} className="space-y-5">
             <div className="space-y-1">
-              <label htmlFor="email" className="text-sm font-medium block">
+              <label htmlFor="email" className="text-sm font-medium block text-gray-800">
                 Email
               </label>
               <input
@@ -621,17 +622,17 @@ function Users() {
                 value={newUserData.email}
                 onChange={handleNewUserFormChange}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 placeholder="user@example.com"
               />
-              <p className="text-xs text-neutral-500 mt-1">
+              <p className="text-xs text-gray-700 mt-1">
                 This email will be used for authentication login
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="password" className="text-sm font-medium block">
+                <label htmlFor="password" className="text-sm font-medium block text-gray-800">
                   Password
                 </label>
                 <input
@@ -642,12 +643,12 @@ function Users() {
                   onChange={handleNewUserFormChange}
                   required
                   minLength={8}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="confirmPassword" className="text-sm font-medium block">
+                <label htmlFor="confirmPassword" className="text-sm font-medium block text-gray-800">
                   Confirm Password
                 </label>
                 <input
@@ -658,14 +659,14 @@ function Users() {
                   onChange={handleNewUserFormChange}
                   required
                   minLength={8}
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label htmlFor="first_name" className="text-sm font-medium block">
+                <label htmlFor="first_name" className="text-sm font-medium block text-gray-800">
                   First Name
                 </label>
                 <input
@@ -675,12 +676,12 @@ function Users() {
                   value={newUserData.first_name}
                   onChange={handleNewUserFormChange}
                   required
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="last_name" className="text-sm font-medium block">
+                <label htmlFor="last_name" className="text-sm font-medium block text-gray-800">
                   Last Name
                 </label>
                 <input
@@ -690,13 +691,13 @@ function Users() {
                   value={newUserData.last_name}
                   onChange={handleNewUserFormChange}
                   required
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                  className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="username" className="text-sm font-medium block">
+              <label htmlFor="username" className="text-sm font-medium block text-gray-800">
                 Username
               </label>
               <input
@@ -706,15 +707,15 @@ function Users() {
                 value={newUserData.username}
                 onChange={handleNewUserFormChange}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
-              <p className="text-xs text-neutral-500 mt-1">
+              <p className="text-xs text-gray-700 mt-1">
                 Username for the user within the system
               </p>
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="user_type_id" className="text-sm font-medium block">
+              <label htmlFor="user_type_id" className="text-sm font-medium block text-gray-800">
                 User Type
               </label>
               <select
@@ -723,7 +724,7 @@ function Users() {
                 value={newUserData.user_type_id}
                 onChange={handleNewUserFormChange}
                 required
-                className="w-full rounded-md border border-gray-300 p-2 text-sm bg-white"
+                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm bg-white text-gray-900"
               >
                 <option value="">Select a user type</option>
                 {userTypes && userTypes.length > 0 ? (
@@ -743,7 +744,7 @@ function Users() {
               </select>
             </div>
 
-            <div className="p-2 bg-blue-50 text-blue-700 rounded-md text-sm">
+            <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-sm border border-blue-200 font-medium">
               <p className="font-medium">This will create:</p>
               <ol className="list-decimal ml-5 mt-1">
                 <li>A new authentication user with the provided email/password</li>
@@ -755,14 +756,14 @@ function Users() {
               <button
                 type="button"
                 onClick={() => setIsAddDialogOpen(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium"
+                className="rounded-md bg-gray-100 border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
                 disabled={isCreatingUser}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
                 disabled={isCreatingUser}
               >
                 {isCreatingUser ? "Creating User..." : "Add User"}
@@ -774,24 +775,24 @@ function Users() {
 
       {/* Delete User Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] bg-white border-2 border-gray-300">
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-gray-900">Delete User</DialogTitle>
+            <DialogDescription className="text-gray-700">
               Are you sure you want to delete this user?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <button 
               disabled={isDeleting} 
-              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm"
+              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-md text-sm font-medium"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
               Cancel
             </button>
             <button 
               disabled={isDeleting} 
-              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm ml-2"
+              className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm font-medium ml-2"
               onClick={confirmDelete}
             >
               {isDeleting ? (

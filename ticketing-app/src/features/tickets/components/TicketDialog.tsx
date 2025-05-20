@@ -22,6 +22,7 @@ import {
 } from "../../../types/tickets";
 import { saveToLS } from "../../../utils/ticketUtils";
 import { generateResponsiveLayouts } from "../utils/layoutUtils";
+import { defaultTicketWidgets, defaultTicketLayouts } from "../../../constants/defaultLayouts";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -292,7 +293,7 @@ const EmailDialog = ({
             <button
               type="submit"
               disabled={isSending}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md flex items-center"
             >
               {isSending ? (
                 <>
@@ -344,7 +345,7 @@ const DialogHeader = ({
         {/* Send Email Button */}
         <button
           onClick={openEmailDialog}
-          className="px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 text-sm hover:bg-blue-100 flex items-center"
+          className="px-3 py-1.5 rounded-md bg-primary/10 text-primary text-sm hover:bg-primary/20 flex items-center"
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
@@ -366,15 +367,15 @@ const DialogHeader = ({
         {/* Only show Edit Layout toggle if not a user role */}
         {currentUser?.role !== "user" && (
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-neutral-600">Edit Layout</span>
+            <span className="text-sm text-muted-foreground">Edit Layout</span>
             <button
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-blue-600" : "bg-neutral-200"}`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEditLayoutMode ? "bg-primary" : "bg-secondary"}`}
               onClick={() => setIsEditLayoutMode(!isEditLayoutMode)}
             >
               <span
                 className={`${
                   isEditLayoutMode ? "translate-x-6" : "translate-x-1"
-                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                } inline-block h-4 w-4 transform rounded-full bg-background transition-transform`}
               />
             </button>
           </div>
@@ -420,7 +421,7 @@ const DialogHeader = ({
 const AddWidgetDropdown = ({ currentTicket, addWidget }: { currentTicket: Row; addWidget: (type: string, ticket: Row) => void }) => (
   <div className="relative">
     <button
-      className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded border border-blue-200 hover:bg-blue-100 flex items-center"
+      className="px-2 py-1 text-xs bg-primary/10 text-primary rounded border border-primary/20 hover:bg-primary/20 flex items-center"
       onClick={(e) => {
         const dropdown = document.getElementById("widget-dropdown");
         if (dropdown) {
@@ -451,7 +452,7 @@ const AddWidgetDropdown = ({ currentTicket, addWidget }: { currentTicket: Row; a
 
     <div
       id="widget-dropdown"
-      className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 max-h-80 overflow-y-auto"
+      className="fixed hidden rounded-md border border-border bg-card shadow-lg z-50 w-48 max-h-80 overflow-y-auto"
     >
       <WidgetDropdownContent currentTicket={currentTicket} addWidget={addWidget} dropdownId="widget-dropdown" />
     </div>
@@ -478,6 +479,8 @@ const WidgetDropdownContent = ({
       { type: WIDGET_TYPES.ASSIGNEES, label: "Team Members" },
       { type: WIDGET_TYPES.TIME_ENTRIES, label: "Time Entries" },
       { type: WIDGET_TYPES.ATTACHMENTS, label: "Attachments" },
+      { type: "ticket_info_composite", label: "Ticket Info Group" },
+      { type: "hours_composite", label: "Hours Group" },
     ].map((item) => (
       <button
         key={item.type}
@@ -546,7 +549,7 @@ const WidgetDropdownContent = ({
 const LoadingIndicator = () => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
       <p>Loading Engineering layout...</p>
     </div>
   </div>
@@ -555,10 +558,10 @@ const LoadingIndicator = () => (
 // EmptyWidgetState component
 const EmptyWidgetState = ({ currentTicket, addWidget }: { currentTicket: Row; addWidget: (type: string, ticket: Row) => void }) => (
   <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-    <div className="p-6 bg-neutral-50 rounded-lg border border-dashed border-neutral-300 max-w-md">
+    <div className="p-6 bg-accent/10 rounded-lg border border-dashed border-accent max-w-md">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="h-12 w-12 mx-auto text-neutral-400 mb-4"
+        className="h-12 w-12 mx-auto text-muted-foreground mb-4"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -570,17 +573,17 @@ const EmptyWidgetState = ({ currentTicket, addWidget }: { currentTicket: Row; ad
           d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
         />
       </svg>
-      <h3 className="text-lg font-medium text-neutral-700 mb-2">
+      <h3 className="text-lg font-medium text-foreground mb-2">
         Customize Your Ticket Layout
       </h3>
-      <p className="text-neutral-500 mb-6">
+      <p className="text-muted-foreground mb-6">
         This ticket doesn't have any widgets yet. Add widgets to
         create your custom layout.
       </p>
       <div className="flex justify-center">
         <div className="relative">
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors flex items-center"
             onClick={(e) => {
               const dropdown = document.getElementById(
                 "customize-widget-dropdown",
@@ -613,7 +616,7 @@ const EmptyWidgetState = ({ currentTicket, addWidget }: { currentTicket: Row; ad
 
           <div
             id="customize-widget-dropdown"
-            className="fixed hidden rounded-md border border-neutral-200 bg-white shadow-lg z-50 w-48 text-left max-h-80 overflow-y-auto"
+            className="fixed hidden rounded-md border border-border bg-card shadow-lg z-50 w-48 text-left max-h-80 overflow-y-auto"
           >
             <WidgetDropdownContent 
               currentTicket={currentTicket} 
@@ -699,14 +702,14 @@ const WidgetGrid = ({
         currentTicket,
       )}
       breakpoints={{
-        lg: 1200,
-        md: 996,
-        sm: 768,
-        xs: 480,
-        xxs: 320,
+        lg: 1600,
+        md: 1200,
+        sm: 996,
+        xs: 768,
+        xxs: 480,
       }}
       cols={{ lg: 12, md: 12, sm: 12, xs: 6, xxs: 4 }}
-      rowHeight={40}
+      rowHeight={30}
       onLayoutChange={handleLayoutChange}
       isDraggable={isEditLayoutMode}
       isResizable={isEditLayoutMode}
@@ -878,33 +881,28 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     const hasEngineeringPreset = currentTabData?.appliedPreset === "Engineering";
 
     if (hasEngineeringPreset) {
-      // Clear saved Engineering layouts
-      saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+      // Set default Engineering layouts
+      saveToLS<{ widgets: Widget[]; layouts: Layouts }>(
         "engineering-layouts",
-        { widgets: [], layouts: {} },
+        { widgets: defaultTicketWidgets, layouts: defaultTicketLayouts },
       );
-      console.log("Reset Engineering widget layout");
+      console.log("Reset Engineering widget layout to defaults");
     } else if (currentTicket) {
-      // Clear tab-specific layouts
-      const ticketId = currentTicket.cells["col-1"];
+      // Set default tab-specific layouts
       const tabSpecificLayoutKey = `tab-${activeTab}`;
-      saveToLS<{ widgets: Widget[]; layouts: Record<string, never> }>(
+      saveToLS<{ widgets: Widget[]; layouts: Layouts }>(
         tabSpecificLayoutKey,
-        { widgets: [], layouts: {} },
+        { widgets: defaultTicketWidgets, layouts: defaultTicketLayouts },
       );
       console.log(
-        "Reset tab-specific layout for tab",
-        activeTab,
-        "and ticket:",
-        ticketId,
+        "Reset tab-specific layout to defaults for tab",
+        activeTab
       );
     }
 
-    // First clear existing widgets and layouts
-    setWidgets([]);
-    setWidgetLayouts({});
-
-    // Widgets will be re-added by the useEffect
+    // Set widgets and layouts to the default values
+    setWidgets(defaultTicketWidgets);
+    setWidgetLayouts(defaultTicketLayouts);
   };
 
   // Add a useEffect to initialize widgets when needed
@@ -917,20 +915,18 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       if (hasEngineeringPreset && widgets.length === 0) {
         console.log("Adding default widgets for Engineering preset in TicketDialog");
         
-        // Add engineering preset widgets
-        addWidget(WIDGET_TYPES.FIELD_STATUS, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_CUSTOMER_NAME, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_DATE_CREATED, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_LAST_MODIFIED, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_BILLABLE_HOURS, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_TOTAL_HOURS, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_DESCRIPTION, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_ASSIGNEE_TABLE, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_TIME_ENTRIES_TABLE, currentTicket);
-        addWidget(WIDGET_TYPES.FIELD_ATTACHMENTS_GALLERY, currentTicket);
+        // Use default widgets and layouts instead of adding widgets one by one
+        setWidgets(defaultTicketWidgets);
+        setWidgetLayouts(defaultTicketLayouts);
+        
+        // Save the default layout to localStorage for future use
+        saveToLS<{ widgets: Widget[]; layouts: Layouts }>(
+          "engineering-layouts",
+          { widgets: defaultTicketWidgets, layouts: defaultTicketLayouts },
+        );
       }
     }
-  }, [viewDialogOpen, currentTicket, currentTicketPreset, widgets.length, addWidget]);
+  }, [viewDialogOpen, currentTicket, currentTicketPreset, widgets.length, setWidgetLayouts, setWidgets]);
 
   const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
     console.log("Layout changed:", currentLayout.length, "items in current layout");
@@ -1037,7 +1033,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     <div
       className="fixed inset-0 z-50 bg-white/10 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden"
     >
-      <div className="bg-white w-full max-w-7xl mx-auto h-[90vh] rounded-lg shadow-lg flex flex-col">
+      <div className="bg-white w-full max-w-[95vw] mx-auto h-[95vh] rounded-lg shadow-lg flex flex-col">
         {/* Dialog Header */}
         <DialogHeader
           currentTicket={currentTicket}
@@ -1050,7 +1046,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
           openEmailDialog={openEmailDialog}
         />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4">
           {(() => {
             // Use the stored ticket preset directly instead of checking tab data
             const hasEngineeringPreset = currentTicketPreset === "Engineering";

@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 
 import useUserStore from "../stores/userStore";
 
@@ -28,6 +30,9 @@ interface TabNavigationProps {
   onEditingTitleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRenameKeyDown: (e: React.KeyboardEvent) => void;
   onRenameBlur: () => void;
+  className?: string;
+  showAddButton?: boolean;
+  children?: React.ReactNode; // Optional children to render next to tabs
 }
 
 /**
@@ -49,12 +54,60 @@ function TabNavigation({
   onEditingTitleChange,
   onRenameKeyDown,
   onRenameBlur,
+  className,
+  showAddButton = false,
+  children,
 }: TabNavigationProps) {
   const { currentUser } = useUserStore();
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [showScrollButtons, setShowScrollButtons] = useState(false);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Check if scroll buttons should be shown
+  useEffect(() => {
+    const checkScroll = () => {
+      if (tabsContainerRef.current) {
+        const { scrollWidth, clientWidth } = tabsContainerRef.current;
+        setShowScrollButtons(scrollWidth > clientWidth);
+      }
+    };
+
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [tabs]);
+
+  const scroll = (direction: "left" | "right") => {
+    if (tabsContainerRef.current) {
+      const { scrollLeft, clientWidth } = tabsContainerRef.current;
+      const newPosition =
+        direction === "left"
+          ? scrollLeft - clientWidth / 2
+          : scrollLeft + clientWidth / 2;
+      tabsContainerRef.current.scrollTo({
+        left: newPosition,
+        behavior: "smooth",
+      });
+      setScrollPosition(newPosition);
+    }
+  };
 
   return (
-    <div className="flex items-center border-b bg-neutral-50">
-      <div className="flex flex-1 items-center space-x-1 overflow-x-auto overflow-y-visible px-2 no-scrollbar">
+    <div className={cn("flex items-center border-b bg-secondary", className)}>
+      {showScrollButtons && (
+        <button
+          onClick={() => scroll("left")}
+          className="flex-shrink-0 px-2 h-9 focus:outline-none"
+          aria-label="Scroll tabs left"
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+
+      <div
+        ref={tabsContainerRef}
+        className="flex-1 overflow-x-auto no-scrollbar flex items-center"
+      >
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -65,11 +118,12 @@ function TabNavigation({
             onDrop={(e) => onDrop(e, tab.id)}
             onClick={() => onTabClick(tab.id)}
             onDoubleClick={() => onDoubleClick(tab.id)}
-            className={`group relative flex h-9 cursor-pointer items-center rounded-t-lg px-4 py-2 text-sm font-medium ${
-              activeTab === tab.id
-                ? "bg-white border-l border-r border-t border-b-white -mb-px"
-                : "hover:bg-neutral-100 text-neutral-600"
-            } ${tab.isDragging ? "opacity-50" : ""}`}
+            className={cn(
+              "h-9 px-4 transition-colors relative whitespace-nowrap",
+              tab.id === activeTab
+                ? "bg-card border-l border-r border-t border-b-card -mb-px"
+                : "hover:bg-accent text-muted-foreground"
+            )}
           >
             {editingTab === tab.id ? (
               <input
@@ -85,40 +139,45 @@ function TabNavigation({
             ) : (
               <span>{tab.title}</span>
             )}
-            <button
-              onClick={(e) => onCloseTabClick(tab.id, e)}
-              className={`ml-2 flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 ${
-                tabs.length > 1 ? "opacity-0 group-hover:opacity-100" : "hidden"
-              }`}
-            >
-              ×
-            </button>
+            {onCloseTabClick && tab.id !== "general" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseTabClick(tab.id, e);
+                }}
+                className={`ml-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
+                  tab.id === activeTab ? "bg-card" : ""
+                }`}
+                aria-label={`Remove ${tab.title} tab`}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         ))}
-        {/* Add new tab button inline with tabs - hide for user role */}
-        {currentUser?.role !== "user" && (
-          <div
+
+        {showAddButton && onAddTabClick && (
+          <button
             onClick={onAddTabClick}
-            className="flex h-9 cursor-pointer items-center px-3 border-l border-neutral-200 text-neutral-500 hover:bg-neutral-100"
-            title="Add new tab"
+            className="flex h-9 cursor-pointer items-center px-3 border-l border-border text-muted-foreground hover:bg-accent"
+            aria-label="Add new tab"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          </div>
+            <Plus size={18} />
+          </button>
         )}
       </div>
+
+      {showScrollButtons && (
+        <button
+          onClick={() => scroll("right")}
+          className="flex-shrink-0 px-2 h-9 focus:outline-none"
+          aria-label="Scroll tabs right"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
+
+      {children && <div className="ml-auto">{children}</div>}
     </div>
   );
 }
