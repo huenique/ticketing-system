@@ -7,6 +7,7 @@ import {
   getDocument,
   updateDocument,
   databases,
+  Query
 } from "@/lib/appwrite";
 import { Customer, Ticket, User } from "@/types/tickets";
 
@@ -32,6 +33,60 @@ export const ticketsService = {
   getAllTickets: async (): Promise<Ticket[]> => {
     const response = await getCollection<Ticket>(TICKETS_COLLECTION);
     return response.documents;
+  },
+
+  /**
+   * Search tickets with pagination support
+   * @param searchQuery The search term
+   * @param searchField The field to search in (default: "description")
+   * @param page The page number (starting at 1)
+   * @param pageSize Number of items per page
+   */
+  searchTickets: async (
+    searchQuery: string,
+    searchField: string = "description",
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{ tickets: Ticket[]; total: number }> => {
+    try {
+      const offset = (page - 1) * pageSize;
+      
+      // Create an array of queries for pagination
+      const queries = [
+        Query.limit(pageSize),
+        Query.offset(offset),
+      ];
+      
+      // For the count query, we need to get all matching records
+      // We'll use a separate count query to get the total
+      const searchFilter = searchQuery.trim() 
+        ? { field: searchField, value: searchQuery }
+        : undefined;
+      
+      // Get all matching documents to count them (limited to first 5000 for performance)
+      const countQuery = [Query.limit(5000)];
+      const countResponse = await getCollection<Ticket>(
+        TICKETS_COLLECTION, 
+        countQuery,
+        searchFilter
+      );
+      
+      // Then get the actual paginated data
+      const response = await getCollection<Ticket>(
+        TICKETS_COLLECTION,
+        queries,
+        searchFilter
+      );
+      
+      // Return both the tickets and the total count
+      return {
+        tickets: response.documents,
+        total: countResponse.documents.length,
+      };
+    } catch (error) {
+      console.error("Error searching tickets:", error);
+      throw error;
+    }
   },
 
   /**

@@ -64,6 +64,51 @@ export const usersService = {
   },
 
   /**
+   * Search users with pagination support
+   * @param searchQuery The search term
+   * @param searchField The field to search in (default: "first_name")
+   * @param page The page number (starting at 1)
+   * @param pageSize Number of items per page
+   */
+  searchUsers: async (
+    searchQuery: string,
+    searchField: string = "first_name",
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{ users: User[]; total: number }> => {
+    try {
+      const offset = (page - 1) * pageSize;
+      
+      // Create an array of queries for pagination
+      const queries = [
+        Query.limit(pageSize),
+        Query.offset(offset),
+      ];
+      
+      // Add search filter if provided
+      if (searchQuery.trim()) {
+        queries.push(Query.search(searchField, searchQuery));
+      }
+      
+      // Get the actual paginated data
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION,
+        queries
+      );
+      
+      // Return both the users and the total count
+      return {
+        users: response.documents as User[],
+        total: response.total
+      };
+    } catch (error) {
+      console.error("Error searching users:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Get all user types
    */
   getAllUserTypes: async (): Promise<UserType[]> => {

@@ -1,5 +1,5 @@
-import { Edit, Plus, Trash2, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Edit, Plus, Trash2, Loader2, X } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -22,6 +22,18 @@ import usePartsStore from "@/stores/partsStore";
 import type { Part, PartInput } from "@/stores/partsStore";
 import { DataTable } from "@/components/ui/data-table";
 import { getPartsColumns, PartActions } from "@/features/parts/components/parts-columns";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+
+// Import server paginated parts hook
+import { useServerPaginatedParts } from "@/hooks/useServerPaginatedParts";
 
 function Parts() {
   const { 
@@ -64,6 +76,35 @@ function Parts() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // State for search
+  const [searchValue, setSearchValue] = useState("");
+  const searchValueRef = useRef(searchValue);
+  // Always use "all" for searching all fields and remove the dropdown
+  const selectedSearchField = "all";
+
+  // Use server paginated parts hook
+  const {
+    parts: serverParts,
+    isLoading,
+    error: serverError,
+    pagination,
+    searchTerm,
+    refreshParts
+  } = useServerPaginatedParts({
+    initialPage: 1,
+    initialPageSize: 10,
+    initialSearchTerm: "",
+    searchField: "all"
+  });
+
+  // Handle search
+  const handleSearch = () => {
+    if (searchValue !== searchValueRef.current) {
+      pagination.onSearch(searchValue);
+      searchValueRef.current = searchValue;
+    }
+  };
+
   // Pagination handlers
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -87,6 +128,8 @@ function Parts() {
 
     setIsSubmitting(true);
     try {
+      // Using the original parts store to add a new part
+      const { addPart } = usePartsStore.getState();
       await addPart(newPart);
       toast.success("Part added successfully");
       setNewPart({
@@ -96,6 +139,9 @@ function Parts() {
         vendor: ""
       });
       setIsAddDialogOpen(false);
+      
+      // Refresh parts using the server paginated hook
+      refreshParts();
     } catch (error) {
       console.error("Error adding part:", error);
       toast.error(`Failed to add part: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -124,10 +170,15 @@ function Parts() {
 
     setIsSubmitting(true);
     try {
+      // Using the original parts store to update a part
+      const { updatePart } = usePartsStore.getState();
       await updatePart(selectedPart.$id, editPart);
       toast.success("Part updated successfully");
       setIsEditDialogOpen(false);
       setSelectedPart(null);
+      
+      // Refresh parts using the server paginated hook
+      refreshParts();
     } catch (error) {
       console.error("Error updating part:", error);
       toast.error(`Failed to update part: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -146,8 +197,13 @@ function Parts() {
     
     setIsDeleting(true);
     try {
+      // Using the original parts store to delete a part
+      const { deletePart } = usePartsStore.getState();
       await deletePart(partToDelete);
       toast.success("Part deleted successfully");
+      
+      // Refresh parts using the server paginated hook
+      refreshParts();
     } catch (error) {
       console.error("Error deleting part:", error);
       toast.error(`Failed to delete part: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -173,7 +229,7 @@ function Parts() {
     </div>
   );
 
-  if (loading && parts.length === 0) {
+  if (isLoading && serverParts.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -184,16 +240,16 @@ function Parts() {
     );
   }
 
-  if (error && parts.length === 0) {
+  if (serverError && serverParts.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2 text-red-600">
             Error loading parts
           </h2>
-          <p className="text-neutral-500 mb-4">{error.message}</p>
+          <p className="text-neutral-500 mb-4">{serverError.message}</p>
           <button
-            onClick={() => fetchParts()}
+            onClick={() => refreshParts()}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
             Try Again
@@ -212,6 +268,55 @@ function Parts() {
             Manage parts inventory for your service operations
           </p>
         </div>
+      </div>
+
+      {/* Search and Add Part Button Row */}
+      <div className="flex justify-between mb-4">
+        <div className="flex gap-2 w-full max-w-lg">
+          <div className="relative w-full">
+            <Input
+              placeholder="Search parts..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="w-full"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+            />
+          </div>
+          {searchValue && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchValue('');
+                // Reset the search
+                pagination.onSearch('');
+                searchValueRef.current = '';
+              }}
+              className="px-3 flex items-center gap-1 border border-gray-300"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+          <Button 
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              'Search'
+            )}
+          </Button>
+        </div>
         <button
           onClick={() => setIsAddDialogOpen(true)}
           className="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
@@ -221,7 +326,7 @@ function Parts() {
         </button>
       </div>
 
-      {parts.length === 0 && !loading ? (
+      {serverParts.length === 0 && !isLoading ? (
         renderEmptyState()
       ) : (
         <div>
@@ -230,19 +335,18 @@ function Parts() {
               onEdit: (item) => handleEditClick(item as any),
               onDelete: handleDeleteClick,
             })}
-            data={parts as any}
-            isLoading={loading}
-            searchPlaceholder="Search parts..."
-            searchColumn="description"
-            noResultsMessage="No parts found."
+            data={serverParts as any}
+            isLoading={isLoading}
+            noSearchBar={true}
             pagination={{
-              pageCount: totalPages,
-              currentPage: page,
-              onPageChange: handlePageChange,
-              pageSize: limit,
-              onPageSizeChange: handleLimitChange,
-              pageSizeOptions: [10, 20, 50, 100],
-              totalItems: totalParts
+              pageCount: pagination.pageCount,
+              currentPage: pagination.currentPage,
+              onPageChange: pagination.onPageChange,
+              pageSize: pagination.pageSize,
+              onPageSizeChange: pagination.onPageSizeChange,
+              pageSizeOptions: pagination.pageSizeOptions,
+              totalItems: pagination.totalItems,
+              isLoading: isLoading
             }}
           />
         </div>

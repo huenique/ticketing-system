@@ -144,6 +144,205 @@ export const partsService = {
   },
 
   /**
+   * Search parts with pagination support
+   * @param searchQuery The search term
+   * @param searchField The field to search in (default: "description"), or "all" for all fields
+   * @param page The page number (starting at 1)
+   * @param pageSize Number of items per page
+   */
+  searchParts: async (
+    searchQuery: string,
+    searchField: string = "description",
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{ parts: Part[]; total: number }> => {
+    try {
+      const offset = (page - 1) * pageSize;
+      const trimmedQuery = searchQuery.trim();
+      
+      // Create an array of queries for pagination
+      const queries = [
+        Query.limit(pageSize),
+        Query.offset(offset),
+      ];
+      
+      // For special character searches (like those with hyphens), 
+      // it's better to fall back to manual filtering since fulltext might not work well
+      const hasSpecialChars = /[-]/.test(trimmedQuery);
+      
+      // Add search filter if provided
+      if (trimmedQuery) {
+        // If the query has special characters or is very short, use manual filtering
+        if (hasSpecialChars || trimmedQuery.length <= 3) {
+          console.log(`Using manual filtering for "${trimmedQuery}" (contains special chars or is short)`);
+          // Get more documents for manual filtering
+          const response = await databases.listDocuments(
+            DATABASE_ID,
+            PARTS_COLLECTION,
+            [Query.limit(200)] // Get more records to ensure we don't miss anything
+          );
+          
+          // Lower case for case-insensitive comparison
+          const searchLower = trimmedQuery.toLowerCase();
+          let filteredParts: Part[] = [];
+          
+          if (searchField === "all") {
+            // Filter across all relevant fields
+            filteredParts = response.documents.filter((part: any) => {
+              const description = String(part.description || "").toLowerCase();
+              const vendor = String(part.vendor || "").toLowerCase();
+              
+              // Check if any field contains the search term
+              return description.includes(searchLower) || 
+                     vendor.includes(searchLower);
+            }) as Part[];
+          } else {
+            // Filter on the specific field
+            filteredParts = response.documents.filter((part: any) => {
+              const fieldValue = String(part[searchField] || "").toLowerCase();
+              return fieldValue.includes(searchLower);
+            }) as Part[];
+          }
+          
+          // Apply pagination manually
+          const paginatedParts = filteredParts.slice(offset, offset + pageSize);
+          
+          return {
+            parts: paginatedParts,
+            total: filteredParts.length
+          };
+        }
+        
+        // Handle normal searches without special characters
+        if (searchField === "all") {
+          try {
+            // Get documents matching description
+            const descriptionResponse = await databases.listDocuments(
+              DATABASE_ID,
+              PARTS_COLLECTION,
+              [Query.limit(100), Query.search("description", trimmedQuery)]
+            );
+            
+            // Get documents matching vendor
+            const vendorResponse = await databases.listDocuments(
+              DATABASE_ID,
+              PARTS_COLLECTION,
+              [Query.limit(100), Query.search("vendor", trimmedQuery)]
+            );
+            
+            // Combine and deduplicate results
+            const descriptionParts = descriptionResponse.documents as Part[];
+            const vendorParts = vendorResponse.documents as Part[];
+            
+            // Combine results without duplicates
+            let allParts: Part[] = [...descriptionParts];
+            vendorParts.forEach(vendorPart => {
+              if (!allParts.some(part => part.$id === vendorPart.$id)) {
+                allParts.push(vendorPart);
+              }
+            });
+            
+            // Apply pagination manually
+            const paginatedParts = allParts.slice(offset, offset + pageSize);
+            
+            return {
+              parts: paginatedParts,
+              total: allParts.length
+            };
+          } catch (error) {
+            console.log("Combined search failed, falling back to basic filter:", error);
+            
+            // Fall back to manual filtering
+            const response = await databases.listDocuments(
+              DATABASE_ID,
+              PARTS_COLLECTION,
+              [Query.limit(100)]
+            );
+            
+            // Manual filtering for both fields
+            const searchLower = trimmedQuery.toLowerCase();
+            const filteredParts = response.documents.filter((part: any) => {
+              const description = String(part.description || "").toLowerCase();
+              const vendor = String(part.vendor || "").toLowerCase();
+              
+              return description.includes(searchLower) || vendor.includes(searchLower);
+            }) as Part[];
+            
+            // Apply pagination manually
+            const paginatedParts = filteredParts.slice(offset, offset + pageSize);
+            
+            return {
+              parts: paginatedParts,
+              total: filteredParts.length
+            };
+          }
+        } else {
+          // For specific field search without special characters
+          console.log(`Searching in field: "${searchField}" with query: "${trimmedQuery}"`);
+          
+          try {
+            // Add the search query for the specific field
+            queries.push(Query.search(searchField, trimmedQuery));
+            
+            // Execute the search
+            const response = await databases.listDocuments(
+              DATABASE_ID,
+              PARTS_COLLECTION,
+              queries
+            );
+            
+            return {
+              parts: response.documents as Part[],
+              total: response.total
+            };
+          } catch (fieldSearchError) {
+            console.log(`Search in field "${searchField}" failed:`, fieldSearchError);
+            console.log("Falling back to manual string filtering");
+            
+            // Fallback: Manual string filtering 
+            const response = await databases.listDocuments(
+              DATABASE_ID,
+              PARTS_COLLECTION,
+              [Query.limit(100)]
+            );
+            
+            // Manually filter the results
+            const searchLower = trimmedQuery.toLowerCase();
+            const filteredParts = response.documents.filter((part: any) => {
+              // Only check the requested field
+              const fieldValue = String(part[searchField] || "").toLowerCase();
+              return fieldValue.includes(searchLower);
+            }) as Part[];
+            
+            // Apply pagination manually
+            const paginatedParts = filteredParts.slice(offset, offset + pageSize);
+            
+            return {
+              parts: paginatedParts,
+              total: filteredParts.length
+            };
+          }
+        }
+      } else {
+        // No search term, just get paginated results
+        const response = await databases.listDocuments(
+          DATABASE_ID,
+          PARTS_COLLECTION,
+          queries
+        );
+        
+        return {
+          parts: response.documents as Part[],
+          total: response.total
+        };
+      }
+    } catch (error) {
+      console.error("Error searching parts:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Delete a part
    */
   deletePart: async (id: string): Promise<void> => {

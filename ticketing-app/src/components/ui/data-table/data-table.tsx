@@ -42,6 +42,8 @@ interface PaginationProps {
   onPageSizeChange: (pageSize: number) => void;
   pageSizeOptions: number[];
   totalItems: number;
+  onSearch?: (value: string) => void;
+  isLoading?: boolean;
 }
 
 interface DataTableProps<TData, TValue> {
@@ -56,6 +58,7 @@ interface DataTableProps<TData, TValue> {
   noResultsMessage?: string;
   initialPageSize?: number;
   pagination?: PaginationProps;
+  noSearchBar?: boolean;
 }
 
 // Create a context to share the table instance
@@ -200,10 +203,15 @@ export function DataTableSearch<TData>({
   table,
   placeholder = "Search...",
   column = "name",
+  serverSideSearch,
 }: {
   table?: ReactTable<TData>;
   placeholder?: string;
   column?: string;
+  serverSideSearch?: {
+    onSearch: (value: string) => void;
+    isLoading?: boolean;
+  };
 }) {
   const [value, setValue] = useState("");
   
@@ -211,7 +219,43 @@ export function DataTableSearch<TData>({
   const sharedTable = useContext(TableContext).tableInstance as ReactTable<TData> | null;
   const tableToUse = table || sharedTable;
   
-  if (!tableToUse) return null;
+  // Handle client-side search
+  const handleClientSearch = (searchValue: string) => {
+    if (tableToUse) {
+      tableToUse.getColumn(column)?.setFilterValue(searchValue);
+    }
+  };
+
+  // Handle search value changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setValue(newValue);
+    
+    // If using client-side search, filter immediately on change
+    if (!serverSideSearch && tableToUse) {
+      handleClientSearch(newValue);
+    }
+  };
+
+  // Handle search button click for server-side search
+  const handleSearchClick = () => {
+    if (serverSideSearch) {
+      serverSideSearch.onSearch(value);
+    }
+  };
+
+  // Handle clear
+  const handleClear = () => {
+    setValue("");
+    
+    if (serverSideSearch) {
+      serverSideSearch.onSearch("");
+    } else if (tableToUse) {
+      handleClientSearch("");
+    }
+  };
+
+  if (!tableToUse && !serverSideSearch) return null;
 
   return (
     <div className="flex items-center mb-4">
@@ -220,24 +264,38 @@ export function DataTableSearch<TData>({
         <Input
           placeholder={placeholder}
           value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            tableToUse.getColumn(column)?.setFilterValue(e.target.value);
+          onChange={handleChange}
+          onKeyDown={(e) => {
+            // Add Enter key support for server-side search
+            if (e.key === "Enter" && serverSideSearch) {
+              e.preventDefault();
+              handleSearchClick();
+            }
           }}
           className="pl-8 w-full"
         />
         {value && (
           <button
-            onClick={() => {
-              setValue("");
-              tableToUse.getColumn(column)?.setFilterValue("");
-            }}
+            onClick={handleClear}
             className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
+      
+      {serverSideSearch && (
+        <Button 
+          onClick={handleSearchClick} 
+          className="ml-2 bg-blue-600 text-white hover:bg-blue-700"
+          disabled={serverSideSearch.isLoading}
+        >
+          {serverSideSearch.isLoading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : null}
+          Search
+        </Button>
+      )}
     </div>
   );
 }
@@ -518,6 +576,7 @@ export function DataTable<TData, TValue>({
   noResultsMessage,
   initialPageSize = 10,
   pagination,
+  noSearchBar = false,
 }: DataTableProps<TData, TValue>) {
   
   // If server-side pagination is provided, use its pageSize as initialPageSize
@@ -558,6 +617,12 @@ export function DataTable<TData, TValue>({
     }
   }, [pagination?.currentPage, pagination?.pageSize]);
 
+  // Create server-side search props if pagination with onSearch is provided
+  const serverSideSearch = pagination?.onSearch ? {
+    onSearch: pagination.onSearch,
+    isLoading: pagination.isLoading
+  } : undefined;
+
   if (renderTableOnly) {
     return <DataTableContent table={table} onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />;
   }
@@ -568,8 +633,12 @@ export function DataTable<TData, TValue>({
 
   return (
     <DataTableProvider columns={columns} data={data} searchColumn={searchColumn} initialPageSize={effectiveInitialPageSize}>
-      {!isLoading && (
-        <DataTableSearch placeholder={searchPlaceholder} column={searchColumn} />
+      {!isLoading && !noSearchBar && (
+        <DataTableSearch 
+          placeholder={searchPlaceholder} 
+          column={searchColumn} 
+          serverSideSearch={serverSideSearch}
+        />
       )}
       <DataTableContent onRowClick={onRowClick} isLoading={isLoading} noResultsMessage={noResultsMessage} />
       <DataTablePagination serverPagination={pagination} />

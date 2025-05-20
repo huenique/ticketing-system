@@ -252,11 +252,17 @@ export const authService = {
 export async function getCollection<T>(
   collectionId: string,
   queries: string[] = [],
+  searchQuery?: { field: string; value: string }
 ): Promise<{ documents: T[] }> {
   try {
     // Using the proper client-side queries from Appwrite SDK
     // Convert string queries to proper Query objects if provided
-    const queryObjects = queries.length > 0 ? queries : [Query.limit(100)];
+    let queryObjects = queries.length > 0 ? queries : [Query.limit(100)];
+    
+    // Add search filter if provided
+    if (searchQuery && searchQuery.value.trim()) {
+      queryObjects.push(Query.search(searchQuery.field, searchQuery.value));
+    }
 
     const response = await databases.listDocuments(
       DATABASE_ID,

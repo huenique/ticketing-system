@@ -1,6 +1,6 @@
 import { format } from "date-fns";
-import { Edit, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Edit, Plus, Trash2, Loader2, X } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -23,6 +23,18 @@ import { authService } from "@/lib/appwrite";
 import useUsersStore, { User, UserInput } from "@/stores/usersStore";
 import { DataTable } from "@/components/ui/data-table";
 import { getUsersColumns, UserActions } from "@/features/users/components/users-columns";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+
+// Import server paginated users hook
+import { useServerPaginatedUsers } from "@/hooks/useServerPaginatedUsers";
 
 function Users() {
   const {
@@ -37,6 +49,34 @@ function Users() {
     addUser,
   } = useUsersStore();
   
+  // State for search
+  const [searchValue, setSearchValue] = useState("");
+  const searchValueRef = useRef(searchValue);
+  // Always use "all" for searching all fields and remove the dropdown
+  const selectedSearchField = "all";
+
+  // Use server paginated users hook
+  const {
+    users: serverUsers,
+    isLoading,
+    error: serverError,
+    pagination,
+    searchTerm,
+    refreshUsers
+  } = useServerPaginatedUsers({
+    initialPage: 1,
+    initialPageSize: 10,
+    initialSearchTerm: "",
+    searchField: "all"
+  });
+
+  // Handle search
+  const handleSearch = () => {
+    if (searchValue !== searchValueRef.current) {
+      pagination.onSearch(searchValue);
+      searchValueRef.current = searchValue;
+    }
+  };
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -76,15 +116,13 @@ function Users() {
       try {
         // Load user types first
         await fetchUserTypes();
-        // Then load users
-        await fetchUsers();
       } catch (err) {
         console.error("Error loading data:", err);
       }
     };
 
     loadData();
-  }, [fetchUsers, fetchUserTypes]);
+  }, [fetchUserTypes]);
 
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
@@ -109,6 +147,7 @@ function Users() {
       setIsDeleting(true);
       await deleteUser(userToDelete);
       toast.success("User deleted successfully");
+      refreshUsers(); // Refresh the server-side users list
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Failed to delete user. Please try again.");
@@ -154,6 +193,7 @@ function Users() {
       await updateUser(selectedUser.$id, editFormData);
       setIsEditDialogOpen(false);
       setSelectedUser(null);
+      refreshUsers(); // Refresh the server-side users list
     }
   };
 
@@ -236,6 +276,8 @@ function Users() {
           password: "",
           confirmPassword: ""
         });
+        
+        refreshUsers(); // Refresh the server-side users list
       } catch (error: any) {
         console.error("Failed to add user:", error);
         
@@ -313,6 +355,13 @@ function Users() {
     </div>
   );
 
+  // Define search fields
+  const searchFields = [
+    { id: "first_name", label: "First Name" },
+    { id: "last_name", label: "Last Name" },
+    { id: "username", label: "Username" },
+  ];
+
   if (loading && users.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -344,36 +393,95 @@ function Users() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Users</h1>
-          <p className="text-neutral-500">
-            Manage system users and their permissions
-          </p>
+    <div className="container mx-auto py-10">
+      <h1 className="text-2xl font-bold mb-5">User Management</h1>
+
+      {/* Actions Row */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex gap-2 w-full max-w-lg">
+          <div className="relative w-full">
+            <Input
+              placeholder="Search users..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="w-full"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+            />
+          </div>
+          {searchValue && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchValue('');
+                // Reset the search
+                pagination.onSearch('');
+                searchValueRef.current = '';
+              }}
+              className="px-3 flex items-center gap-1 border border-gray-300"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
+          <Button 
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              'Search'
+            )}
+          </Button>
         </div>
+
         <button
           onClick={() => setIsAddDialogOpen(true)}
-          className="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+          className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
           <Plus size={16} />
           Add User
         </button>
       </div>
 
-      {users.length === 0 ? (
+      {/* Server error display */}
+      {serverError && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <p className="font-medium">Error: {serverError.message}</p>
+        </div>
+      )}
+
+      {/* Users table */}
+      {serverUsers.length === 0 && !isLoading ? (
         renderEmptyState()
       ) : (
         <DataTable
           columns={getUsersColumns({
-            onEdit: (item) => handleEditClick(item as any),
-            onDelete: handleDeleteClick,
+            onEdit: (item: any) => handleEditClick(item),
+            onDelete: handleDeleteClick
           })}
-          data={users as any}
-          isLoading={loading && users.length === 0}
-          searchPlaceholder="Search users..."
-          searchColumn="username"
-          noResultsMessage="No users found."
+          data={serverUsers as any}
+          isLoading={isLoading}
+          noSearchBar={true}
+          pagination={{
+            pageCount: pagination.pageCount,
+            currentPage: pagination.currentPage,
+            onPageChange: pagination.onPageChange,
+            pageSize: pagination.pageSize,
+            onPageSizeChange: pagination.onPageSizeChange,
+            pageSizeOptions: pagination.pageSizeOptions,
+            totalItems: pagination.totalItems,
+            isLoading: isLoading
+          }}
         />
       )}
 

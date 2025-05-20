@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { Client, Databases, RelationMutate, RelationshipType } from 'node-appwrite';
+import { Client, Databases, RelationMutate, RelationshipType, IndexType } from 'node-appwrite';
 
 // Load environment variables
 dotenv.config();
@@ -183,6 +183,80 @@ async function createCollections() {
         'cascade' as RelationMutate,
       ),
     'relationship customers.customer_contact_ids'
+  );
+  
+  // Add fulltext indexes for customers
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_name_fulltext',
+        'fulltext' as IndexType,
+        ['name'],
+        ['ASC']
+      ),
+    'index customers_name_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_address_fulltext',
+        'fulltext' as IndexType,
+        ['address'],
+        ['ASC']
+      ),
+    'index customers_address_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_pcn_fulltext',
+        'fulltext' as IndexType,
+        ['primary_contact_name'],
+        ['ASC']
+      ),
+    'index customers_pcn_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_pcnum_fulltext',
+        'fulltext' as IndexType,
+        ['primary_contact_number'],
+        ['ASC']
+      ),
+    'index customers_pcnum_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_pe_fulltext',
+        'fulltext' as IndexType,
+        ['primary_email'],
+        ['ASC']
+      ),
+    'index customers_pe_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'customers',
+        'customers_abn_fulltext',
+        'fulltext' as IndexType,
+        ['abn'],
+        ['ASC']
+      ),
+    'index customers_abn_fulltext'
   );
 
   // 5. customer_contacts
@@ -468,6 +542,32 @@ async function createCollections() {
   await safe(
     () => databases.createDatetimeAttribute(dbId, 'parts', 'updated_at', false),
     'attribute parts.updated_at'
+  );
+  
+  // Add fulltext indexes for parts
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'parts',
+        'parts_description_fulltext',
+        'fulltext' as IndexType,
+        ['description'],
+        ['ASC']
+      ),
+    'index parts_description_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'parts',
+        'parts_vendor_fulltext',
+        'fulltext' as IndexType,
+        ['vendor'],
+        ['ASC']
+      ),
+    'index parts_vendor_fulltext'
   );
 
   // 10. add part_ids on tickets

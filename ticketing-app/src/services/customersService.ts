@@ -425,7 +425,7 @@ export const customersService = {
                 typeof item === 'string' ? item : item.$id
               );
               
-              // Remove this contact ID
+              // Remove the contact ID we're deleting
               const updatedContactIds = existingContactIds.filter((contactId: string) => contactId !== id);
               
               // Update the customer
@@ -570,6 +570,168 @@ export const customersService = {
       console.log(`Contact ${contactId} deleted successfully`);
     } catch (error) {
       console.error(`Error deleting contact ${contactId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search customers with pagination support
+   * @param searchQuery The search term
+   * @param searchField The field to search in (default: "name") or "all" to search all fields
+   * @param page The page number (starting at 1)
+   * @param pageSize Number of items per page
+   */
+  searchCustomers: async (
+    searchQuery: string,
+    searchField: string = "name",
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{ customers: Customer[]; total: number }> => {
+    try {
+      const offset = (page - 1) * pageSize;
+      
+      // Helper function for client-side search and filtering
+      const performClientSideSearch = async (
+        searchTermToUse: string,
+        searchableFieldsToUse: string[],
+        offsetToUse: number,
+        pageSizeToUse: number
+      ): Promise<{ customers: Customer[]; total: number }> => {
+        // Get all customers and filter client-side
+        // Note: This is less efficient but provides a fallback
+        const allCustomersResponse = await databases.listDocuments(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          [Query.limit(100)] // Set a reasonable limit to avoid loading too much data
+        );
+        
+        // Perform case-insensitive search across the specified fields
+        const searchTermLower = searchTermToUse.toLowerCase();
+        const filteredCustomers = allCustomersResponse.documents.filter(customer => {
+          // Check if any of the specified fields contain the search term
+          return searchableFieldsToUse.some(field => {
+            const fieldValue = (customer as any)[field];
+            return fieldValue && 
+                  typeof fieldValue === 'string' && 
+                  fieldValue.toLowerCase().includes(searchTermLower);
+          });
+        });
+        
+        // Apply pagination manually
+        const paginatedCustomers = filteredCustomers.slice(offsetToUse, offsetToUse + pageSizeToUse);
+        
+        return {
+          customers: paginatedCustomers as Customer[],
+          total: filteredCustomers.length
+        };
+      };
+      
+      // If there's no search query, just perform regular pagination
+      if (!searchQuery.trim()) {
+        // Create an array of queries for pagination only
+        const queries = [
+          Query.limit(pageSize),
+          Query.offset(offset),
+        ];
+        
+        // Get the paginated data
+        const response = await databases.listDocuments(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          queries
+        );
+        
+        return {
+          customers: response.documents as Customer[],
+          total: response.total
+        };
+      }
+      
+      // Define which fields to search based on searchField
+      const searchableFields = searchField === "all" 
+        ? ["name", "address", "primary_contact_name", "primary_email", "abn"] 
+        : [searchField];
+      
+      // For "all" fields search, we'll try each field one by one until we find results
+      if (searchField === "all") {
+        let combinedResults: Customer[] = [];
+        let totalResults = 0;
+        let foundResults = false;
+        
+        // Try server-side search on each field one by one
+        for (const field of searchableFields) {
+          try {
+            const queries = [
+              Query.limit(100), // Get more results to combine
+              Query.search(field, searchQuery)
+            ];
+            
+            const response = await databases.listDocuments(
+              DATABASE_ID,
+              CUSTOMERS_COLLECTION,
+              queries
+            );
+            
+            if (response.documents.length > 0) {
+              // Add these results to our combined results, avoiding duplicates
+              response.documents.forEach((doc) => {
+                if (!combinedResults.some(existingDoc => existingDoc.$id === doc.$id)) {
+                  combinedResults.push(doc as Customer);
+                }
+              });
+              foundResults = true;
+            }
+          } catch (error) {
+            // Continue to the next field if this one fails
+            console.warn(`Search on field "${field}" failed, trying other fields:`, error);
+          }
+        }
+        
+        // If we found any results through server-side search
+        if (foundResults) {
+          // Sort results - you can customize this based on relevance criteria
+          combinedResults.sort((a, b) => a.name.localeCompare(b.name));
+          
+          // Apply pagination manually
+          totalResults = combinedResults.length;
+          const paginatedResults = combinedResults.slice(offset, offset + pageSize);
+          
+          return {
+            customers: paginatedResults,
+            total: totalResults
+          };
+        }
+        
+        // If no server-side search worked, fall back to client-side filtering
+        console.warn("All server-side searches failed, falling back to client-side filtering");
+        return await performClientSideSearch(searchQuery, searchableFields, offset, pageSize);
+      }
+      
+      // For single field search
+      try {
+        const queries = [
+          Query.limit(pageSize),
+          Query.offset(offset),
+          Query.search(searchField, searchQuery)
+        ];
+        
+        const response = await databases.listDocuments(
+          DATABASE_ID,
+          CUSTOMERS_COLLECTION,
+          queries
+        );
+        
+        return {
+          customers: response.documents as Customer[],
+          total: response.total
+        };
+      } catch (searchError) {
+        // If search fails (likely due to missing fulltext index), fall back to client-side filtering
+        console.warn(`Server-side search failed for field "${searchField}", falling back to client-side filtering:`, searchError);
+        return await performClientSideSearch(searchQuery, searchableFields, offset, pageSize);
+      }
+    } catch (error) {
+      console.error("Error searching customers:", error);
       throw error;
     }
   },
