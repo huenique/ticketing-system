@@ -354,7 +354,7 @@ async function createCollections() {
         false,
         'status_id',
         undefined,
-        'cascade' as RelationMutate,
+        'setNull' as RelationMutate,
       ),
     'relationship tickets.status_id'
   );
