@@ -144,12 +144,36 @@ const useTabsStore = create<TabsState>()(
         const { tabs, activeTab } = get();
         if (tabs.length === 1) return; // Don't close the last tab
 
+        // Get the tab that is being closed
+        const tabToClose = tabs.find(tab => tab.id === tabId);
+        
+        // Remove the tab from the UI
         const newTabs = tabs.filter((tab) => tab.id !== tabId);
         set({ tabs: newTabs });
 
         // If we're closing the active tab, activate another tab
         if (activeTab === tabId) {
           set({ activeTab: newTabs[0].id });
+        }
+        
+        // If the tab has an associated status, delete it from the database
+        if (tabToClose && tabToClose.status) {
+          // Delete the status from Appwrite in the background
+          (async () => {
+            try {
+              // Find the status in Appwrite that matches the tab's title
+              const statuses = await statusesService.getAllStatuses();
+              const statusToDelete = statuses.find(status => status.label === tabToClose.title);
+              
+              // If we found a matching status, delete it
+              if (statusToDelete && statusToDelete.$id) {
+                await statusesService.deleteStatus(statusToDelete.$id);
+                console.log(`Deleted status "${tabToClose.title}" with ID ${statusToDelete.$id} from Appwrite`);
+              }
+            } catch (error) {
+              console.error(`Error deleting status "${tabToClose.title}" from Appwrite:`, error);
+            }
+          })();
         }
       },
 
