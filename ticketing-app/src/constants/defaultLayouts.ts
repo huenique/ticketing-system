@@ -304,13 +304,14 @@ export const defaultTicketLayouts: Layouts = {
   ],
   md: [
     {
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
       i: "widget-1747758922081-status",
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
       minW: 2,
       minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -323,108 +324,114 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 2,
+      h: 2,
+      x: 2,
+      y: 0,
       i: "widget-1747758922081-customer",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 2,
+      i: "widget-1747758922082-date-created",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 2,
+      h: 2,
+      x: 2,
+      y: 2,
+      i: "widget-1747758922082-last-modified",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 2,
+      h: 2,
+      x: 4,
+      y: 2,
+      i: "widget-1747758922082-billable-hours",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 2,
+      h: 2,
+      x: 4,
+      y: 0,
+      i: "widget-1747758922082-total-hours",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 6,
+      h: 4,
       x: 6,
       y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-last-modified",
-      x: 6,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 6,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
       i: "widget-1747758922082-description",
-      x: 0,
-      y: 6,
-      w: 12,
-      h: 4,
       minW: 2,
       minH: 3,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -437,13 +444,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 12,
+      h: 7,
+      x: 0,
+      y: 4,
       i: "widget-1747758922082-assignee-table",
-      x: 0,
-      y: 10,
-      w: 12,
-      h: 5,
       minW: 4,
       minH: 4,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -456,13 +464,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 12,
+      h: 8,
+      x: 0,
+      y: 11,
       i: "widget-1747758922082-time-entries-table",
-      x: 0,
-      y: 15,
-      w: 12,
-      h: 5,
       minW: 4,
       minH: 4,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -475,13 +484,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      i: "widget-1747758922082-attachments-gallery",
-      x: 0,
-      y: 20,
       w: 12,
       h: 5,
+      x: 0,
+      y: 19,
+      i: "widget-1747758922082-attachments-gallery",
       minW: 4,
       minH: 4,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -688,13 +698,14 @@ export const defaultTicketLayouts: Layouts = {
   ],
   xs: [
     {
+      w: 6,
+      h: 2,
+      x: 0,
+      y: 0,
       i: "widget-1747758922081-status",
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
       minW: 2,
       minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -707,13 +718,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 6,
+      h: 2,
+      x: 0,
+      y: 2,
       i: "widget-1747758922081-customer",
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 2,
       minW: 2,
       minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -726,13 +738,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 6,
+      h: 2,
+      x: 0,
+      y: 4,
       i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 6,
-      h: 2,
       minW: 2,
       minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -745,70 +758,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      i: "widget-1747758922082-last-modified",
-      x: 6,
-      y: 2,
       w: 6,
       h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 6,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-description",
       x: 0,
       y: 6,
-      w: 6,
-      h: 4,
+      i: "widget-1747758922082-last-modified",
       minW: 2,
-      minH: 3,
+      minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -821,13 +778,34 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      i: "widget-1747758922082-assignee-table",
+      w: 6,
+      h: 2,
+      x: 0,
+      y: 8,
+      i: "widget-1747758922082-billable-hours",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 6,
+      h: 2,
       x: 0,
       y: 10,
-      w: 6,
-      h: 5,
-      minW: 4,
-      minH: 4,
+      i: "widget-1747758922082-total-hours",
+      minW: 2,
+      minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -840,13 +818,54 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
+      w: 6,
+      h: 4,
+      x: 0,
+      y: 12,
+      i: "widget-1747758922082-description",
+      minW: 2,
+      minH: 3,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 6,
+      h: 5,
+      x: 0,
+      y: 16,
+      i: "widget-1747758922082-assignee-table",
+      minW: 4,
+      minH: 4,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 6,
+      h: 5,
+      x: 0,
+      y: 21,
       i: "widget-1747758922082-time-entries-table",
-      x: 0,
-      y: 15,
-      w: 6,
-      h: 5,
       minW: 4,
       minH: 4,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -859,13 +878,14 @@ export const defaultTicketLayouts: Layouts = {
       ]
     },
     {
-      i: "widget-1747758922082-attachments-gallery",
-      x: 0,
-      y: 20,
       w: 6,
       h: 5,
+      x: 0,
+      y: 26,
+      i: "widget-1747758922082-attachments-gallery",
       minW: 4,
       minH: 4,
+      static: false,
       resizeHandles: [
         "s",
         "w",
