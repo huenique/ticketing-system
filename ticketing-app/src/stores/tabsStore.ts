@@ -260,7 +260,13 @@ const useTabsStore = create<TabsState>()(
     {
       name: "ticket-tabs-storage",
       partialize: (state) => ({
-        tabs: state.tabs,
+        tabs: state.tabs.map(tab => ({
+          id: tab.id,
+          title: tab.title,
+          content: tab.content || '',
+          status: tab.status,
+          appliedPreset: tab.appliedPreset
+        })),
         activeTab: state.activeTab,
       }),
     },
