@@ -51,6 +51,18 @@ export default function Customers() {
     abn: "",
   });
 
+  // State for edit customer dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState({
+    id: "",
+    name: "",
+    address: "",
+    primary_contact_name: "",
+    primary_contact_number: "",
+    primary_email: "",
+    abn: "",
+  });
+
   // State for search
   const [searchValue, setSearchValue] = useState("");
   const searchValueRef = useRef(searchValue);
@@ -120,8 +132,22 @@ export default function Customers() {
   // Handle customer actions (edit and delete)
   const customerActions: CustomerActions = {
     onEdit: (customer: CustomerType) => {
-      // Navigate or open edit dialog
-      console.log("Edit customer:", customer);
+      // Set the editing customer data and open the edit dialog
+      // Use type assertion to safely access properties that might exist in either type
+      const appwriteCustomer = customer as Partial<{ $id: string }>;
+      const commonCustomer = customer as Partial<{ id: string }>;
+      
+      const customerId = appwriteCustomer.$id || commonCustomer.id || "";
+      setEditingCustomer({
+        id: customerId,
+        name: customer.name || "",
+        address: customer.address || "",
+        primary_contact_name: customer.primary_contact_name || "",
+        primary_contact_number: customer.primary_contact_number || "",
+        primary_email: customer.primary_email || "",
+        abn: customer.abn || "",
+      });
+      setIsEditDialogOpen(true);
     },
     onDelete: (itemId: string) => {
       try {
@@ -142,6 +168,39 @@ export default function Customers() {
         toast.error("Failed to delete customer");
       }
     },
+  };
+
+  // Handle updating a customer
+  const handleUpdateCustomer = async () => {
+    try {
+      // Validation
+      if (!editingCustomer.name || !editingCustomer.primary_contact_name || !editingCustomer.primary_email) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      // Update customer
+      await customersService.updateCustomer(editingCustomer.id, {
+        name: editingCustomer.name,
+        address: editingCustomer.address,
+        primary_contact_name: editingCustomer.primary_contact_name,
+        primary_contact_number: editingCustomer.primary_contact_number,
+        primary_email: editingCustomer.primary_email,
+        abn: editingCustomer.abn,
+      });
+
+      // Close dialog
+      setIsEditDialogOpen(false);
+      
+      // Refresh customers
+      refresh();
+      
+      // Show success message
+      toast.success("Customer updated successfully");
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      toast.error("Failed to update customer");
+    }
   };
 
   // Get columns for the data table
@@ -359,6 +418,117 @@ export default function Customers() {
               className="bg-green-700 text-white hover:bg-green-800 font-medium"
             >
               Add Customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-2 border-gray-300">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-gray-900 font-bold">Edit Customer</DialogTitle>
+            <DialogDescription className="text-gray-700">
+              Enter the customer details below to update the customer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="name" className="text-right font-medium text-gray-800">
+                Name*
+              </label>
+              <Input
+                id="name"
+                value={editingCustomer.name}
+                onChange={(e) =>
+                  setEditingCustomer({ ...editingCustomer, name: e.target.value })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="address" className="text-right font-medium text-gray-800">
+                Address
+              </label>
+              <Textarea
+                id="address"
+                value={editingCustomer.address}
+                onChange={(e) =>
+                  setEditingCustomer({ ...editingCustomer, address: e.target.value })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="contact_name" className="text-right font-medium text-gray-800">
+                Contact Name*
+              </label>
+              <Input
+                id="contact_name"
+                value={editingCustomer.primary_contact_name}
+                onChange={(e) =>
+                  setEditingCustomer({
+                    ...editingCustomer,
+                    primary_contact_name: e.target.value,
+                  })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="contact_number" className="text-right font-medium text-gray-800">
+                Contact Number
+              </label>
+              <Input
+                id="contact_number"
+                value={editingCustomer.primary_contact_number}
+                onChange={(e) =>
+                  setEditingCustomer({
+                    ...editingCustomer,
+                    primary_contact_number: e.target.value,
+                  })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="email" className="text-right font-medium text-gray-800">
+                Email*
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={editingCustomer.primary_email}
+                onChange={(e) =>
+                  setEditingCustomer({
+                    ...editingCustomer,
+                    primary_email: e.target.value,
+                  })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="abn" className="text-right font-medium text-gray-800">
+                ABN
+              </label>
+              <Input
+                id="abn"
+                value={editingCustomer.abn}
+                onChange={(e) =>
+                  setEditingCustomer({ ...editingCustomer, abn: e.target.value })
+                }
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              onClick={handleUpdateCustomer}
+              className="bg-green-700 text-white hover:bg-green-800 font-medium"
+            >
+              Update Customer
             </Button>
           </DialogFooter>
         </DialogContent>

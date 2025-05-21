@@ -1541,6 +1541,7 @@ function Tickets() {
         onEditingTitleChange={(e) => setEditingTitle(e.target.value)}
         onRenameKeyDown={handleRenameKeyDown}
         onRenameBlur={useTabsStore.getState().saveTabName}
+        showAddButton={true}
       />
 
       <div className="mt-6">

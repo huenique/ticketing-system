@@ -119,7 +119,7 @@ function TabNavigation({
             onClick={() => onTabClick(tab.id)}
             onDoubleClick={() => onDoubleClick(tab.id)}
             className={cn(
-              "h-9 px-4 transition-colors relative whitespace-nowrap",
+              "h-9 min-w-[120px] px-3 transition-colors relative whitespace-nowrap flex items-center justify-between",
               tab.id === activeTab
                 ? "bg-card border-l border-r border-t border-b-card -mb-px"
                 : "hover:bg-accent text-muted-foreground"
@@ -137,7 +137,7 @@ function TabNavigation({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span>{tab.title}</span>
+              <span className="truncate max-w-[85%]">{tab.title}</span>
             )}
             {onCloseTabClick && tab.id !== "general" && (
               <button
@@ -145,7 +145,7 @@ function TabNavigation({
                   e.stopPropagation();
                   onCloseTabClick(tab.id, e);
                 }}
-                className={`ml-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
+                className={`ml-1.5 flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground ${
                   tab.id === activeTab ? "bg-card" : ""
                 }`}
                 aria-label={`Remove ${tab.title} tab`}
