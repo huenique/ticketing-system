@@ -410,6 +410,17 @@ async function createCollections() {
       databases.createStringAttribute(
         dbId,
         'tickets',
+        'workflow',
+        255,
+        true
+      ),
+    'attribute tickets.workflow'
+  );
+  await safe(
+    () =>
+      databases.createStringAttribute(
+        dbId,
+        'tickets',
         'attachments',
         255,
         false,
