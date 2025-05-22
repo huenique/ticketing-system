@@ -19,6 +19,7 @@ export interface Ticket {
   attachments?: string[];
   assignment_id?: string[]; // Relationship field to ticket_assignments collection
   part_ids?: string[]; // Relationship field to parts collection
+  workflow?: string; // Workflow category for filtering tickets
 }
 
 // Customer interface based on Appwrite schema
