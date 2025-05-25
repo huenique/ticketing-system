@@ -1642,6 +1642,24 @@ function Tickets() {
     setPartsPage(1);
   }, [partsSearchQuery]);
 
+  // Make the refresh counter incrementor available globally
+  // for child components to trigger workflow-filtered refreshes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).incrementTicketsRefreshCounter = () => {
+        console.log('Incrementing tickets refresh counter from external call');
+        setTicketsRefreshCounter(prev => prev + 1);
+      };
+    }
+    
+    // Cleanup
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).incrementTicketsRefreshCounter;
+      }
+    };
+  }, []);
+
   // Refresh data when workflow changes
   useEffect(() => {
     // Skip initial render
