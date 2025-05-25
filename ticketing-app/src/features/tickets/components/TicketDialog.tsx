@@ -245,12 +245,17 @@ const EmailDialog = ({
             <input
               type="text"
               name="to"
-              value={resolvedEmail || emailData.to}
+              value={emailData.to}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter email address"
               required
             />
+            {resolvedEmail && resolvedEmail !== emailData.to && (
+              <p className="mt-1 text-sm text-gray-500">
+                Resolved email: {resolvedEmail}
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
