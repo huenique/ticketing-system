@@ -1,4 +1,4 @@
-import { Edit, Plus, Trash2, Loader2, X } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
@@ -10,26 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import usePartsStore from "@/stores/partsStore";
 import type { Part, PartInput } from "@/stores/partsStore";
 import { DataTable } from "@/components/ui/data-table";
-import { getPartsColumns, PartActions } from "@/features/parts/components/parts-columns";
+import { getPartsColumns } from "@/features/parts/components/parts-columns";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
 // Import server paginated parts hook
@@ -79,8 +64,6 @@ function Parts() {
   // State for search
   const [searchValue, setSearchValue] = useState("");
   const searchValueRef = useRef(searchValue);
-  // Always use "all" for searching all fields and remove the dropdown
-  const selectedSearchField = "all";
 
   // Use server paginated parts hook
   const {

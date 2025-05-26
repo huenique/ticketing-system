@@ -245,12 +245,17 @@ const EmailDialog = ({
             <input
               type="text"
               name="to"
-              value={resolvedEmail || emailData.to}
+              value={emailData.to}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter email address"
               required
             />
+            {resolvedEmail && resolvedEmail !== emailData.to && (
+              <p className="mt-1 text-sm text-gray-500">
+                Resolved email: {resolvedEmail}
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -776,7 +781,22 @@ const DialogFooter = ({
       Cancel
     </button>
     <button
-      onClick={() => handleSaveTicketChanges()}
+      onClick={async () => {
+        await handleSaveTicketChanges();
+        
+        // Force the parent Tickets component to refresh with the correct workflow filter
+        const currentWorkflow = localStorage.getItem("current-workflow");
+        if (currentWorkflow) {
+          console.log(`Saving with active workflow: ${currentWorkflow}`);
+          // This timeout allows the save operation to complete before triggering a refresh
+          setTimeout(() => {
+            // Increment ticketsRefreshCounter in parent if possible
+            if (window.parent && (window.parent as any).incrementTicketsRefreshCounter) {
+              (window.parent as any).incrementTicketsRefreshCounter();
+            }
+          }, 100);
+        }
+      }}
       className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md"
     >
       Save Changes
@@ -995,6 +1015,20 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
     
     // Reset the current ticket preset
     setCurrentTicketPreset(undefined);
+    
+    // Trigger a refresh counter increment in the parent component
+    // This ensures the tickets are filtered by workflow after closing
+    if (window.parent) {
+      try {
+        // Try to access the parent's ticketsRefreshCounter setter
+        const parentWindow = window.parent as any;
+        if (parentWindow.incrementTicketsRefreshCounter) {
+          parentWindow.incrementTicketsRefreshCounter();
+        }
+      } catch (error) {
+        console.log("Could not access parent window function");
+      }
+    }
   };
 
   // Function to open email dialog with direct user email

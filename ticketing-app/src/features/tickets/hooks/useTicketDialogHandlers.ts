@@ -1203,6 +1203,10 @@ export default function useTicketDialogHandlers(
     } = state;
     
     if (!currentTicket) return false;
+    
+    // Get current workflow from localStorage at the start
+    const currentWorkflow = localStorage.getItem("current-workflow") || "engineering";
+    console.log(`Saving ticket changes for workflow: ${currentWorkflow}`);
 
     try {
       // Show loading toast
@@ -1441,9 +1445,21 @@ export default function useTicketDialogHandlers(
         // Get all tickets from database again to refresh the view
         const allTickets = await ticketsService.getAllTickets();
         
+        // Get current workflow from localStorage to filter tickets
+        const currentWorkflow = localStorage.getItem("current-workflow") || "engineering";
+        console.log(`Filtering tickets for current workflow: ${currentWorkflow}`);
+        
+        // Filter tickets by the current workflow before converting to rows
+        const workflowFilteredTickets = allTickets.filter(ticket => 
+          // If ticket has no workflow, treat it as "engineering" for backward compatibility
+          (ticket.workflow || "engineering") === currentWorkflow
+        );
+        
+        console.log(`Filtered ${allTickets.length} tickets to ${workflowFilteredTickets.length} for workflow: ${currentWorkflow}`);
+        
         // Convert tickets to rows
         const ticketsAsRows = await Promise.all(
-          allTickets.map(async (ticket) => {
+          workflowFilteredTickets.map(async (ticket) => {
             return await convertTicketToRow(ticket);
           })
         );

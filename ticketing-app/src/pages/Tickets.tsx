@@ -1205,23 +1205,17 @@ function Tickets() {
   const loadCustomers = async (page = 1, query = "") => {
     setIsLoadingCustomers(true);
     try {
-      // Use the customer service to get paginated results
-      // The service might not have a dedicated pagination method, so we'll use the existing one with limits
-      const result = await fullCustomersService.getAllCustomers({
-        limit: customersLimit, 
-        offset: (page - 1) * customersLimit
-      });
+      // Use the customer service's searchCustomers method for server-side search
+      const result = await fullCustomersService.searchCustomers(
+        query,
+        "all", // Search in all fields
+        page,
+        customersLimit
+      );
       
-      // Filter results on client side if query is provided
-      const filteredCustomers = query 
-        ? result.customers.filter(c => 
-            c.name.toLowerCase().includes(query.toLowerCase())
-          )
-        : result.customers;
-      
-      // Convert the customer data to match the expected format
-      const formattedCustomers: Customer[] = filteredCustomers.map(c => ({
-        id: c.$id,
+      // Map service Customer type to tickets Customer type
+      const mappedCustomers: Customer[] = result.customers.map(c => ({
+        id: c.$id, // Map $id to id
         name: c.name,
         address: c.address,
         primary_contact_name: c.primary_contact_name,
@@ -1233,13 +1227,13 @@ function Tickets() {
         $updatedAt: c.$updatedAt,
       }));
       
-      setDisplayedCustomers(formattedCustomers);
+      setDisplayedCustomers(mappedCustomers);
       setCustomersTotalItems(result.total);
       setCustomersTotalPages(Math.ceil(result.total / customersLimit));
       setCustomers(prev => {
         // Merge with existing customers to maintain selected state
         const existingMap = new Map(prev.map(c => [c.$id, c]));
-        formattedCustomers.forEach(c => existingMap.set(c.$id, c));
+        mappedCustomers.forEach(c => existingMap.set(c.$id, c));
         return Array.from(existingMap.values());
       });
     } catch (error) {
@@ -1254,26 +1248,21 @@ function Tickets() {
   const loadParts = async (page = 1, query = "") => {
     setIsLoadingParts(true);
     try {
-      // Use the parts service to get paginated results
-      const result = await partsService.getAllParts({
-        limit: partsLimit,
-        offset: (page - 1) * partsLimit
-      });
-
-      // Filter results on client side if query is provided
-      const filteredParts = query 
-        ? result.parts.filter(p => 
-            p.description.toLowerCase().includes(query.toLowerCase())
-          )
-        : result.parts;
+      // Use the parts service's searchParts method for server-side search
+      const result = await partsService.searchParts(
+        query,
+        "all", // Search in all fields
+        page,
+        partsLimit
+      );
       
-      setDisplayedParts(filteredParts);
+      setDisplayedParts(result.parts);
       setPartsTotalItems(result.total);
       setPartsTotalPages(Math.ceil(result.total / partsLimit));
       setParts(prev => {
         // Merge with existing parts to maintain selected state
         const existingMap = new Map(prev.map(p => [p.$id, p]));
-        filteredParts.forEach(p => existingMap.set(p.$id, p));
+        result.parts.forEach(p => existingMap.set(p.$id, p));
         return Array.from(existingMap.values());
       });
     } catch (error) {
@@ -1284,19 +1273,19 @@ function Tickets() {
     }
   };
 
-  // Hook for customer search and pagination
+  // Hook for customer search and pagination - only trigger on page change now
   useEffect(() => {
-    if (isCustomerDialogOpen) {
+    if (isCustomerDialogOpen && customersPage > 1) {
       loadCustomers(customersPage, customerSearchQuery);
     }
-  }, [isCustomerDialogOpen, customersPage, customerSearchQuery]);
+  }, [isCustomerDialogOpen, customersPage]);
 
-  // Hook for parts search and pagination
+  // Hook for parts search and pagination - only trigger on page change now
   useEffect(() => {
-    if (isParsDialogOpen) {
+    if (isParsDialogOpen && partsPage > 1) {
       loadParts(partsPage, partsSearchQuery);
     }
-  }, [isParsDialogOpen, partsPage, partsSearchQuery]);
+  }, [isParsDialogOpen, partsPage]);
 
   // Fetch customers and parts only when dialog first opens
   useEffect(() => {
@@ -1642,6 +1631,24 @@ function Tickets() {
     setPartsPage(1);
   }, [partsSearchQuery]);
 
+  // Make the refresh counter incrementor available globally
+  // for child components to trigger workflow-filtered refreshes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).incrementTicketsRefreshCounter = () => {
+        console.log('Incrementing tickets refresh counter from external call');
+        setTicketsRefreshCounter(prev => prev + 1);
+      };
+    }
+    
+    // Cleanup
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).incrementTicketsRefreshCounter;
+      }
+    };
+  }, []);
+
   // Refresh data when workflow changes
   useEffect(() => {
     // Skip initial render
@@ -1955,15 +1962,29 @@ function Tickets() {
                       Search and select the customer for this ticket.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="relative mb-4">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      ref={customerSearchInputRef}
-                      placeholder="Search customers..."
-                      className="pl-8"
-                      value={customerSearchQuery}
-                      onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                    />
+                  <div className="flex gap-2 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        ref={customerSearchInputRef}
+                        placeholder="Search customers..."
+                        className="pl-8"
+                        value={customerSearchQuery}
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            loadCustomers(1, customerSearchQuery);
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button 
+                      onClick={() => loadCustomers(1, customerSearchQuery)}
+                      disabled={isLoadingCustomers}
+                    >
+                      Search
+                    </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto border rounded-md mb-4" style={{ maxHeight: "300px" }}>
                     {isLoadingCustomers ? (
@@ -2379,15 +2400,29 @@ function Tickets() {
                       Search and select parts for this ticket. You can select multiple parts.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="relative mb-4">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      ref={partsSearchInputRef}
-                      placeholder="Search parts..."
-                      className="pl-8"
-                      value={partsSearchQuery}
-                      onChange={(e) => setPartsSearchQuery(e.target.value)}
-                    />
+                  <div className="flex gap-2 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        ref={partsSearchInputRef}
+                        placeholder="Search parts..."
+                        className="pl-8"
+                        value={partsSearchQuery}
+                        onChange={(e) => setPartsSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            loadParts(1, partsSearchQuery);
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button 
+                      onClick={() => loadParts(1, partsSearchQuery)}
+                      disabled={isLoadingParts}
+                    >
+                      Search
+                    </Button>
                   </div>
                   <div className="flex-1 overflow-y-auto border rounded-md mb-4" style={{ maxHeight: "300px" }}>
                     {isLoadingParts ? (
