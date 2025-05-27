@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TimeEntry } from "../../types/tickets";
 import { getFileDownload, getFilePreview, uploadFile, deleteFile } from "@/services/storageService";
 import { Paperclip, Download, Upload, Plus, X } from "lucide-react";
@@ -20,6 +20,15 @@ const TimeEntriesWidget: React.FC<TimeEntriesWidgetProps> = ({
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [deleting, setDeleting] = useState<{ [key: string]: boolean }>({});
+  
+  // Set initial stop time equal to start time for new entries
+  useEffect(() => {
+    timeEntries.forEach(entry => {
+      if (entry.startTime && !entry.stopTime) {
+        handleUpdateTimeEntry?.(entry.id, "stopTime", entry.startTime);
+      }
+    });
+  }, [timeEntries, handleUpdateTimeEntry]);
   
   // Handle file upload
   const handleFileUpload = async (entryId: string, files: FileList) => {
@@ -201,7 +210,7 @@ const TimeEntriesWidget: React.FC<TimeEntriesWidgetProps> = ({
                           e.target.value,
                         )
                       }
-                      className="block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
+                      className="block w-full rounded-md border border-neutral-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50"
                     />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
