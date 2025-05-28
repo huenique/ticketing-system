@@ -1683,10 +1683,20 @@ function Tickets() {
           await applyWorkflowPreset();
         }, 100);
       } else {
-        // Just trigger a refresh of the tickets data for the new workflow
-        setTimeout(() => {
-          setTicketsRefreshCounter(prev => prev + 1);
-        }, 0);
+        // For workflows without presets, just create an empty table and stop loading
+        console.log(`Workflow ${workflowValue} has no preset, creating empty table`);
+        const presetTable = PRESET_TABLES["Engineering"];
+        if (presetTable) {
+          tablesStore.setTables({
+            "tab-all-tickets": {
+              columns: [...presetTable.columns],
+              rows: [],
+            },
+          });
+        }
+        // Stop loading state immediately
+        setTicketsLoading(false);
+        setIsDataFetchInProgress(false);
       }
       
       console.log(`Switched to workflow: ${workflowValue}`);
