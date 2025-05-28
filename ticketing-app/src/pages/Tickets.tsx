@@ -1792,12 +1792,14 @@ function Tickets() {
               {workflow.name}
             </button>
           ))}
-          <button
-            className="px-4 py-2 border-b-2 border-transparent text-gray-600 hover:border-gray-300 flex items-center"
-            onClick={() => setIsNewWorkflowDialogOpen(true)}
-          >
-            <Plus size={16} className="mr-1" /> New Workflow
-          </button>
+          {isAdmin && (
+            <button
+              className="px-4 py-2 border-b-2 border-transparent text-gray-600 hover:border-gray-300 flex items-center"
+              onClick={() => setIsNewWorkflowDialogOpen(true)}
+            >
+              <Plus size={16} className="mr-1" /> New Workflow
+            </button>
+          )}
         </div>
       </div>
 
