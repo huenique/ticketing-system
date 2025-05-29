@@ -66,11 +66,27 @@ export default function StatusWidget({
     loadStatusFromId();
   }, [value, statusOptions, onChange, loading]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = e.target.value;
-    setCurrentValue(newValue);
-    if (onChange) {
-      onChange(newValue);
+  const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLabel = e.target.value;
+    setCurrentValue(newLabel);
+    
+    // Find the status ID for the selected label
+    try {
+      const allStatuses = await statusesService.getAllStatuses();
+      const selectedStatus = allStatuses.find(status => status.label === newLabel);
+      
+      if (selectedStatus) {
+        // Store both the label and ID
+        if (onChange) {
+          onChange(newLabel);
+        }
+      }
+    } catch (error) {
+      console.error("Error finding status ID:", error);
+      // Still update the label even if we can't find the ID
+      if (onChange) {
+        onChange(newLabel);
+      }
     }
   };
 

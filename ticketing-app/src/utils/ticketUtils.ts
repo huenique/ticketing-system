@@ -374,9 +374,13 @@ export function convertTicketToRow(
   // Use $id for Appwrite's document ID if available
   const documentId = ticket.$id || ticket.id || `generated-${Date.now()}`;
 
+  // Store the status label directly in the cells, while keeping the status_id in rawData
+  const statusLabel = status?.label || "";
+  const statusId = status?.$id || status?.id || "";
+
   return {
     id: documentId,
-    completed: status?.label === "Completed" || status?.label === "Done",
+    completed: statusLabel === "Completed" || statusLabel === "Done",
     cells: {
       "col-1": `TK-${documentId.substring(0, 8)}`, // Ticket ID (shortened for display)
       "col-2": dateCreated, // Date Created
@@ -384,12 +388,15 @@ export function convertTicketToRow(
       "col-4": ticket.description || "", // Work Description
       "col-5": assigneeNames, // Assign To
       "col-6": attachmentsStr, // Parts Used or attachments
-      "col-7": status?.label || "", // Status
+      "col-7": statusLabel, // Status (now using the label directly)
       "col-8": ticket.total_hours?.toString() || "0", // Total Hours
       "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
       "col-10": dateCreated, // Last Modified (reuse date created for now)
       "col-11": "action_buttons", // Actions
     },
-    rawData: ticket, // Store the original ticket data
+    rawData: {
+      ...ticket,
+      status_id: statusId, // Keep the original status_id relationship field
+    },
   };
 }
