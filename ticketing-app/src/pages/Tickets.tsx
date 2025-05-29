@@ -5,6 +5,7 @@ import "react-resizable/css/styles.css";
 import { Plus, Search, Check, X, Loader2, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 // React and Hooks
 import { useCallback, useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -1683,10 +1684,20 @@ function Tickets() {
           await applyWorkflowPreset();
         }, 100);
       } else {
-        // Just trigger a refresh of the tickets data for the new workflow
-        setTimeout(() => {
-          setTicketsRefreshCounter(prev => prev + 1);
-        }, 0);
+        // For workflows without presets, just create an empty table and stop loading
+        console.log(`Workflow ${workflowValue} has no preset, creating empty table`);
+        const presetTable = PRESET_TABLES["Engineering"];
+        if (presetTable) {
+          tablesStore.setTables({
+            "tab-all-tickets": {
+              columns: [...presetTable.columns],
+              rows: [],
+            },
+          });
+        }
+        // Stop loading state immediately
+        setTicketsLoading(false);
+        setIsDataFetchInProgress(false);
       }
       
       console.log(`Switched to workflow: ${workflowValue}`);
@@ -1766,31 +1777,100 @@ function Tickets() {
       <div className="mb-6">
         <div className="flex items-center overflow-x-auto border-b">
           {workflows.map((workflow) => (
-            <button
+            <div
               key={workflow.id}
-              className={`px-4 py-2 border-b-2 whitespace-nowrap ${
-                currentWorkflow === workflow.id
-                  ? "border-blue-500 text-blue-600 font-medium"
-                  : "border-transparent hover:border-gray-300"
-              }`}
-              onClick={() => {
-                // Only do work if changing to a different workflow
-                if (currentWorkflow !== workflow.id && !isDataFetchInProgress && !ticketsLoading) {
-                  // Start loading state to prevent multiple clicks
-                  setIsDataFetchInProgress(true);
-                  setTicketsLoading(true);
-                  
-                  // Just set the current workflow - the useEffect will handle the rest
-                  setCurrentWorkflow(workflow.id);
-                  
-                  // End loading state - the useEffect will handle data fetching
-                  setTicketsLoading(false);
-                  setIsDataFetchInProgress(false);
-                }
-              }}
+              className="flex items-center"
             >
-              {workflow.name}
-            </button>
+              <button
+                className={`px-4 py-2 border-b-2 whitespace-nowrap ${
+                  currentWorkflow === workflow.id
+                    ? "border-blue-500 text-blue-600 font-medium"
+                    : "border-transparent hover:border-gray-300"
+                }`}
+                onClick={() => {
+                  // Only do work if changing to a different workflow
+                  if (currentWorkflow !== workflow.id && !isDataFetchInProgress && !ticketsLoading) {
+                    // Start loading state to prevent multiple clicks
+                    setIsDataFetchInProgress(true);
+                    setTicketsLoading(true);
+                    
+                    // Just set the current workflow - the useEffect will handle the rest
+                    setCurrentWorkflow(workflow.id);
+                    
+                    // End loading state - the useEffect will handle data fetching
+                    setTicketsLoading(false);
+                    setIsDataFetchInProgress(false);
+                  }
+                }}
+              >
+                {workflow.name}
+              </button>
+              {isAdmin && workflow.id !== "engineering" && (
+                <button
+                  className="p-1 text-gray-400 hover:text-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent tab switch
+                    toast.custom(
+                      (t) => (
+                        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border-2 border-gray-300 dark:border-gray-700">
+                          <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1 text-lg">
+                            Delete Workflow
+                          </h3>
+                          <p className="text-gray-700 dark:text-gray-300 mb-4">
+                            Are you sure you want to delete the "{workflow.name}" workflow?
+                          </p>
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => toast.dismiss(t)}
+                              className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 font-medium"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => {
+                                toast.dismiss(t);
+                                // Remove from workflows list
+                                setWorkflows(prev => prev.filter(w => w.id !== workflow.id));
+                                
+                                // Remove from applied presets if it was there
+                                setAppliedPresetWorkflows(prev => prev.filter(w => w !== workflow.id));
+                                
+                                // If this was the current workflow, switch to engineering
+                                if (currentWorkflow === workflow.id) {
+                                  setCurrentWorkflow("engineering");
+                                }
+                                
+                                // Clear any tables for this workflow
+                                const tablesStore = useTablesStore.getState();
+                                const currentTables = { ...tablesStore.tables };
+                                Object.keys(currentTables).forEach(key => {
+                                  if (key.startsWith(`tab-${workflow.id}`)) {
+                                    delete currentTables[key];
+                                  }
+                                });
+                                tablesStore.setTables(currentTables);
+
+                                // Show success message
+                                toast.success(`Workflow "${workflow.name}" has been deleted`);
+                              }}
+                              className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ),
+                      {
+                        duration: Infinity,
+                        position: "top-center",
+                      }
+                    );
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           ))}
           {isAdmin && (
             <button

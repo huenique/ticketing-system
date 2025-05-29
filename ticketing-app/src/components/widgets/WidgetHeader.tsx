@@ -41,56 +41,56 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   };
 
   return (
-    <div
-      className={cn(
-        "bg-neutral-50 border-b border-neutral-200 py-1 px-2 flex items-center justify-between",
+    <div className="bg-neutral-50 border-b border-neutral-200 py-1 px-2 flex items-center justify-between">
+      <div className={cn(
+        "flex-1",
         isEditMode ? "react-grid-dragHandle" : "",
-      )}
-    >
-      <h3 className="text-xs font-medium text-neutral-700 truncate flex-1">
-        {isEditingTitle ? (
-          <input
-            type="text"
-            value={editableTitle}
-            onChange={handleTitleChange}
-            onBlur={handleTitleSave}
-            onKeyDown={handleTitleKeyDown}
-            className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-0.5 px-1 text-xs focus:outline-none focus:ring-blue-500"
-            autoFocus
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            style={{ width: `${Math.max(100, editableTitle.length * 8)}px` }}
-          />
-        ) : (
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (isEditMode && updateWidgetTitle) {
-                setIsEditingTitle(true);
-              }
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            className={cn(
-              "py-0.5 px-1 rounded",
-              isEditMode && updateWidgetTitle
-                ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600"
-                : "",
-            )}
-          >
-            {widget.title || "Widget"}
-          </span>
-        )}
-      </h3>
+      )}>
+        <h3 className="text-xs font-medium text-neutral-700 truncate">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editableTitle}
+              onChange={handleTitleChange}
+              onBlur={handleTitleSave}
+              onKeyDown={handleTitleKeyDown}
+              className="w-auto min-w-[100px] inline-block border border-neutral-300 rounded-md py-0.5 px-1 text-xs focus:outline-none focus:ring-blue-500"
+              autoFocus
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              style={{ width: `${Math.max(100, editableTitle.length * 8)}px` }}
+            />
+          ) : (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (isEditMode && updateWidgetTitle) {
+                  setIsEditingTitle(true);
+                }
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              className={cn(
+                "py-0.5 px-1 rounded",
+                isEditMode && updateWidgetTitle
+                  ? "cursor-pointer hover:bg-neutral-100 hover:text-blue-600"
+                  : "",
+              )}
+            >
+              {widget.title || "Widget"}
+            </span>
+          )}
+        </h3>
+      </div>
 
       {isEditMode && (
         <div className="flex items-center space-x-1 ml-2">
