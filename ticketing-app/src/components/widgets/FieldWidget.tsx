@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Widget, TicketForm, Row } from "../../types/tickets";
 import StatusWidget from "./StatusWidget";
 import { Textarea } from "@/components/ui/textarea";
+import { PartsWidget } from "@/features/widgets/components/PartsWidget";
 
 interface FieldWidgetProps {
   widget: Widget;
@@ -224,6 +225,15 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
             onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
             className="text-sm"
           />
+        </div>
+      );
+
+    case "parts":
+      // Get parts from the current ticket's raw data
+      const parts = currentTicket?.rawData?.part_ids || [];
+      return (
+        <div className="h-full">
+          <PartsWidget parts={parts} />
         </div>
       );
 

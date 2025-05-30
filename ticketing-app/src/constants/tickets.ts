@@ -23,6 +23,7 @@ export const WIDGET_TYPES = {
   FIELD_ASSIGNEE_TABLE: "field_assignee_table",
   FIELD_TIME_ENTRIES_TABLE: "field_time_entries_table",
   FIELD_ATTACHMENTS_GALLERY: "field_attachments_gallery",
+  FIELD_PARTS: "field_parts",
 };
 
 // Presets for tables
