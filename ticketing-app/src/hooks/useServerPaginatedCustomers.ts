@@ -109,6 +109,15 @@ export const useServerPaginatedCustomers = (options: UseServerPaginatedCustomers
     }));
   };
 
+  // Function to change the page size
+  const changePageSize = (newPageSize: number) => {
+    setPagination((prev) => ({
+      ...prev,
+      pageSize: newPageSize,
+      currentPage: 1 // Reset to first page when changing page size
+    }));
+  };
+
   // Function to update the search term
   const updateSearch = (term: string, field: string = searchField) => {
     setSearchTerm(term);
@@ -126,6 +135,7 @@ export const useServerPaginatedCustomers = (options: UseServerPaginatedCustomers
     searchFields,
     goToPage,
     updateSearch,
+    changePageSize,
     refresh: fetchCustomers
   };
 }; 

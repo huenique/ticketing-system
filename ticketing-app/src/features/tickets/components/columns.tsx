@@ -265,7 +265,7 @@ export const columns: ColumnDef<Row>[] = [
         case "In Progress":
           statusClass = "bg-orange-500/20 text-orange-500";
           break;
-        case "Awaiting Parts":
+        case "Awaiting for Parts":
           statusClass = "bg-amber-500/20 text-amber-500";
           break;
         case "Awaiting Customer Response":

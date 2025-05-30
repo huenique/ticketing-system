@@ -80,6 +80,7 @@ export default function Customers() {
     searchFields,
     goToPage,
     updateSearch,
+    changePageSize,
     refresh
   } = useServerPaginatedCustomers({
     initialPage: 1,
@@ -87,6 +88,11 @@ export default function Customers() {
     initialSearchTerm: "",
     initialSearchField: "all"
   });
+
+  // Add handler for page size changes
+  const handlePageSizeChange = (newPageSize: number) => {
+    changePageSize(newPageSize);
+  };
 
   // Handle adding a new customer
   const handleAddCustomer = async () => {
@@ -303,8 +309,8 @@ export default function Customers() {
             currentPage: pagination.currentPage,
             totalItems: pagination.totalItems,
             onPageChange: goToPage,
-            onPageSizeChange: () => {}, // Not used in this implementation
-            pageSizeOptions: [10, 20, 50], // Default options
+            onPageSizeChange: handlePageSizeChange,
+            pageSizeOptions: [10, 20, 50],
             isLoading: isLoading,
             onSearch: updateSearch
           }}
