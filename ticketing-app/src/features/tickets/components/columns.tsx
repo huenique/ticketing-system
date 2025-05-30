@@ -226,21 +226,8 @@ export const columns: ColumnDef<Row>[] = [
         );
       }
 
-      // Fall back to attachments if no parts are found
-      const attachmentItems = parts.split(", ");
-      
-      return (
-        <div className="flex flex-wrap gap-2">
-          {attachmentItems.map((item: string, index: number) => {
-            // Check if the attachment includes a name in format "id:name"
-            const parts = item.split(":");
-            const fileId = parts[0];
-            const fileName = parts.length > 1 ? parts[1] : null;
-
-            return <FileAttachment key={index} fileId={fileId} fileName={fileName} />;
-          })}
-        </div>
-      );
+      // If no parts are found, just return a dash
+      return "-";
     },
   },
   {
