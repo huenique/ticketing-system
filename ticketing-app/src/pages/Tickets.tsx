@@ -6,6 +6,7 @@ import { Plus, Search, Check, X, Loader2, ChevronLeft, ChevronRight, Settings } 
 // React and Hooks
 import { useCallback, useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -287,9 +288,13 @@ function Tickets() {
         const tabsStore = useTabsStore.getState();
         const settingsStore = useSettingsStore.getState();
 
-        // Check if engineering preset is applied
-        if (!hasEngineeringPreset()) {
-          // If engineering preset is not applied, only ensure we have an All Tickets tab
+        // Check if engineering preset is applied and hasn't been reset
+        const storeTabs = tabsStore.tabs;
+        const hasPreset = storeTabs.some((tab) => tab.appliedPreset === "Engineering");
+        const hasBeenReset = !appliedPresetWorkflows.includes(currentWorkflow);
+
+        if (!hasPreset || hasBeenReset) {
+          // If engineering preset is not applied or has been reset, only ensure we have an All Tickets tab
           const existingTabs = tabsStore.tabs;
           
           // If we don't have any tabs yet, create just the All Tickets tab
@@ -308,7 +313,7 @@ function Tickets() {
           return;
         }
 
-        // Below code only runs if engineering preset is applied
+        // Below code only runs if engineering preset is applied and hasn't been reset
         // Fetch the status options from the settings store
         await settingsStore.fetchStatusOptions();
 
@@ -379,8 +384,7 @@ function Tickets() {
     return () => {
       isMounted = false;
     };
-    // Use ticketsRefreshCounter but remove hasEngineeringPreset dependency
-  }, [ticketsRefreshCounter]);
+  }, [ticketsRefreshCounter, currentWorkflow, appliedPresetWorkflows]);
 
   // Load tables from localStorage on initial render
   useEffect(() => {
@@ -934,67 +938,6 @@ function Tickets() {
     setWidgets(updatedWidgets);
   };
 
-  // Custom handleFieldChange to handle ticket status updates
-  const handleFieldChange = (field: string, value: string | number) => {
-    // First, update the widget value in the widgets store
-    // Check if this is a number field and value is empty string, convert to "0" instead of null
-    const processedValue = (field === 'billable_hours' || field === 'total_hours') && value === '' 
-      ? "0" // Convert empty string to "0" as a string to maintain type compatibility
-      : value;
-    
-    useWidgetsStore.getState().handleFieldChange(field, processedValue.toString());
-
-    // If this is a status change and we have a current ticket, update it in all tables
-    if (field === "status" && ticketDialogHandlers.currentTicket) {
-      const currentTicket = ticketDialogHandlers.currentTicket;
-      const updatedTables = { ...tables };
-
-      // First update the ticket in the All Tickets tab (or current tab if not using tabs with status)
-      const allTicketsTab = "tab-all-tickets";
-      if (updatedTables[allTicketsTab]) {
-        // Find and update the row in the All Tickets tab
-        updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map(
-          (row: Row) => {
-            if (row.id === currentTicket.id) {
-              return {
-                ...row,
-                cells: {
-                  ...row.cells,
-                  "col-7": processedValue.toString(), // Update Status column
-                },
-              };
-            }
-            return row;
-          },
-        );
-      }
-
-      // Also update the row in the current tab if it's not the All Tickets tab
-      if (activeTab !== allTicketsTab && updatedTables[activeTab]) {
-        updatedTables[activeTab].rows = updatedTables[activeTab].rows.map(
-          (row: Row) => {
-            if (row.id === currentTicket.id) {
-              return {
-                ...row,
-                cells: {
-                  ...row.cells,
-                  "col-7": processedValue.toString(), // Update Status column
-                },
-              };
-            }
-            return row;
-          },
-        );
-      }
-
-      // Update the global tables state
-      useTablesStore.getState().setTables(updatedTables);
-
-      // Refresh all status-based tabs with updated data
-      refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
-    }
-  };
-
   // Function to refresh all status-based tabs based on updated All Tickets data
   const refreshStatusTabs = (allTicketsRows: Row[]) => {
     // Get a reference to the tables store
@@ -1006,7 +949,7 @@ function Tickets() {
     if (!presetTable) return;
 
     // Loop through all tabs
-    tabs.forEach((tab) => {
+    tabs.forEach((tab: { id: string; status?: string }) => {
       // Skip the All Tickets tab
       if (tab.id === "tab-all-tickets" || !tab.status) return;
 
@@ -1025,6 +968,86 @@ function Tickets() {
 
     // Update all tables at once
     tablesStore.setTables(updatedTables);
+  };
+
+  // Custom handleFieldChange to handle ticket status updates
+  const handleFieldChange = async (field: string, value: string | number) => {
+    // First, update the widget value in the widgets store
+    // Check if this is a number field and value is empty string, convert to "0" instead of null
+    const processedValue = (field === 'billable_hours' || field === 'total_hours') && value === '' 
+      ? "0" // Convert empty string to "0" as a string to maintain type compatibility
+      : value;
+    
+    useWidgetsStore.getState().handleFieldChange(field, processedValue.toString());
+
+    // If this is a status change and we have a current ticket, update it in all tables
+    if (field === "status" && ticketDialogHandlers.currentTicket) {
+      const currentTicket = ticketDialogHandlers.currentTicket;
+      const updatedTables = { ...tables };
+
+      // Get the status ID for the selected label
+      try {
+        const allStatuses = await statusesService.getAllStatuses();
+        const selectedStatus = allStatuses.find(status => status.label === processedValue);
+        
+        if (selectedStatus) {
+          // First update the ticket in the All Tickets tab (or current tab if not using tabs with status)
+          const allTicketsTab = "tab-all-tickets";
+          if (updatedTables[allTicketsTab]) {
+            // Find and update the row in the All Tickets tab
+            updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map(
+              (row: Row) => {
+                if (row.id === currentTicket.id) {
+                  return {
+                    ...row,
+                    cells: {
+                      ...row.cells,
+                      "col-7": processedValue.toString(), // Update Status column with label
+                    },
+                    rawData: {
+                      ...row.rawData,
+                      status_id: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
+                    },
+                  };
+                }
+                return row;
+              },
+            );
+          }
+
+          // Also update the row in the current tab if it's not the All Tickets tab
+          if (activeTab !== allTicketsTab && updatedTables[activeTab]) {
+            updatedTables[activeTab].rows = updatedTables[activeTab].rows.map(
+              (row: Row) => {
+                if (row.id === currentTicket.id) {
+                  return {
+                    ...row,
+                    cells: {
+                      ...row.cells,
+                      "col-7": processedValue.toString(), // Update Status column with label
+                    },
+                    rawData: {
+                      ...row.rawData,
+                      status_id: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
+                    },
+                  };
+                }
+                return row;
+              },
+            );
+          }
+
+          // Update the global tables state
+          useTablesStore.getState().setTables(updatedTables);
+
+          // Refresh all status-based tabs with updated data
+          refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
+        }
+      } catch (error) {
+        console.error("Error updating status:", error);
+        toast.error("Failed to update status");
+      }
+    }
   };
 
   // ===== Ticket Dialog Handlers =====
@@ -1710,6 +1733,41 @@ function Tickets() {
     localStorage.setItem("current-workflow", currentWorkflow);
   }, [currentWorkflow, appliedPresetWorkflows]);
 
+  // Modify the Reset button click handler
+  const handleReset = async () => {
+    try {
+      setTicketsLoading(true);
+      
+      // First call the original resetTabs function
+      resetTabs();
+      
+      // Then delete all statuses
+      const allStatuses = await statusesService.getAllStatuses();
+      console.log(`Deleting ${allStatuses.length} statuses from collection`);
+      
+      // Delete each status one by one
+      for (const status of allStatuses) {
+        if (status.$id) {
+          await statusesService.deleteStatus(status.$id);
+          console.log(`Deleted status ${status.label} with ID ${status.$id}`);
+        }
+      }
+      
+      // Remove this workflow from appliedPresetWorkflows
+      setAppliedPresetWorkflows(prev => prev.filter(w => w !== currentWorkflow));
+      
+      // Increment the refresh counter to update the UI
+      setTicketsRefreshCounter(prev => prev + 1);
+      
+      console.log("All statuses deleted successfully");
+    } catch (error) {
+      console.error("Error resetting data:", error);
+      setTicketsError(error instanceof Error ? error : new Error("Failed to reset data"));
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-full">
       <div className="flex items-center justify-between mb-6">
@@ -1730,36 +1788,7 @@ function Tickets() {
             Apply Preset to {workflows.find(w => w.id === currentWorkflow)?.name || "Current Workflow"}
           </Button>
           <Button
-            onClick={async () => {
-              try {
-                setTicketsLoading(true);
-                
-                // First call the original resetTabs function
-                resetTabs();
-                
-                // Then delete all statuses
-                const allStatuses = await statusesService.getAllStatuses();
-                console.log(`Deleting ${allStatuses.length} statuses from collection`);
-                
-                // Delete each status one by one
-                for (const status of allStatuses) {
-                  if (status.$id) {
-                    await statusesService.deleteStatus(status.$id);
-                    console.log(`Deleted status ${status.label} with ID ${status.$id}`);
-                  }
-                }
-                
-                // Increment the refresh counter to update the UI
-                setTicketsRefreshCounter(prev => prev + 1);
-                
-                console.log("All statuses deleted successfully");
-              } catch (error) {
-                console.error("Error resetting data:", error);
-                setTicketsError(error instanceof Error ? error : new Error("Failed to reset data"));
-              } finally {
-                setTicketsLoading(false);
-              }
-            }}
+            onClick={handleReset}
             className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
           >
             Reset

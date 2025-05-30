@@ -91,48 +91,17 @@ const EmailDialog = ({
   isOpen,
   onClose,
   ticketDetails,
-  auth_user_id,
 }: {
   isOpen: boolean;
   onClose: () => void;
   ticketDetails: Row;
-  auth_user_id?: string;
 }) => {
-  // Initialize state with auth_user_id if available
+  // Initialize state with empty values
   const [emailData, setEmailData] = useState({
-    to: auth_user_id || "",
+    to: "",
     message: "",
     subject: `Ticket Details #${ticketDetails?.cells["col-1"] || ""}`,
   });
-  
-  // Add state for resolved email
-  const [resolvedEmail, setResolvedEmail] = useState("");
-  
-  // Update emailData when the dialog opens and auth_user_id changes
-  useEffect(() => {
-    if (isOpen && auth_user_id) {
-      setEmailData(prev => ({
-        ...prev,
-        to: auth_user_id
-      }));
-    }
-  }, [isOpen, auth_user_id]);
-  
-  // Fetch the email address when the userId changes
-  useEffect(() => {
-    async function getEmail() {
-      if (emailData.to) {
-        try {
-          const email = await fetchUserEmail(emailData.to);
-          if (email) setResolvedEmail(email);
-        } catch (error) {
-          console.error("Failed to fetch email:", error);
-        }
-      }
-    }
-    
-    getEmail();
-  }, [emailData.to]);
   
   const [isSending, setIsSending] = useState(false);
 
@@ -148,14 +117,13 @@ const EmailDialog = ({
     
     // Simple email validation regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const emailToSend = resolvedEmail || emailData.to;
     
-    if (!emailToSend || emailToSend.trim() === '') {
+    if (!emailData.to || emailData.to.trim() === '') {
       toast.error("Please enter a recipient email");
       return;
     }
     
-    if (!emailRegex.test(emailToSend)) {
+    if (!emailRegex.test(emailData.to)) {
       toast.error("Please enter a valid email address");
       return;
     }
@@ -175,8 +143,7 @@ const EmailDialog = ({
       
       // Create form data for the endpoint with proper subject
       const formData = new URLSearchParams();
-      // Use the manually entered email if no resolved email exists
-      formData.append('email', emailToSend);
+      formData.append('email', emailData.to);
       formData.append('message', messageContent);
       formData.append('subject', emailData.subject);
 
@@ -243,7 +210,7 @@ const EmailDialog = ({
               Send to:
             </label>
             <input
-              type="text"
+              type="email"
               name="to"
               value={emailData.to}
               onChange={handleChange}
@@ -251,11 +218,6 @@ const EmailDialog = ({
               placeholder="Enter email address"
               required
             />
-            {resolvedEmail && resolvedEmail !== emailData.to && (
-              <p className="mt-1 text-sm text-gray-500">
-                Resolved email: {resolvedEmail}
-              </p>
-            )}
           </div>
 
           <div className="mb-4">
@@ -1187,7 +1149,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             isOpen={isEmailDialogOpen}
             onClose={() => setIsEmailDialogOpen(false)}
             ticketDetails={currentTicket}
-            auth_user_id={userEmail}
           />
         )}
       </div>
