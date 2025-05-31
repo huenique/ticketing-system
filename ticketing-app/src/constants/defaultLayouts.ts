@@ -110,425 +110,151 @@ export const defaultTicketWidgets: Widget[] = [
 export const defaultTicketLayouts: Layouts = {
   lg: [
     {
-      w: 6,
-      h: 2,
-      x: 0,
-      y: 0,
-      i: "widget-1747758922081-status",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 6,
-      h: 2,
-      x: 6,
-      y: 0,
-      i: "widget-1747758922081-customer",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 6,
-      h: 2,
-      x: 0,
-      y: 2,
-      i: "widget-1747758922082-date-created",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 6,
-      h: 2,
-      x: 6,
-      y: 2,
-      i: "widget-1747758922082-last-modified",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 6,
-      h: 2,
-      x: 0,
-      y: 4,
-      i: "widget-1747758922082-billable-hours",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 6,
-      h: 2,
-      x: 6,
-      y: 4,
-      i: "widget-1747758922082-total-hours",
-      minW: 2,
-      minH: 2,
-      static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      w: 12,
+      w: 4,
       h: 4,
       x: 0,
-      y: 6,
+      y: 0,
       i: "widget-1747758922082-description",
       minW: 2,
-      minH: 3,
+      minH: 2,
       static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       w: 12,
-      h: 5,
+      h: 7,
       x: 0,
-      y: 10,
+      y: 4,
       i: "widget-1747758922082-assignee-table",
-      minW: 4,
-      minH: 4,
+      minW: 2,
+      minH: 2,
       static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       w: 12,
       h: 5,
       x: 0,
-      y: 15,
+      y: 11,
       i: "widget-1747758922082-time-entries-table",
-      minW: 4,
-      minH: 4,
+      minW: 2,
+      minH: 2,
       static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
-      w: 6,
-      h: 5,
-      x: 0,
-      y: 20,
+      w: 4,
+      h: 4,
+      x: 4,
+      y: 0,
       i: "widget-1747758922082-attachments-gallery",
-      minW: 4,
-      minH: 4,
+      minW: 2,
+      minH: 2,
       static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
-      w: 6,
-      h: 5,
-      x: 6,
-      y: 20,
+      w: 4,
+      h: 4,
+      x: 8,
+      y: 0,
       i: "widget-1747758922082-parts",
       minW: 2,
       minH: 2,
       static: false,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     }
   ],
   md: [
     {
-      i: "widget-1747758922081-status",
+      w: 4,
+      h: 5,
       x: 0,
       y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922081-customer",
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-last-modified",
-      x: 6,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 6,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
       i: "widget-1747758922082-description",
-      x: 0,
-      y: 6,
-      w: 12,
-      h: 4,
-      minW: 2,
-      minH: 3,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-assignee-table",
-      x: 0,
-      y: 10,
-      w: 12,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-time-entries-table",
-      x: 0,
-      y: 15,
-      w: 12,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-attachments-gallery",
-      x: 0,
-      y: 20,
-      w: 12,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-parts",
-      x: 0,
-      y: 25,
-      w: 3,
-      h: 2,
       minW: 2,
       minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 12,
+      h: 9,
+      x: 0,
+      y: 5,
+      i: "widget-1747758922082-assignee-table",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 12,
+      h: 6,
+      x: 0,
+      y: 14,
+      i: "widget-1747758922082-time-entries-table",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 4,
+      h: 5,
+      x: 4,
+      y: 0,
+      i: "widget-1747758922082-attachments-gallery",
+      minW: 2,
+      minH: 2,
+      static: false,
+      resizeHandles: [
+        "s",
+        "w",
+        "e",
+        "n",
+        "sw",
+        "nw",
+        "se",
+        "ne"
+      ]
+    },
+    {
+      w: 4,
+      h: 5,
+      x: 8,
+      y: 0,
+      i: "widget-1747758922082-parts",
+      minW: 2,
+      minH: 2,
+      static: false,
       resizeHandles: [
         "s",
         "w",
@@ -543,635 +269,106 @@ export const defaultTicketLayouts: Layouts = {
   ],
   sm: [
     {
-      i: "widget-1747758922081-status",
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922081-customer",
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-last-modified",
-      x: 6,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 6,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
       i: "widget-1747758922082-description",
       x: 0,
-      y: 6,
+      y: 0,
       w: 12,
-      h: 4,
+      h: 3,
       minW: 2,
-      minH: 3,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-assignee-table",
       x: 0,
-      y: 10,
+      y: 3,
       w: 12,
       h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-time-entries-table",
       x: 0,
-      y: 15,
+      y: 8,
       w: 12,
       h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-attachments-gallery",
       x: 0,
-      y: 20,
+      y: 13,
       w: 12,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      h: 3,
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-parts",
       x: 0,
-      y: 25,
-      w: 3,
-      h: 2,
+      y: 16,
+      w: 12,
+      h: 3,
       minW: 2,
       minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     }
   ],
   xs: [
     {
-      i: "widget-1747758922081-status",
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922081-customer",
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-last-modified",
-      x: 6,
-      y: 2,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 6,
-      y: 4,
-      w: 6,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
       i: "widget-1747758922082-description",
       x: 0,
-      y: 6,
-      w: 6,
-      h: 4,
+      y: 0,
+      w: 12,
+      h: 3,
       minW: 2,
-      minH: 3,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-assignee-table",
       x: 0,
-      y: 10,
-      w: 6,
+      y: 3,
+      w: 12,
       h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-time-entries-table",
       x: 0,
-      y: 15,
-      w: 6,
+      y: 8,
+      w: 12,
       h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-attachments-gallery",
       x: 0,
-      y: 20,
-      w: 6,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      y: 13,
+      w: 12,
+      h: 3,
+      minW: 2,
+      minH: 2,
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     },
     {
       i: "widget-1747758922082-parts",
       x: 0,
-      y: 25,
-      w: 3,
-      h: 2,
+      y: 16,
+      w: 12,
+      h: 3,
       minW: 2,
       minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    }
-  ],
-  xxs: [
-    {
-      i: "widget-1747758922081-status",
-      x: 0,
-      y: 0,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922081-customer",
-      x: 4,
-      y: 0,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-date-created",
-      x: 0,
-      y: 2,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-last-modified",
-      x: 4,
-      y: 2,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-billable-hours",
-      x: 0,
-      y: 4,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-total-hours",
-      x: 4,
-      y: 4,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-description",
-      x: 0,
-      y: 6,
-      w: 4,
-      h: 4,
-      minW: 2,
-      minH: 3,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-assignee-table",
-      x: 0,
-      y: 10,
-      w: 4,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-time-entries-table",
-      x: 0,
-      y: 15,
-      w: 4,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-attachments-gallery",
-      x: 0,
-      y: 20,
-      w: 4,
-      h: 5,
-      minW: 4,
-      minH: 4,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
-    },
-    {
-      i: "widget-1747758922082-parts",
-      x: 0,
-      y: 25,
-      w: 4,
-      h: 2,
-      minW: 2,
-      minH: 2,
-      resizeHandles: [
-        "s",
-        "w",
-        "e",
-        "n",
-        "sw",
-        "nw",
-        "se",
-        "ne"
-      ]
+      resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
     }
   ]
 };
@@ -1186,8 +383,264 @@ export const initializeDefaultLayouts = () => {
         layouts: defaultTicketLayouts
       },
       "tab-tab-1": {
-        widgets: defaultTicketWidgets,
-        layouts: defaultTicketLayouts
+        widgets: [
+          {
+            id: "widget-1747758922082-description",
+            type: "field_description",
+            title: "Description",
+            field: "description",
+            fieldType: "textarea",
+            collapsed: false,
+            value: "test"
+          },
+          {
+            id: "widget-1747758922082-assignee-table",
+            type: "field_assignee_table",
+            title: "Team Members",
+            field: "assigneeTable",
+            fieldType: "table",
+            collapsed: false
+          },
+          {
+            id: "widget-1747758922082-time-entries-table",
+            type: "field_time_entries_table",
+            title: "Time Entries",
+            field: "timeEntriesTable",
+            fieldType: "table",
+            collapsed: false
+          },
+          {
+            id: "widget-1747758922082-attachments-gallery",
+            type: "field_attachments_gallery",
+            title: "Attachments",
+            field: "attachmentsGallery",
+            fieldType: "gallery",
+            collapsed: false
+          },
+          {
+            id: "widget-1747758922082-parts",
+            type: "field_parts",
+            title: "Parts Used",
+            field: "parts",
+            fieldType: "parts",
+            collapsed: false
+          }
+        ],
+        layouts: {
+          lg: [
+            {
+              w: 12,
+              h: 3,
+              x: 0,
+              y: 0,
+              i: "widget-1747758922082-description",
+              minW: 2,
+              minH: 2,
+              static: false,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              w: 12,
+              h: 5,
+              x: 0,
+              y: 3,
+              i: "widget-1747758922082-assignee-table",
+              minW: 2,
+              minH: 2,
+              static: false,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              w: 12,
+              h: 5,
+              x: 0,
+              y: 8,
+              i: "widget-1747758922082-time-entries-table",
+              minW: 2,
+              minH: 2,
+              static: false,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              w: 6,
+              h: 3,
+              x: 0,
+              y: 13,
+              i: "widget-1747758922082-attachments-gallery",
+              minW: 2,
+              minH: 2,
+              static: false,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              w: 6,
+              h: 3,
+              x: 6,
+              y: 13,
+              i: "widget-1747758922082-parts",
+              minW: 2,
+              minH: 2,
+              static: false,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            }
+          ],
+          md: [
+            {
+              i: "widget-1747758922082-description",
+              x: 0,
+              y: 0,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-assignee-table",
+              x: 0,
+              y: 3,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-time-entries-table",
+              x: 0,
+              y: 8,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-attachments-gallery",
+              x: 0,
+              y: 13,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-parts",
+              x: 0,
+              y: 16,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            }
+          ],
+          sm: [
+            {
+              i: "widget-1747758922082-description",
+              x: 0,
+              y: 0,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-assignee-table",
+              x: 0,
+              y: 3,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-time-entries-table",
+              x: 0,
+              y: 8,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-attachments-gallery",
+              x: 0,
+              y: 13,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-parts",
+              x: 0,
+              y: 16,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            }
+          ],
+          xs: [
+            {
+              i: "widget-1747758922082-description",
+              x: 0,
+              y: 0,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-assignee-table",
+              x: 0,
+              y: 3,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-time-entries-table",
+              x: 0,
+              y: 8,
+              w: 12,
+              h: 5,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-attachments-gallery",
+              x: 0,
+              y: 13,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            },
+            {
+              i: "widget-1747758922082-parts",
+              x: 0,
+              y: 16,
+              w: 12,
+              h: 3,
+              minW: 2,
+              minH: 2,
+              resizeHandles: ["s", "w", "e", "n", "sw", "nw", "se", "ne"]
+            }
+          ]
+        }
       }
     };
     

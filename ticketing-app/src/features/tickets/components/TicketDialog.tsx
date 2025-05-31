@@ -23,6 +23,7 @@ import {
 import { saveToLS } from "../../../utils/ticketUtils";
 import { generateResponsiveLayouts } from "../utils/layoutUtils";
 import { defaultTicketWidgets, defaultTicketLayouts } from "../../../constants/defaultLayouts";
+import StaticTicketFields from './StaticTicketFields';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -1043,20 +1044,30 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
         />
 
         <div className="flex-1 overflow-auto p-4">
+          {/* Add StaticTicketFields component */}
+          <StaticTicketFields 
+            currentTicket={currentTicket} 
+            handleFieldChange={handleFieldChange}
+          />
+
           {(() => {
-            // Use the stored ticket preset directly instead of checking tab data
             const hasEngineeringPreset = currentTicketPreset === "Engineering";
 
             if (hasEngineeringPreset) {
-              // Check if we have widgets for the Engineering preset
-              if (widgets.length === 0) {
+              // Filter out the simple field widgets
+              const filteredWidgets = widgets.filter(widget => 
+                !['field_status', 'field_customer_name', 'field_date_created', 
+                  'field_last_modified', 'field_billable_hours', 'field_total_hours']
+                  .includes(widget.type)
+              );
+
+              if (filteredWidgets.length === 0) {
                 return <LoadingIndicator />;
               }
               
-              // Show widget grid layout if preset is "Engineering"
               return (
                 <WidgetGrid
-                  widgets={widgets}
+                  widgets={filteredWidgets}
                   isEditLayoutMode={isEditLayoutMode}
                   handleLayoutChange={handleLayoutChange}
                   activeTab={activeTab}
@@ -1088,19 +1099,24 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                 />
               );
             } else {
-              // For non-Engineering preset tabs (or if no preset), show the "Customize" view
+              // For non-Engineering preset tabs, also filter out simple field widgets
+              const filteredWidgets = widgets.filter(widget => 
+                !['field_status', 'field_customer_name', 'field_date_created', 
+                  'field_last_modified', 'field_billable_hours', 'field_total_hours']
+                  .includes(widget.type)
+              );
+
               return (
                 <div className="h-full flex flex-col">
-                  {widgets.length === 0 ? (
+                  {filteredWidgets.length === 0 ? (
                     <EmptyWidgetState 
                       currentTicket={currentTicket} 
                       addWidget={addWidget} 
                     />
                   ) : (
-                    // Display added widgets with a similar layout to the Engineering preset
                     <div className="w-full relative p-4">
                       <WidgetGrid
-                        widgets={widgets}
+                        widgets={filteredWidgets}
                         isEditLayoutMode={isEditLayoutMode}
                         handleLayoutChange={handleLayoutChange}
                         activeTab={activeTab}
