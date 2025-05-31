@@ -211,17 +211,26 @@ function useAssigneeHandlers(state: TicketDialogState) {
   const handleAddAssignee = async () => {
     if (newAssignee.name.trim() === "") return;
 
-    // Generate a temporary ID for UI purposes
+    // Compute the lowest available priority (starting from 1)
+    const assignedPriorities = assignees
+      .map(a => parseInt(a.priority || '0', 10))
+      .filter(n => !isNaN(n));
+    let nextPriority = 1;
+    while (assignedPriorities.includes(nextPriority)) {
+      nextPriority++;
+    }
+
+    // Always assign the lowest available priority to the new assignee
     const assigneeId = `a${Date.now()}`;
     const assigneeToAdd: Assignee = {
       ...newAssignee,
       id: assigneeId,
+      priority: String(nextPriority),
     };
 
     // If the user_id isn't set but we have a current user, use the current user's ID
     if (!assigneeToAdd.user_id && currentUser && currentUser.id) {
       assigneeToAdd.user_id = currentUser.id;
-      
       // Also update the name if it's empty
       if (!assigneeToAdd.name.trim() && currentUser.name) {
         assigneeToAdd.name = currentUser.name;
@@ -233,23 +242,18 @@ function useAssigneeHandlers(state: TicketDialogState) {
       if (currentTicket && currentTicket.id) {
         // Get the ticket ID from the current ticket
         const ticketId = currentTicket.id || currentTicket.cells["col-1"];
-        
         // Create a ticket assignment in Appwrite
         const createdAssignment = await ticketAssignmentsService.createAssignmentFromAssignee(
           assigneeToAdd,
           ticketId
         );
-        
         // Update the assignee with the real ID from Appwrite
         assigneeToAdd.id = createdAssignment.id;
-        
         toast.success("Team member assigned successfully");
       }
-      
       // Add to local state - use direct update
       const updatedAssignees = [...assignees, assigneeToAdd];
       setAssignees(updatedAssignees);
-      
       // Reset the form
       setNewAssignee({
         id: "",
@@ -257,7 +261,7 @@ function useAssigneeHandlers(state: TicketDialogState) {
         workDescription: "",
         totalHours: "0",
         estTime: "0",
-        priority: "3",
+        priority: "",
         user_id: "",
       });
       setShowAssigneeForm(false);

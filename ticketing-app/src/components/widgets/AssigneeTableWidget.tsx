@@ -110,21 +110,37 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                 <label className="block text-sm font-medium text-neutral-700">
                   Priority
                 </label>
-                <select
-                  value={newAssignee.priority || "3"}
-                  onChange={(e) =>
+                {(() => {
+                  // Find the lowest available priority (starting from 1)
+                  const assignedPriorities = assignees
+                    .map(a => parseInt(a.priority || '0', 10))
+                    .filter(n => !isNaN(n));
+                  let nextPriority = 1;
+                  while (assignedPriorities.includes(nextPriority)) {
+                    nextPriority++;
+                  }
+                  // If the newAssignee priority is not set or is already taken, set it to nextPriority
+                  if (!newAssignee.priority || assignedPriorities.includes(parseInt(newAssignee.priority, 10))) {
                     setNewAssignee({
                       ...newAssignee,
-                      priority: e.target.value,
-                    })
+                      priority: String(nextPriority),
+                    });
                   }
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                >
-                  {/* Only show the next available priority number */}
-                  <option value={String(assignees.length + 1)}>
-                    {assignees.length + 1}
-                  </option>
-                </select>
+                  return (
+                    <select
+                      value={newAssignee.priority || String(nextPriority)}
+                      onChange={(e) =>
+                        setNewAssignee({
+                          ...newAssignee,
+                          priority: e.target.value,
+                        })
+                      }
+                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                    >
+                      <option value={String(nextPriority)}>{nextPriority}</option>
+                    </select>
+                  );
+                })()}
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700">
@@ -247,28 +263,43 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <select
-                        value={assignee.priority || "5"}
-                        onChange={(e) =>
-                          handleUpdateAssignee &&
-                          handleUpdateAssignee(
-                            assignee.id || `index-${index}`,
-                            "priority",
-                            e.target.value,
-                          )
+                      {(() => {
+                        // Gather all unique priorities from assignees
+                        const priorities = assignees
+                          .map(a => a.priority)
+                          .filter(Boolean);
+                        // Add the next available priority
+                        const nextPriority = String(assignees.length + 1);
+                        if (!priorities.includes(nextPriority)) {
+                          priorities.push(nextPriority);
                         }
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
-                      >
-                        {/* Dynamic options based on current number of assignees */}
-                        {Array.from(
-                          { length: assignees.length },
-                          (_, i) => (
-                            <option key={i + 1} value={String(i + 1)}>
-                              {i + 1}
-                            </option>
-                          ),
-                        )}
-                      </select>
+                        // Ensure the current assignee's priority is present
+                        if (assignee.priority && !priorities.includes(assignee.priority)) {
+                          priorities.push(assignee.priority);
+                        }
+                        // Remove duplicates and sort numerically
+                        const uniqueSorted = Array.from(new Set(priorities)).sort((a, b) => Number(a) - Number(b));
+                        return (
+                          <select
+                            value={assignee.priority || "5"}
+                            onChange={(e) =>
+                              handleUpdateAssignee &&
+                              handleUpdateAssignee(
+                                assignee.id || `index-${index}`,
+                                "priority",
+                                e.target.value,
+                              )
+                            }
+                            className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                          >
+                            {uniqueSorted.map((priority) => (
+                              <option key={priority} value={priority}>
+                                {priority}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <input
