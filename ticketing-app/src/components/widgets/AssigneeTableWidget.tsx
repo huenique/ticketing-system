@@ -120,15 +120,10 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                   }
                   className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                 >
-                  {/* Dynamic options for the new assignee (existing count + 1 position) */}
-                  {Array.from(
-                    { length: assignees.length + 1 },
-                    (_, i) => (
-                      <option key={i + 1} value={String(i + 1)}>
-                        {i + 1}
-                      </option>
-                    ),
-                  )}
+                  {/* Only show the next available priority number */}
+                  <option value={String(assignees.length + 1)}>
+                    {assignees.length + 1}
+                  </option>
                 </select>
               </div>
               <div>

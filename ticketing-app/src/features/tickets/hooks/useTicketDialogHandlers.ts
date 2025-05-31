@@ -273,7 +273,81 @@ function useAssigneeHandlers(state: TicketDialogState) {
     try {
       // If we're in edit mode and have a current ticket, delete from Appwrite
       if (currentTicket && currentTicket.id) {
-        await ticketAssignmentsService.deleteTicketAssignment(id);
+        // Get the assignee being removed to get their user_id
+        const assigneeToRemove = assignees.find(a => a.id === id);
+        
+        if (assigneeToRemove) {
+          // Delete the ticket assignment
+          await ticketAssignmentsService.deleteTicketAssignment(id);
+          
+          // Get the current ticket to update its assignee_ids
+          const ticket = await ticketsService.getTicket(currentTicket.id);
+          
+          // Remove the user_id from assignee_ids array
+          const updatedAssigneeIds = Array.isArray(ticket.assignee_ids) 
+            ? ticket.assignee_ids.filter(assigneeId => {
+                // Handle both string IDs and object IDs
+                const idToCompare = typeof assigneeId === 'object' 
+                  ? (assigneeId as any).$id || (assigneeId as any).id 
+                  : assigneeId;
+                
+                // Get the user_id to compare, handling both string and object formats
+                const userIdToRemove = typeof assigneeToRemove.user_id === 'object'
+                  ? (assigneeToRemove.user_id as any).$id || (assigneeToRemove.user_id as any).id
+                  : assigneeToRemove.user_id;
+                
+                return idToCompare !== userIdToRemove;
+              })
+            : [];
+          
+          // Update the ticket with the new assignee_ids
+          await ticketsService.updateTicket(currentTicket.id, {
+            assignee_ids: updatedAssigneeIds
+          });
+          
+          // Update the Assign To column in the tickets table
+          const tablesState = useTablesStore.getState();
+          const updatedTables = { ...tablesState.tables };
+          
+          // Get the names of remaining assignees from the updated assignees array
+          const remainingAssignees = assignees
+            .filter(a => a.id !== id)
+            .map(a => a.name)
+            .join(", ");
+          
+          // Update all tabs that contain this ticket
+          Object.keys(updatedTables).forEach(tabId => {
+            const table = updatedTables[tabId];
+            if (table) {
+              const updatedRows = table.rows.map((row: Row) => {
+                if (row.id === currentTicket.id) {
+                  return {
+                    ...row,
+                    cells: {
+                      ...row.cells,
+                      "col-5": remainingAssignees || "Unassigned", // Update Assign To column
+                      "assignee_ids": JSON.stringify(updatedAssigneeIds) // Update assignee_ids field
+                    }
+                  };
+                }
+                return row;
+              });
+              
+              updatedTables[tabId] = {
+                ...table,
+                rows: updatedRows
+              };
+            }
+          });
+          
+          // Update the global tables state
+          useTablesStore.getState().setTables(updatedTables);
+          
+          // Also update the current ticket's cells to maintain consistency
+          currentTicket.cells["col-5"] = remainingAssignees || "Unassigned";
+          currentTicket.cells["assignee_ids"] = JSON.stringify(updatedAssigneeIds);
+        }
+        
         toast.success("Team member removed successfully");
       }
       
