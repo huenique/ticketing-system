@@ -156,7 +156,7 @@ function TabNavigation({
           </div>
         ))}
 
-        {showAddButton && onAddTabClick && (
+        {showAddButton && onAddTabClick && currentUser?.role === "admin" && (
           <button
             onClick={onAddTabClick}
             className="flex h-9 cursor-pointer items-center px-3 border-l border-border text-muted-foreground hover:bg-accent"
