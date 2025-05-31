@@ -11,13 +11,14 @@ import {
 } from "@/lib/appwrite";
 import { getCurrentUserRole } from "@/lib/userUtils";
 import { authService } from "@/lib/appwrite";
-import { Assignee, TicketAssignment } from "@/types/tickets";
+import { Assignee, TicketAssignment, Ticket } from "@/types/tickets";
 import { User } from "@/types/tickets";
 
 // Collection ID constants
 const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const TICKET_ASSIGNMENTS_COLLECTION = "ticket_assignments";
 const USERS_COLLECTION = "users";
+const TICKETS_COLLECTION = "tickets";
 
 // Helper function to get database user ID from auth user ID
 const getDatabaseUserIdFromAuthId = async (authUserId: string): Promise<string | null> => {
@@ -180,7 +181,28 @@ export const ticketAssignmentsService = {
         ticket_id: ticketId
       };
 
-      return await ticketAssignmentsService.createTicketAssignment(assignmentData);
+      // Create the ticket assignment
+      const createdAssignment = await ticketAssignmentsService.createTicketAssignment(assignmentData);
+
+      // Get the current ticket to update its assignee_ids
+      const ticket = await getDocument<Ticket>(TICKETS_COLLECTION, ticketId);
+      
+      // Ensure assignee_ids is an array
+      const currentAssigneeIds = Array.isArray(ticket.assignee_ids) ? ticket.assignee_ids : [];
+      
+      // Add the new user_id if it's not already in the array
+      if (assignee.user_id && !currentAssigneeIds.includes(assignee.user_id)) {
+        const updatedAssigneeIds = [...currentAssigneeIds, assignee.user_id];
+        
+        // Update the ticket with the new assignee_ids
+        await updateDocument<Ticket>(
+          TICKETS_COLLECTION,
+          ticketId,
+          { assignee_ids: updatedAssigneeIds }
+        );
+      }
+
+      return createdAssignment;
     } catch (error) {
       console.error("Error creating ticket assignment from assignee:", error);
       throw error;
