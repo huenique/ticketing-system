@@ -226,21 +226,8 @@ export const columns: ColumnDef<Row>[] = [
         );
       }
 
-      // Fall back to attachments if no parts are found
-      const attachmentItems = parts.split(", ");
-      
-      return (
-        <div className="flex flex-wrap gap-2">
-          {attachmentItems.map((item: string, index: number) => {
-            // Check if the attachment includes a name in format "id:name"
-            const parts = item.split(":");
-            const fileId = parts[0];
-            const fileName = parts.length > 1 ? parts[1] : null;
-
-            return <FileAttachment key={index} fileId={fileId} fileName={fileName} />;
-          })}
-        </div>
-      );
+      // If no parts are found, just return a dash
+      return "-";
     },
   },
   {
@@ -257,26 +244,26 @@ export const columns: ColumnDef<Row>[] = [
 
       switch (status) {
         case "New":
-          statusClass = "bg-primary/20 text-primary";
+          statusClass = "bg-indigo-500/20 text-indigo-500";
           break;
         case "Open":
-          statusClass = "bg-secondary/20 text-secondary-foreground";
+          statusClass = "bg-blue-500/20 text-blue-500";
           break;
         case "In Progress":
-          statusClass = "bg-accent/20 text-accent-foreground";
+          statusClass = "bg-orange-500/20 text-orange-500";
           break;
-        case "Awaiting Parts":
-          statusClass = "bg-muted/20 text-muted-foreground";
+        case "Awaiting for Parts":
+          statusClass = "bg-amber-500/20 text-amber-500";
           break;
         case "Awaiting Customer Response":
-          statusClass = "bg-accent/30 text-accent-foreground";
+          statusClass = "bg-yellow-500/20 text-yellow-500";
           break;
         case "Completed":
         case "Done":
-          statusClass = "bg-chart-4/20 text-chart-4";
+          statusClass = "bg-green-500/20 text-green-500";
           break;
         case "Declined":
-          statusClass = "bg-destructive/20 text-destructive";
+          statusClass = "bg-primary/20 text-primary";
           break;
         default:
           statusClass = "bg-muted/20 text-muted-foreground";

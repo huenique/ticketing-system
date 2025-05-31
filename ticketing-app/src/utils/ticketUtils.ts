@@ -387,7 +387,7 @@ export function convertTicketToRow(
       "col-3": customer?.name || "", // Customer Name
       "col-4": ticket.description || "", // Work Description
       "col-5": assigneeNames, // Assign To
-      "col-6": attachmentsStr, // Parts Used or attachments
+      "col-6": ticket.part_ids ? ticket.part_ids.join(", ") : "", // Parts Used
       "col-7": statusLabel, // Status (now using the label directly)
       "col-8": ticket.total_hours?.toString() || "0", // Total Hours
       "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
