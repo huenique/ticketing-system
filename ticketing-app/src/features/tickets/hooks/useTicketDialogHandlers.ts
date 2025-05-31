@@ -1513,23 +1513,26 @@ export default function useTicketDialogHandlers(
     
     const ticketId = ticket.id;
     const description = ticket.cells["col-4"] || "";
-    const createdAt = ticket.cells["col-2"] || "";
-    const lastModified = ticket.cells["col-10"] || "";
     const billableHoursStr = ticket.cells["col-9"] || "0";
     const totalHoursStr = ticket.cells["col-8"] || "0";
     const billableHours = parseFloat(billableHoursStr);
     const totalHours = parseFloat(totalHoursStr);
-    const attachments = ticket.cells["attachments"] || ticket.cells["col-6"] || [];
+    
+    // Get attachments from the dedicated attachments field
+    const attachments = ticket.cells["attachments"] || [];
 
     // Convert string attachments to array if necessary
     let attachmentsArray: string[] = [];
-    if (typeof attachments === "string") {
-      attachmentsArray = attachments
-        .split(",")
-        .map((a) => a.trim())
-        .filter((a) => a);
+    if (typeof attachments === 'string') {
+      // Split by comma and trim each ID
+      attachmentsArray = attachments.split(',').map(id => id.trim()).filter(id => id);
     } else if (Array.isArray(attachments)) {
       attachmentsArray = attachments;
+    } else {
+      // If it's an object, try to convert it to an array
+      if (typeof attachments === 'object' && attachments !== null) {
+        attachmentsArray = Object.values(attachments).map(String);
+      }
     }
 
     // Set ticket form data

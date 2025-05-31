@@ -331,42 +331,52 @@ export function convertTicketToRow(
   let attachmentsStr = "";
   if (ticket.attachments) {
     try {
-      // Handle different possible formats of attachments
-      const attachmentsArray = Array.isArray(ticket.attachments)
-        ? ticket.attachments
-        : typeof ticket.attachments === "string"
-          ? ticket.attachments.split(",").map((id: string) => id.trim())
-          : [ticket.attachments];
-
-      // Filter out empty or invalid attachment IDs
-      attachmentsStr = attachmentsArray
-        .filter((attachment: any) => attachment && String(attachment).trim() !== "")
-        .join(", ");
-
-      // If we have attachment metadata in the original ticket, use it
-      if (ticket.attachment_metadata && Array.isArray(ticket.attachment_metadata)) {
-        const metadataMap = new Map();
-        ticket.attachment_metadata.forEach((metadata: any) => {
-          if (metadata.id && metadata.name) {
-            metadataMap.set(metadata.id, metadata.name);
+      // If attachments is already a string, use it directly
+      if (typeof ticket.attachments === "string") {
+        attachmentsStr = ticket.attachments;
+      }
+      // If it's an array, process each element
+      else if (Array.isArray(ticket.attachments)) {
+        // First, try to recover the original attachment data
+        const processedAttachments = ticket.attachments.map((attachment: unknown) => {
+          // If we have a string '[object Object]', try to recover from rawData
+          if (typeof attachment === 'string' && attachment === '[object Object]') {
+            // Try to get the original attachment from rawData
+            if (ticket.rawData?.attachments?.[0]) {
+              const rawAttachment = ticket.rawData.attachments[0];
+              if (typeof rawAttachment === 'object' && rawAttachment !== null) {
+                return (rawAttachment as any).$id || (rawAttachment as any).id || '';
+              }
+            }
+            return null;
           }
-        });
+          // If it's a string, use it directly
+          if (typeof attachment === 'string') {
+            return attachment;
+          }
+          // If it's an object, try to get its ID
+          if (typeof attachment === 'object' && attachment !== null) {
+            return (attachment as any).$id || (attachment as any).id || '';
+          }
+          return null;
+        }).filter((id: unknown): id is string => id !== null && id !== '');
 
-        // If we have metadata for at least one attachment, use a more descriptive format
-        // with both ID and name
-        if (metadataMap.size > 0) {
-          attachmentsStr = attachmentsArray
-            .filter((attachment: any) => attachment && String(attachment).trim() !== "")
-            .map((id: string) => {
-              const name = metadataMap.get(id);
-              return name ? `${id}:${name}` : id;
-            })
-            .join(", ");
+        attachmentsStr = processedAttachments.join(", ");
+      }
+      // If it's an object, try to convert it to a string
+      else if (typeof ticket.attachments === "object" && ticket.attachments !== null) {
+        // If it has an $id field (Appwrite document), use that
+        if ("$id" in ticket.attachments) {
+          attachmentsStr = (ticket.attachments as any).$id;
+        }
+        // Otherwise try to stringify it
+        else {
+          attachmentsStr = JSON.stringify(ticket.attachments);
         }
       }
+
     } catch (error) {
       console.error("Error processing attachments:", error);
-      // Return empty string if there's any error processing attachments
       attachmentsStr = "";
     }
   }
@@ -378,22 +388,25 @@ export function convertTicketToRow(
   const statusLabel = status?.label || "";
   const statusId = status?.$id || status?.id || "";
 
+  const cells = {
+    "col-1": `TK-${documentId.substring(0, 8)}`, // Ticket ID (shortened for display)
+    "col-2": dateCreated, // Date Created
+    "col-3": customer?.name || "", // Customer Name
+    "col-4": ticket.description || "", // Work Description
+    "col-5": assigneeNames, // Assign To
+    "col-6": ticket.part_ids ? ticket.part_ids.join(", ") : "", // Parts Used
+    "col-7": statusLabel, // Status (now using the label directly)
+    "col-8": ticket.total_hours?.toString() || "0", // Total Hours
+    "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
+    "col-10": dateCreated, // Last Modified (reuse date created for now)
+    "col-11": "action_buttons", // Actions
+    "attachments": attachmentsStr, // Store attachments as a string
+  };
+
   return {
     id: documentId,
     completed: statusLabel === "Completed" || statusLabel === "Done",
-    cells: {
-      "col-1": `TK-${documentId.substring(0, 8)}`, // Ticket ID (shortened for display)
-      "col-2": dateCreated, // Date Created
-      "col-3": customer?.name || "", // Customer Name
-      "col-4": ticket.description || "", // Work Description
-      "col-5": assigneeNames, // Assign To
-      "col-6": ticket.part_ids ? ticket.part_ids.join(", ") : "", // Parts Used
-      "col-7": statusLabel, // Status (now using the label directly)
-      "col-8": ticket.total_hours?.toString() || "0", // Total Hours
-      "col-9": ticket.billable_hours?.toString() || "0", // Billable Hours
-      "col-10": dateCreated, // Last Modified (reuse date created for now)
-      "col-11": "action_buttons", // Actions
-    },
+    cells,
     rawData: {
       ...ticket,
       status_id: statusId, // Keep the original status_id relationship field
