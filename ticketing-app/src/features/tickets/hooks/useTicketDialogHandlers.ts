@@ -211,17 +211,26 @@ function useAssigneeHandlers(state: TicketDialogState) {
   const handleAddAssignee = async () => {
     if (newAssignee.name.trim() === "") return;
 
-    // Generate a temporary ID for UI purposes
+    // Compute the lowest available priority (starting from 1)
+    const assignedPriorities = assignees
+      .map(a => parseInt(a.priority || '0', 10))
+      .filter(n => !isNaN(n));
+    let nextPriority = 1;
+    while (assignedPriorities.includes(nextPriority)) {
+      nextPriority++;
+    }
+
+    // Always assign the lowest available priority to the new assignee
     const assigneeId = `a${Date.now()}`;
     const assigneeToAdd: Assignee = {
       ...newAssignee,
       id: assigneeId,
+      priority: String(nextPriority),
     };
 
     // If the user_id isn't set but we have a current user, use the current user's ID
     if (!assigneeToAdd.user_id && currentUser && currentUser.id) {
       assigneeToAdd.user_id = currentUser.id;
-      
       // Also update the name if it's empty
       if (!assigneeToAdd.name.trim() && currentUser.name) {
         assigneeToAdd.name = currentUser.name;
@@ -233,23 +242,18 @@ function useAssigneeHandlers(state: TicketDialogState) {
       if (currentTicket && currentTicket.id) {
         // Get the ticket ID from the current ticket
         const ticketId = currentTicket.id || currentTicket.cells["col-1"];
-        
         // Create a ticket assignment in Appwrite
         const createdAssignment = await ticketAssignmentsService.createAssignmentFromAssignee(
           assigneeToAdd,
           ticketId
         );
-        
         // Update the assignee with the real ID from Appwrite
         assigneeToAdd.id = createdAssignment.id;
-        
         toast.success("Team member assigned successfully");
       }
-      
       // Add to local state - use direct update
       const updatedAssignees = [...assignees, assigneeToAdd];
       setAssignees(updatedAssignees);
-      
       // Reset the form
       setNewAssignee({
         id: "",
@@ -257,7 +261,7 @@ function useAssigneeHandlers(state: TicketDialogState) {
         workDescription: "",
         totalHours: "0",
         estTime: "0",
-        priority: "3",
+        priority: "",
         user_id: "",
       });
       setShowAssigneeForm(false);
@@ -273,7 +277,81 @@ function useAssigneeHandlers(state: TicketDialogState) {
     try {
       // If we're in edit mode and have a current ticket, delete from Appwrite
       if (currentTicket && currentTicket.id) {
-        await ticketAssignmentsService.deleteTicketAssignment(id);
+        // Get the assignee being removed to get their user_id
+        const assigneeToRemove = assignees.find(a => a.id === id);
+        
+        if (assigneeToRemove) {
+          // Delete the ticket assignment
+          await ticketAssignmentsService.deleteTicketAssignment(id);
+          
+          // Get the current ticket to update its assignee_ids
+          const ticket = await ticketsService.getTicket(currentTicket.id);
+          
+          // Remove the user_id from assignee_ids array
+          const updatedAssigneeIds = Array.isArray(ticket.assignee_ids) 
+            ? ticket.assignee_ids.filter(assigneeId => {
+                // Handle both string IDs and object IDs
+                const idToCompare = typeof assigneeId === 'object' 
+                  ? (assigneeId as any).$id || (assigneeId as any).id 
+                  : assigneeId;
+                
+                // Get the user_id to compare, handling both string and object formats
+                const userIdToRemove = typeof assigneeToRemove.user_id === 'object'
+                  ? (assigneeToRemove.user_id as any).$id || (assigneeToRemove.user_id as any).id
+                  : assigneeToRemove.user_id;
+                
+                return idToCompare !== userIdToRemove;
+              })
+            : [];
+          
+          // Update the ticket with the new assignee_ids
+          await ticketsService.updateTicket(currentTicket.id, {
+            assignee_ids: updatedAssigneeIds
+          });
+          
+          // Update the Assign To column in the tickets table
+          const tablesState = useTablesStore.getState();
+          const updatedTables = { ...tablesState.tables };
+          
+          // Get the names of remaining assignees from the updated assignees array
+          const remainingAssignees = assignees
+            .filter(a => a.id !== id)
+            .map(a => a.name)
+            .join(", ");
+          
+          // Update all tabs that contain this ticket
+          Object.keys(updatedTables).forEach(tabId => {
+            const table = updatedTables[tabId];
+            if (table) {
+              const updatedRows = table.rows.map((row: Row) => {
+                if (row.id === currentTicket.id) {
+                  return {
+                    ...row,
+                    cells: {
+                      ...row.cells,
+                      "col-5": remainingAssignees || "Unassigned", // Update Assign To column
+                      "assignee_ids": JSON.stringify(updatedAssigneeIds) // Update assignee_ids field
+                    }
+                  };
+                }
+                return row;
+              });
+              
+              updatedTables[tabId] = {
+                ...table,
+                rows: updatedRows
+              };
+            }
+          });
+          
+          // Update the global tables state
+          useTablesStore.getState().setTables(updatedTables);
+          
+          // Also update the current ticket's cells to maintain consistency
+          currentTicket.cells["col-5"] = remainingAssignees || "Unassigned";
+          currentTicket.cells["assignee_ids"] = JSON.stringify(updatedAssigneeIds);
+        }
+        
         toast.success("Team member removed successfully");
       }
       
@@ -1513,23 +1591,26 @@ export default function useTicketDialogHandlers(
     
     const ticketId = ticket.id;
     const description = ticket.cells["col-4"] || "";
-    const createdAt = ticket.cells["col-2"] || "";
-    const lastModified = ticket.cells["col-10"] || "";
     const billableHoursStr = ticket.cells["col-9"] || "0";
     const totalHoursStr = ticket.cells["col-8"] || "0";
     const billableHours = parseFloat(billableHoursStr);
     const totalHours = parseFloat(totalHoursStr);
-    const attachments = ticket.cells["attachments"] || ticket.cells["col-6"] || [];
+    
+    // Get attachments from the dedicated attachments field
+    const attachments = ticket.cells["attachments"] || [];
 
     // Convert string attachments to array if necessary
     let attachmentsArray: string[] = [];
-    if (typeof attachments === "string") {
-      attachmentsArray = attachments
-        .split(",")
-        .map((a) => a.trim())
-        .filter((a) => a);
+    if (typeof attachments === 'string') {
+      // Split by comma and trim each ID
+      attachmentsArray = attachments.split(',').map(id => id.trim()).filter(id => id);
     } else if (Array.isArray(attachments)) {
       attachmentsArray = attachments;
+    } else {
+      // If it's an object, try to convert it to an array
+      if (typeof attachments === 'object' && attachments !== null) {
+        attachmentsArray = Object.values(attachments).map(String);
+      }
     }
 
     // Set ticket form data

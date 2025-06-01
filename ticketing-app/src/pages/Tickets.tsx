@@ -1768,6 +1768,13 @@ function Tickets() {
     }
   };
 
+  // Add effect to automatically apply preset for non-admin users
+  useEffect(() => {
+    if (!isAdmin && !appliedPresetWorkflows.includes(currentWorkflow)) {
+      applyWorkflowPreset();
+    }
+  }, [currentWorkflow, isAdmin, appliedPresetWorkflows]);
+
   return (
     <div className="p-8 max-w-full">
       <div className="flex items-center justify-between mb-6">
@@ -1781,12 +1788,14 @@ function Tickets() {
               <Plus size={16} /> Add Ticket
             </Button>
           )}
-          <Button
-            onClick={applyWorkflowPreset}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            Apply Preset to {workflows.find(w => w.id === currentWorkflow)?.name || "Current Workflow"}
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={applyWorkflowPreset}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Apply Preset to {workflows.find(w => w.id === currentWorkflow)?.name || "Current Workflow"}
+            </Button>
+          )}
           <Button
             onClick={handleReset}
             className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"

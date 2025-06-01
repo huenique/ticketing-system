@@ -190,10 +190,13 @@ function TicketWidget({
         // Determine if any files are currently uploading
         const isUploading = uploadedImages.some(id => id === "uploading...");
         
+        // Get the attachments from the ticket form
+        const attachments = ticketForm.attachments || [];
+        
         return (
           <div className="h-full">
             <AttachmentsWidget
-              attachments={uploadedImages}
+              attachments={attachments}
               onAddAttachments={handleImageUpload}
               onRemoveAttachment={handleRemoveAttachment}
               isReadOnly={!isEditMode}
