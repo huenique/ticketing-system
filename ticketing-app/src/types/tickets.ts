@@ -59,7 +59,7 @@ export interface Assignee {
   totalHours: string;       // Maps to actual_time in database
   estTime: string;          // Maps to estimated_time in database
   priority: string;         // Used for UI sorting
-  completed?: boolean;      // UI state
+  is_done?: boolean;        // Maps to is_done in database
   user_id?: string;         // Relationship with Users collection - stores the user's ID
   ticket_id?: string;       // Relationship with Tickets collection
 }
@@ -160,6 +160,7 @@ export interface TicketAssignment {
   actual_time: string;
   user_id: string; // Relationship with Users collection
   ticket_id?: string; // Relationship with Tickets collection
+  is_done?: boolean; // Completion status
 }
 
 /**
