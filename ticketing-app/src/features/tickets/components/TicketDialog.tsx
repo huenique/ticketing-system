@@ -1028,6 +1028,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
         <div className="flex-1 overflow-auto p-4">
           {/* Add StaticTicketFields component */}
+
           <StaticTicketFields 
             currentTicket={currentTicket} 
             handleFieldChange={handleFieldChange}

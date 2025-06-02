@@ -10,6 +10,12 @@ interface StaticTicketFieldsProps {
 
 const StaticTicketFields: React.FC<StaticTicketFieldsProps> = ({ currentTicket, handleFieldChange }) => {
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<string>(currentTicket?.cells["col-7"] || "N/A");
+
+  useEffect(() => {
+    // Update current status when ticket changes
+    setCurrentStatus(currentTicket?.cells["col-7"] || "N/A");
+  }, [currentTicket]);
 
   useEffect(() => {
     const fetchStatuses = async () => {
@@ -21,13 +27,17 @@ const StaticTicketFields: React.FC<StaticTicketFieldsProps> = ({ currentTicket, 
             Query.orderAsc('label')
           ]
         );
-        
-        const statuses = response.documents.map(doc => doc.label);
+        let statuses = response.documents.map(doc => doc.label);
+        // Always include currentStatus (even if 'N/A' or empty)
+        if (currentStatus && !statuses.includes(currentStatus)) {
+          statuses = [currentStatus, ...statuses];
+        } else if (!currentStatus && !statuses.includes('N/A')) {
+          statuses = ['N/A', ...statuses];
+        }
         setStatusOptions(statuses);
       } catch (error) {
         console.error('Error fetching statuses:', error);
-        // Fallback to default statuses if fetch fails
-        setStatusOptions([
+        let fallbackStatuses = [
           "Completed",
           "Awaiting for Parts",
           "New",
@@ -35,20 +45,31 @@ const StaticTicketFields: React.FC<StaticTicketFieldsProps> = ({ currentTicket, 
           "Awaiting Customer Response",
           "Declined",
           "In Progress"
-        ]);
+        ];
+        if (currentStatus && !fallbackStatuses.includes(currentStatus)) {
+          fallbackStatuses = [currentStatus, ...fallbackStatuses];
+        } else if (!currentStatus && !fallbackStatuses.includes('N/A')) {
+          fallbackStatuses = ['N/A', ...fallbackStatuses];
+        }
+        setStatusOptions(fallbackStatuses);
       }
     };
-
     fetchStatuses();
-  }, []);
+  }, [currentStatus]);
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value;
+    setCurrentStatus(newStatus);
+    handleFieldChange?.("status", newStatus);
+  };
 
   return (
     <div className="grid grid-cols-3 gap-2 mb-2 p-2 bg-neutral-50 rounded-lg text-sm">
       <div className="flex items-center gap-1">
         <span className="text-neutral-500">Status:</span>
         <select
-          value={currentTicket?.cells["col-7"] || "New"}
-          onChange={(e) => handleFieldChange?.("status", e.target.value)}
+          value={currentStatus}
+          onChange={handleStatusChange}
           className="font-medium bg-transparent focus:ring-0 p-0 text-sm border-2 border-neutral-200 rounded-md"
         >
           {statusOptions.map((status) => (

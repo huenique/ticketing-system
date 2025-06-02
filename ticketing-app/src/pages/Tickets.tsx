@@ -991,7 +991,13 @@ function Tickets() {
         const selectedStatus = allStatuses.find(status => status.label === processedValue);
         
         if (selectedStatus) {
-          // First update the ticket in the All Tickets tab (or current tab if not using tabs with status)
+          // Update the ticket in Appwrite first
+          await ticketsService.updateTicket(currentTicket.id, {
+            status_id: selectedStatus.$id || selectedStatus.id
+          });
+
+          // Then update the UI
+          // First update the ticket in the All Tickets tab
           const allTicketsTab = "tab-all-tickets";
           if (updatedTables[allTicketsTab]) {
             // Find and update the row in the All Tickets tab
@@ -1042,6 +1048,9 @@ function Tickets() {
 
           // Refresh all status-based tabs with updated data
           refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
+
+          // Show success message
+          toast.success("Status updated successfully");
         }
       } catch (error) {
         console.error("Error updating status:", error);
@@ -1796,12 +1805,14 @@ function Tickets() {
               Apply Preset to {workflows.find(w => w.id === currentWorkflow)?.name || "Current Workflow"}
             </Button>
           )}
-          <Button
-            onClick={handleReset}
-            className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
-          >
-            Reset
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={handleReset}
+              className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-md hover:bg-neutral-300"
+            >
+              Reset
+            </Button>
+          )}
         </div>
       </div>
 
