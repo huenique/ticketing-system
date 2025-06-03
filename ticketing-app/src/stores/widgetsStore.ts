@@ -301,6 +301,17 @@ const useWidgetsStore = create<WidgetsState>()(
               };
               break;
 
+            case WIDGET_TYPES.FIELD_PARTS:
+              newWidget = {
+                id: `widget-${Date.now()}-parts`,
+                type: WIDGET_TYPES.FIELD_PARTS,
+                title: "Parts Used",
+                field: "parts",
+                fieldType: "parts",
+                collapsed: false,
+              };
+              break;
+
             default:
               // Default field widget
               newWidget = {

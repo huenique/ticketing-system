@@ -465,6 +465,16 @@ async function createCollections() {
   );
   await safe(
     () =>
+      databases.createBooleanAttribute(
+        dbId,
+        'ticket_assignments',
+        'is_done',
+        false
+      ),
+    'attribute ticket_assignments.is_done'
+  );
+  await safe(
+    () =>
       databases.createStringAttribute(
         dbId,
         'ticket_assignments',

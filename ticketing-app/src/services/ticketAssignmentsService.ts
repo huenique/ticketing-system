@@ -178,7 +178,8 @@ export const ticketAssignmentsService = {
         estimated_time: assignee.estTime,
         actual_time: assignee.totalHours,
         user_id: assignee.user_id || "",
-        ticket_id: ticketId
+        ticket_id: ticketId,
+        is_done: assignee.is_done || false
       };
 
       // Create the ticket assignment
@@ -278,7 +279,8 @@ export const ticketAssignmentsService = {
         // Use extracted priority
         priority: priority,
         user_id: assignment.user_id,
-        ticket_id: assignment.ticket_id
+        ticket_id: assignment.ticket_id,
+        is_done: assignment.is_done || false
       };
     } catch (error) {
       console.error("Error converting assignment to assignee:", error);

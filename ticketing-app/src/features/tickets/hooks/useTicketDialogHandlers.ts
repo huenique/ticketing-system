@@ -513,36 +513,21 @@ function useAssigneeHandlers(state: TicketDialogState) {
 
     // Update the assignees state - use direct update
     const updatedAssignees = assignees.map(assignee => 
-      assignee.id === assigneeId ? { ...assignee, completed: isCompleted } : assignee
+      assignee.id === assigneeId ? { ...assignee, is_done: isCompleted } : assignee
     );
     setAssignees(updatedAssignees);
 
     try {
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id && assigneeId) {
-        // We don't have a completed field in our database schema, so we'll update
-        // the work_description to include a [COMPLETED] prefix if completed
-        const assignee = assignees.find(a => a.id === assigneeId);
-        
-        if (assignee) {
-          let workDescription = assignee.workDescription;
-          
-          // If completed, add a [COMPLETED] prefix if not already there
-          if (isCompleted && !workDescription.includes("[COMPLETED]")) {
-            workDescription = `[COMPLETED] ${workDescription}`;
-          } 
-          // If not completed, remove the [COMPLETED] prefix if it exists
-          else if (!isCompleted && workDescription.includes("[COMPLETED]")) {
-            workDescription = workDescription.replace("[COMPLETED]", "").trim();
-          }
-          
-          // Only update if the work description changed
-          if (workDescription !== assignee.workDescription) {
-            await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
-              work_description: workDescription
-            });
-          }
-        }
+        // Update the is_done field in the database
+        await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
+          is_done: isCompleted
+        });
+
+        // Refresh the assignees list from the database
+        const refreshedAssignees = await ticketAssignmentsService.getAssigneesForTicket(currentTicket.id);
+        setAssignees(refreshedAssignees);
       }
     } catch (error) {
       console.error("Error updating assignee completion status:", error);
@@ -1122,7 +1107,7 @@ export default function useTicketDialogHandlers(
       totalHours: ticket.cells["col-7"] || "0", // Total Hours from col-7
       estTime: ticket.cells["col-8"] || "0", // Est Time from col-8
       priority: "3", // Default to medium priority
-      completed: assigneeCompletedStatus, // Set completed status based on the ticket's status
+      is_done: assigneeCompletedStatus, // Set is_done status based on the ticket's status
     };
 
     // Set the assignees state for the dialog with only the assignee from the row

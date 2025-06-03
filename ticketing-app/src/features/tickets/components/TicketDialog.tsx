@@ -472,30 +472,13 @@ const WidgetDropdownContent = ({
     {/* Widget type buttons for field widgets */}
     {[
       { type: WIDGET_TYPES.FIELD_STATUS, label: "Status Field" },
-      {
-        type: WIDGET_TYPES.FIELD_CUSTOMER_NAME,
-        label: "Customer Name Field",
-      },
-      {
-        type: WIDGET_TYPES.FIELD_DATE_CREATED,
-        label: "Date Created Field",
-      },
-      {
-        type: WIDGET_TYPES.FIELD_LAST_MODIFIED,
-        label: "Last Modified Field",
-      },
-      {
-        type: WIDGET_TYPES.FIELD_BILLABLE_HOURS,
-        label: "Billable Hours Field",
-      },
-      {
-        type: WIDGET_TYPES.FIELD_TOTAL_HOURS,
-        label: "Total Hours Field",
-      },
-      {
-        type: WIDGET_TYPES.FIELD_DESCRIPTION,
-        label: "Description Field",
-      },
+      { type: WIDGET_TYPES.FIELD_CUSTOMER_NAME, label: "Customer Name Field" },
+      { type: WIDGET_TYPES.FIELD_DATE_CREATED, label: "Date Created Field" },
+      { type: WIDGET_TYPES.FIELD_LAST_MODIFIED, label: "Last Modified Field" },
+      { type: WIDGET_TYPES.FIELD_BILLABLE_HOURS, label: "Billable Hours Field" },
+      { type: WIDGET_TYPES.FIELD_TOTAL_HOURS, label: "Total Hours Field" },
+      { type: WIDGET_TYPES.FIELD_DESCRIPTION, label: "Description Field" },
+      { type: WIDGET_TYPES.FIELD_PARTS, label: "Parts Used" },
     ].map((item) => (
       <button
         key={item.type}
@@ -1045,6 +1028,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
         <div className="flex-1 overflow-auto p-4">
           {/* Add StaticTicketFields component */}
+
           <StaticTicketFields 
             currentTicket={currentTicket} 
             handleFieldChange={handleFieldChange}

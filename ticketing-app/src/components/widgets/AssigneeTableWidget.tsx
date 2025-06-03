@@ -229,7 +229,7 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                   <tr
                     key={`assignee-${assignee.id || `index-${index}`}-${index}`}
                     className={
-                      assignee.completed ? "opacity-60 bg-neutral-50" : ""
+                      assignee.is_done ? "opacity-60 bg-neutral-50" : ""
                     }
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -244,7 +244,8 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                             e.target.value,
                           )
                         }
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                        disabled={assignee.is_done}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -259,7 +260,8 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                             e.target.value,
                           )
                         }
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                        disabled={assignee.is_done}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -290,7 +292,8 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                 e.target.value,
                               )
                             }
-                            className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                            disabled={assignee.is_done}
+                            className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
                           >
                             {uniqueSorted.map((priority) => (
                               <option key={priority} value={priority}>
@@ -313,7 +316,8 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                             e.target.value,
                           )
                         }
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                        disabled={assignee.is_done}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
                         step="0.1"
                       />
                     </td>
@@ -325,7 +329,8 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                           handleUpdateAssignee &&
                           handleUpdateAssignee(assignee.id || `index-${index}`, "estTime", e.target.value)
                         }
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.completed ? "text-neutral-500" : ""}`}
+                        disabled={assignee.is_done}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
                         step="0.1"
                       />
                     </td>
@@ -341,8 +346,9 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                   onClick={() =>
                                     handleAddTimeEntry(assignee.id || `index-${index}`, assignee.user_id)
                                   }
-                                  className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                  title="Add time entry"
+                                  disabled={assignee.is_done}
+                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-gray-300 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} focus:outline-none mr-2`}
+                                  title={assignee.is_done ? "Cannot add time entry to completed task" : "Add time entry"}
                                 >
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -365,12 +371,12 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                   onClick={() =>
                                     markAssigneeCompleted(
                                       assignee.id || `index-${index}`,
-                                      !assignee.completed,
+                                      !assignee.is_done,
                                     )
                                   }
-                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
                                   title={
-                                    assignee.completed
+                                    assignee.is_done
                                       ? "Mark as Not Done"
                                       : "Mark as Done"
                                   }
@@ -396,8 +402,9 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                   onClick={() =>
                                     handleRemoveAssignee(assignee.id || `index-${index}`)
                                   }
-                                  className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                                  title="Remove assignee"
+                                  disabled={assignee.is_done}
+                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-gray-300 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"} focus:outline-none`}
+                                  title={assignee.is_done ? "Cannot remove completed task" : "Remove assignee"}
                                 >
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -439,8 +446,9 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                       // Pass both assignee.id and the userId
                                       handleAddTimeEntry(assignee.id || `index-${index}`, userId);
                                     }}
-                                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none mr-2"
-                                    title="Add time entry"
+                                    disabled={assignee.is_done}
+                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-gray-300 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} focus:outline-none mr-2`}
+                                    title={assignee.is_done ? "Cannot add time entry to completed task" : "Add time entry"}
                                   >
                                     <svg
                                       xmlns="http://www.w3.org/2000/svg"
@@ -463,12 +471,12 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                     onClick={() =>
                                       markAssigneeCompleted(
                                         assignee.id || `index-${index}`,
-                                        !assignee.completed,
+                                        !assignee.is_done,
                                       )
                                     }
-                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
                                     title={
-                                      assignee.completed
+                                      assignee.is_done
                                         ? "Mark as Not Done"
                                         : "Mark as Done"
                                     }
