@@ -78,8 +78,6 @@ async function fetchUserEmail(userId: string) {
     // Call the getAuthUser function
     const userEmail = await authService.getAuthUser(userId);
     
-    // Use the email
-    console.log("User's email:", userEmail);
     return userEmail;
   } catch (error) {
     console.error("Failed to fetch user email:", error);
@@ -92,19 +90,28 @@ const EmailDialog = ({
   isOpen,
   onClose,
   ticketDetails,
+  attachments = [],
 }: {
   isOpen: boolean;
   onClose: () => void;
   ticketDetails: Row;
+  attachments?: string[];
 }) => {
   // Initialize state with empty values
   const [emailData, setEmailData] = useState({
     to: "",
+    cc: "",
     message: "",
     subject: `Ticket Details #${ticketDetails?.cells["col-1"] || ""}`,
+    attachments: attachments || []
   });
   
   const [isSending, setIsSending] = useState(false);
+
+  // Keep emailData.attachments in sync with prop
+  useEffect(() => {
+    setEmailData(prev => ({ ...prev, attachments: attachments || [] }));
+  }, [attachments]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -129,6 +136,16 @@ const EmailDialog = ({
       return;
     }
     
+    // Validate CC emails if provided
+    if (emailData.cc) {
+      const ccEmails = emailData.cc.split(',').map(email => email.trim());
+      const invalidCcEmails = ccEmails.filter(email => !emailRegex.test(email));
+      if (invalidCcEmails.length > 0) {
+        toast.error("Please enter valid CC email addresses");
+        return;
+      }
+    }
+    
     try {
       setIsSending(true);
       
@@ -139,14 +156,62 @@ const EmailDialog = ({
       
       const functions = new Functions(client);
       
-      // Create simplified message content - only include the actual message
-      const messageContent = emailData.message;
-      
       // Create form data for the endpoint with proper subject
       const formData = new URLSearchParams();
       formData.append('email', emailData.to);
-      formData.append('message', messageContent);
+      formData.append('message', emailData.message);
       formData.append('subject', emailData.subject);
+      
+      // Add CC if provided
+      if (emailData.cc) {
+        formData.append('cc', emailData.cc);
+      }
+      
+      // Process attachments to extract file IDs
+      if (emailData.attachments.length > 0) {
+        
+        const fileIds = emailData.attachments.map((attachment: any) => {
+          let extractedId = null;
+          
+          if (typeof attachment === 'string') {
+            // If it's a string, try to extract file ID from URL
+            // URL format might be like: https://cloud.appwrite.io/v1/storage/buckets/[bucket]/files/[fileId]/view
+            const urlMatch = attachment.match(/\/files\/([^\/\?]+)/);
+            extractedId = urlMatch ? urlMatch[1] : attachment;
+          } else if (attachment && typeof attachment === 'object') {
+            // If it's an object, check for url property and extract file ID
+            if (attachment.url) {
+              const urlMatch = attachment.url.match(/\/files\/([^\/\?]+)/);
+              extractedId = urlMatch ? urlMatch[1] : attachment.url;
+            }
+            // Or check if it has an id property
+            else if (attachment.id) {
+              extractedId = attachment.id;
+            }
+            // Or if it's a file object with a name that might be the ID
+            else if (attachment.name && attachment.name.length === 20) { // Appwrite IDs are typically 20 chars
+              extractedId = attachment.name;
+            }
+            // Check for fileId property (common in some file upload components)
+            else if (attachment.fileId) {
+              extractedId = attachment.fileId;
+            }
+            // Check for $id property (Appwrite document structure)
+            else if (attachment.$id) {
+              extractedId = attachment.$id;
+            }
+          }
+          
+          return extractedId;
+        }).filter((id: any) => id && typeof id === 'string' && id.length > 0); // Filter out any invalid IDs
+        
+        
+        if (fileIds.length > 0) {
+          formData.append('attachments', JSON.stringify(fileIds));
+        } else {
+          console.warn('No valid file IDs found in attachments');
+        }
+      }
 
       // Call the function using the Appwrite SDK
       const result = await functions.createExecution(
@@ -164,6 +229,7 @@ const EmailDialog = ({
         toast.success("Message sent successfully!");
         onClose();
       } else {
+        console.error('Function execution failed:', result);
         throw new Error(`Server responded with ${result.responseStatusCode}: ${result.responseBody}`);
       }
     } catch (error: any) {
@@ -223,6 +289,20 @@ const EmailDialog = ({
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              CC:
+            </label>
+            <input
+              type="text"
+              name="cc"
+              value={emailData.cc}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter CC email addresses (comma-separated)"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Subject:
             </label>
             <input
@@ -248,6 +328,46 @@ const EmailDialog = ({
               placeholder="Add your message here..."
               required
             />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Attachments:
+            </label>
+            {emailData.attachments && emailData.attachments.length > 0 ? (
+              <ul className="list-disc pl-5 text-sm text-gray-700">
+                {emailData.attachments.map((att: any, idx) => {
+                  // Extract name and URL from different attachment formats
+                  let name = 'Unknown file';
+                  let url = undefined;
+                  
+                  if (typeof att === 'string') {
+                    // If it's a string URL, extract filename from URL
+                    const urlParts = att.split('/');
+                    name = urlParts[urlParts.length - 1] || att;
+                    url = att;
+                  } else if (att && typeof att === 'object') {
+                    // If it's an object, get name and url properties
+                    name = att.name || att.filename || `File ${idx + 1}`;
+                    url = att.url || att.src || att.href;
+                  }
+                  
+                  return (
+                    <li key={idx} className="truncate">
+                      {url ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">
+                          {name}
+                        </a>
+                      ) : (
+                        <span>{name}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="text-sm text-gray-500">No attachments</div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3">
@@ -299,8 +419,6 @@ const DialogHeader = ({
   handleDialogClose: () => void;
   openEmailDialog: () => void;
 }) => {
-  // Debug logging
-  console.log("DialogHeader - Current User:", currentUser);
   
   return (
     <div className="flex justify-between items-center mb-2 px-4 pt-4">
@@ -733,7 +851,6 @@ const DialogFooter = ({
         // Force the parent Tickets component to refresh with the correct workflow filter
         const currentWorkflow = localStorage.getItem("current-workflow");
         if (currentWorkflow) {
-          console.log(`Saving with active workflow: ${currentWorkflow}`);
           // This timeout allows the save operation to complete before triggering a refresh
           setTimeout(() => {
             // Increment ticketsRefreshCounter in parent if possible
@@ -852,17 +969,12 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
         "engineering-layouts",
         { widgets: defaultTicketWidgets, layouts: defaultTicketLayouts },
       );
-      console.log("Reset Engineering widget layout to defaults");
     } else if (currentTicket) {
       // Set default tab-specific layouts
       const tabSpecificLayoutKey = `tab-${activeTab}`;
       saveToLS<{ widgets: Widget[]; layouts: Layouts }>(
         tabSpecificLayoutKey,
         { widgets: defaultTicketWidgets, layouts: defaultTicketLayouts },
-      );
-      console.log(
-        "Reset tab-specific layout to defaults for tab",
-        activeTab
       );
     }
 
@@ -879,7 +991,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
       const hasEngineeringPreset = currentTicketPreset === "Engineering";
       
       if (hasEngineeringPreset && widgets.length === 0) {
-        console.log("Adding default widgets for Engineering preset in TicketDialog");
         
         // Use default widgets and layouts from constants
         setWidgets(defaultTicketWidgets);
@@ -895,7 +1006,6 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   }, [viewDialogOpen, currentTicket, currentTicketPreset, widgets.length, setWidgetLayouts, setWidgets]);
 
   const handleLayoutChange = (currentLayout: Layout[], allLayouts: Layouts) => {
-    console.log("Layout changed:", currentLayout.length, "items in current layout");
 
     // Only update if there are actual layouts
     if (currentLayout.length > 0) {
@@ -933,17 +1043,10 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
         if (hasEngineeringPreset) {
           // Save Engineering preset layouts to Engineering-specific key
           saveToLS<LayoutStorage>("engineering-layouts", completeState);
-          console.log("Saved Engineering layout changes for ticket:", ticketId);
         } else {
           // Save non-Engineering layouts to tab-specific key
           const tabSpecificLayoutKey = `tab-${activeTab}`;
           saveToLS<LayoutStorage>(tabSpecificLayoutKey, completeState);
-          console.log(
-            "Saved tab-specific layout changes for tab",
-            activeTab,
-            "and ticket:",
-            ticketId,
-          );
         }
       }
     }
@@ -1149,6 +1252,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             isOpen={isEmailDialogOpen}
             onClose={() => setIsEmailDialogOpen(false)}
             ticketDetails={currentTicket}
+            attachments={ticketForm.attachments || []}
           />
         )}
       </div>

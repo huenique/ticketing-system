@@ -882,6 +882,7 @@ export default function useTicketDialogHandlers(
   setWidgets: (widgets: Widget[]) => void,
   setWidgetLayouts: (layouts: Layouts) => void,
   addWidget: (type: string, ticket: Row) => void,
+  workflows: { $id: string; name: string }[],
 ): TicketDialogState & TicketDialogHandlers {
   // Get all the state
   const state = useTicketDialogState();
@@ -1512,13 +1513,16 @@ export default function useTicketDialogHandlers(
         const currentWorkflow = localStorage.getItem("current-workflow") || "engineering";
         console.log(`Filtering tickets for current workflow: ${currentWorkflow}`);
         
+        // Get the workflow name from the workflows list
+        const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
+        
         // Filter tickets by the current workflow before converting to rows
         const workflowFilteredTickets = allTickets.filter(ticket => 
-          // If ticket has no workflow, treat it as "engineering" for backward compatibility
-          (ticket.workflow || "engineering") === currentWorkflow
+          // If ticket has no workflow, treat it as "Engineering" for backward compatibility
+          (ticket.workflow || "Engineering").toLowerCase() === currentWorkflowName.toLowerCase()
         );
         
-        console.log(`Filtered ${allTickets.length} tickets to ${workflowFilteredTickets.length} for workflow: ${currentWorkflow}`);
+        console.log(`Filtered ${allTickets.length} tickets to ${workflowFilteredTickets.length} for workflow: ${currentWorkflowName}`);
         
         // Convert tickets to rows
         const ticketsAsRows = await Promise.all(
