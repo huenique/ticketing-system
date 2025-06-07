@@ -719,6 +719,22 @@ async function createCollections() {
     () => databases.createStringAttribute(dbId, 'sidebar', 'title', 255, true),
     'attribute sidebar.title'
   );
+
+  // Add workflows collection
+  await safe(
+    () =>
+      databases.createCollection(
+        dbId,
+        'workflows',
+        'Workflows',
+        ['read("any")', 'create("any")', 'update("any")', 'delete("any")']
+      ),
+    'collection workflows'
+  );
+  await safe(
+    () => databases.createStringAttribute(dbId, 'workflows', 'name', 255, true),
+    'attribute workflows.name'
+  );
 }
 
 createCollections().catch(err => {

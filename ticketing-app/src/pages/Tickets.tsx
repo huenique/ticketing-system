@@ -41,6 +41,7 @@ import { Customer, Row, Ticket, TimeEntry } from "@/types/tickets";
 import { Status } from "@/services/ticketsService";
 import { convertTicketToRow } from "@/utils/ticketUtils";
 import { partsService, Part } from "@/services/partsService";
+import { workflowsService, Workflow as DBWorkflow } from '../services/workflowsService';
 
 // Components
 import TabNavigation from "../components/TabNavigation";
@@ -168,20 +169,7 @@ function Tickets() {
   const [timeEntriesTimestamp, setTimeEntriesTimestamp] = useState(0);
   
   // Workflow state
-  const [workflows, setWorkflows] = useState<Workflow[]>(() => {
-    // Try to load workflows from localStorage
-    const savedWorkflows = localStorage.getItem("ticket-workflows");
-    if (savedWorkflows) {
-      try {
-        return JSON.parse(savedWorkflows);
-      } catch (e) {
-        console.error("Failed to parse saved workflows:", e);
-        return [{ id: "engineering", name: "Engineering" }]; // Default
-      }
-    }
-    return [{ id: "engineering", name: "Engineering" }]; // Default
-  });
-  
+  const [workflows, setWorkflows] = useState<DBWorkflow[]>([]);
   const [currentWorkflow, setCurrentWorkflow] = useState<string>(() => {
     // Try to load current workflow from localStorage
     const savedWorkflow = localStorage.getItem("current-workflow");
@@ -209,11 +197,34 @@ function Tickets() {
   // Flag to track initial render for workflow changes
   const isInitialWorkflowRender = useRef(true);
   
-  // Save workflows to localStorage when they change
+  // Load workflows from database on component mount
   useEffect(() => {
-    localStorage.setItem("ticket-workflows", JSON.stringify(workflows));
-  }, [workflows]);
-  
+    const loadWorkflows = async () => {
+      try {
+        const dbWorkflows = await workflowsService.getAllWorkflows();
+        
+        // If no workflows exist in the database, create the default engineering workflow
+        if (dbWorkflows.length === 0) {
+          const engineeringWorkflow = await workflowsService.createWorkflow("Engineering");
+          setWorkflows([engineeringWorkflow]);
+        } else {
+          setWorkflows(dbWorkflows);
+        }
+      } catch (error) {
+        console.error("Error loading workflows:", error);
+        // Fallback to default engineering workflow if there's an error
+        setWorkflows([{ $id: "engineering", name: "Engineering" } as DBWorkflow]);
+      }
+    };
+
+    loadWorkflows();
+  }, []);
+
+  // Save current workflow to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("current-workflow", currentWorkflow);
+  }, [currentWorkflow]);
+
   // Add a new effect to save applied presets
   useEffect(() => {
     localStorage.setItem("applied-preset-workflows", JSON.stringify(appliedPresetWorkflows));
@@ -526,10 +537,12 @@ function Tickets() {
     const users = serviceUsers.map(mapServiceUserToTicketUser);
     
     // First, filter tickets by the current workflow
-    const workflowFilteredTickets = tickets.filter(ticket => 
-      // If ticket has no workflow, treat it as "engineering" for backward compatibility
-      (ticket.workflow || "engineering") === currentWorkflow
-    );
+    const workflowFilteredTickets = tickets.filter(ticket => {
+      // If ticket has no workflow field, treat it as "engineering" for backward compatibility
+      const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
+      const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
+      return ticketWorkflow === currentWorkflowName.toLowerCase();
+    });
     
     // If user is admin, show all tickets within the current workflow
     if (isAdmin) {
@@ -676,7 +689,7 @@ function Tickets() {
         usersService.getAllUsers()
       ]);
         
-      // STEP 6: Filter tickets based on user permissions
+      // STEP 6: Filter tickets based on user permissions and current workflow
       const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
@@ -692,6 +705,7 @@ function Tickets() {
         tabsToAdd.push({
           id: "tab-all-tickets",
           title: "All Tickets",
+          appliedPreset: "Engineering" // Mark this tab with the preset
         });
       }
 
@@ -701,6 +715,7 @@ function Tickets() {
             id: `tab-${status.toLowerCase().replace(/\s+/g, "-")}`,
             title: status,
             status: status,
+            appliedPreset: "Engineering" // Mark this tab with the preset
           });
         }
       });
@@ -734,7 +749,7 @@ function Tickets() {
       });
 
       // Get the current workflow name for logging
-      const workflowName = workflows.find(w => w.id === currentWorkflow)?.name || currentWorkflow;
+      const workflowName = workflows.find(w => w.$id === currentWorkflow)?.name || currentWorkflow;
       console.log(`Applied preset to ${workflowName} workflow`);
 
       // Add this workflow to the list of workflows with applied presets
@@ -1068,6 +1083,7 @@ function Tickets() {
     setWidgets,
     setWidgetLayouts,
     addWidget,
+    workflows, // Add workflows state
   );
 
   // Get the current table based on active tab
@@ -1784,6 +1800,78 @@ function Tickets() {
     }
   }, [currentWorkflow, isAdmin, appliedPresetWorkflows]);
 
+  // Update the workflow deletion handler
+  const handleDeleteWorkflow = async (workflow: DBWorkflow) => {
+    try {
+      // Don't allow deleting the engineering workflow
+      if (workflow.$id === "engineering") {
+        toast.error("Cannot delete the Engineering workflow");
+        return;
+      }
+
+      // Delete from database
+      await workflowsService.deleteWorkflow(workflow.$id);
+      
+      // Remove from workflows list
+      setWorkflows(prev => prev.filter(w => w.$id !== workflow.$id));
+      
+      // Remove from applied presets if it was there
+      setAppliedPresetWorkflows(prev => prev.filter(w => w !== workflow.$id));
+      
+      // If this was the current workflow, switch to engineering
+      if (currentWorkflow === workflow.$id) {
+        setCurrentWorkflow("engineering");
+      }
+      
+      // Clear any tables for this workflow
+      const tablesStore = useTablesStore.getState();
+      const currentTables = { ...tablesStore.tables };
+      Object.keys(currentTables).forEach(key => {
+        if (key.startsWith(`tab-${workflow.$id}`)) {
+          delete currentTables[key];
+        }
+      });
+      tablesStore.setTables(currentTables);
+
+      // Show success message
+      toast.success(`Workflow "${workflow.name}" has been deleted`);
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      toast.error("Failed to delete workflow");
+    }
+  };
+
+  // Update the new workflow creation handler
+  const handleCreateWorkflow = async () => {
+    if (newWorkflowName.trim() && !isDataFetchInProgress && !ticketsLoading) {
+      try {
+        setIsDataFetchInProgress(true);
+        setTicketsLoading(true);
+        
+        // Create workflow in database
+        const newWorkflow = await workflowsService.createWorkflow(newWorkflowName.trim());
+        
+        // Add new workflow to state
+        setWorkflows(prev => [...prev, newWorkflow]);
+        
+        // Switch to the new workflow
+        setCurrentWorkflow(newWorkflow.$id);
+        
+        // Reset the form
+        setNewWorkflowName("");
+        setIsNewWorkflowDialogOpen(false);
+        
+        console.log(`Created new workflow: ${newWorkflow.$id}`);
+      } catch (error) {
+        console.error("Error creating workflow:", error);
+        toast.error("Failed to create workflow");
+      } finally {
+        setTicketsLoading(false);
+        setIsDataFetchInProgress(false);
+      }
+    }
+  };
+
   return (
     <div className="p-8 max-w-full">
       <div className="flex items-center justify-between mb-6">
@@ -1827,24 +1915,24 @@ function Tickets() {
         <div className="flex items-center overflow-x-auto border-b">
           {workflows.map((workflow) => (
             <div
-              key={workflow.id}
+              key={workflow.$id}
               className="flex items-center"
             >
               <button
                 className={`px-4 py-2 border-b-2 whitespace-nowrap ${
-                  currentWorkflow === workflow.id
+                  currentWorkflow === workflow.$id
                     ? "border-blue-500 text-blue-600 font-medium"
                     : "border-transparent hover:border-gray-300"
                 }`}
                 onClick={() => {
                   // Only do work if changing to a different workflow
-                  if (currentWorkflow !== workflow.id && !isDataFetchInProgress && !ticketsLoading) {
+                  if (currentWorkflow !== workflow.$id && !isDataFetchInProgress && !ticketsLoading) {
                     // Start loading state to prevent multiple clicks
                     setIsDataFetchInProgress(true);
                     setTicketsLoading(true);
                     
                     // Just set the current workflow - the useEffect will handle the rest
-                    setCurrentWorkflow(workflow.id);
+                    setCurrentWorkflow(workflow.$id);
                     
                     // End loading state - the useEffect will handle data fetching
                     setTicketsLoading(false);
@@ -1854,7 +1942,7 @@ function Tickets() {
               >
                 {workflow.name}
               </button>
-              {isAdmin && workflow.id !== "engineering" && (
+              {isAdmin && workflow.$id !== "engineering" && (
                 <button
                   className="p-1 text-gray-400 hover:text-red-500"
                   onClick={(e) => {
@@ -1878,29 +1966,7 @@ function Tickets() {
                             <button
                               onClick={() => {
                                 toast.dismiss(t);
-                                // Remove from workflows list
-                                setWorkflows(prev => prev.filter(w => w.id !== workflow.id));
-                                
-                                // Remove from applied presets if it was there
-                                setAppliedPresetWorkflows(prev => prev.filter(w => w !== workflow.id));
-                                
-                                // If this was the current workflow, switch to engineering
-                                if (currentWorkflow === workflow.id) {
-                                  setCurrentWorkflow("engineering");
-                                }
-                                
-                                // Clear any tables for this workflow
-                                const tablesStore = useTablesStore.getState();
-                                const currentTables = { ...tablesStore.tables };
-                                Object.keys(currentTables).forEach(key => {
-                                  if (key.startsWith(`tab-${workflow.id}`)) {
-                                    delete currentTables[key];
-                                  }
-                                });
-                                tablesStore.setTables(currentTables);
-
-                                // Show success message
-                                toast.success(`Workflow "${workflow.name}" has been deleted`);
+                                handleDeleteWorkflow(workflow);
                               }}
                               className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 font-medium"
                             >
@@ -1910,7 +1976,6 @@ function Tickets() {
                         </div>
                       ),
                       {
-                        duration: Infinity,
                         position: "top-center",
                       }
                     );
@@ -2732,32 +2797,33 @@ function Tickets() {
       />
 
       {/* New Workflow Dialog */}
-      <Dialog open={isNewWorkflowDialogOpen} onOpenChange={setIsNewWorkflowDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+      <Dialog
+        open={isNewWorkflowDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNewWorkflowName("");
+          }
+          setIsNewWorkflowDialogOpen(open);
+        }}
+      >
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Workflow</DialogTitle>
             <DialogDescription>
-              Enter a name for your new workflow.
+              Enter a name for the new workflow.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="workflow-name" className="text-right text-sm font-medium">
-                Name
-              </label>
-              <Input
-                id="workflow-name"
-                value={newWorkflowName}
-                onChange={(e) => setNewWorkflowName(e.target.value)}
-                className="col-span-3"
-                placeholder="e.g., Sales, Support, etc."
-              />
-            </div>
+          <div className="py-4">
+            <Input
+              value={newWorkflowName}
+              onChange={(e) => setNewWorkflowName(e.target.value)}
+              placeholder="Workflow name"
+              className="w-full"
+            />
           </div>
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setNewWorkflowName("");
                 setIsNewWorkflowDialogOpen(false);
@@ -2767,34 +2833,7 @@ function Tickets() {
             </Button>
             <Button 
               type="button"
-              onClick={() => {
-                if (newWorkflowName.trim() && !isDataFetchInProgress && !ticketsLoading) {
-                  // Start loading state
-                  setIsDataFetchInProgress(true);
-                  setTicketsLoading(true);
-                  
-                  try {
-                    // Create workflow ID from name (lowercase, replace spaces with hyphens)
-                    const workflowId = newWorkflowName.trim().toLowerCase().replace(/\s+/g, "-");
-                    
-                    // Add new workflow to state
-                    setWorkflows(prev => [...prev, { id: workflowId, name: newWorkflowName.trim() }]);
-                    
-                    // Switch to the new workflow - the useEffect will handle the rest
-                    setCurrentWorkflow(workflowId);
-                    
-                    // Reset the form
-                    setNewWorkflowName("");
-                    setIsNewWorkflowDialogOpen(false);
-                    
-                    console.log(`Created new workflow: ${workflowId}`);
-                  } finally {
-                    // End loading state - data will be fetched by the useEffect
-                    setTicketsLoading(false);
-                    setIsDataFetchInProgress(false);
-                  }
-                }
-              }}
+              onClick={handleCreateWorkflow}
               disabled={!newWorkflowName.trim()}
             >
               Create Workflow
