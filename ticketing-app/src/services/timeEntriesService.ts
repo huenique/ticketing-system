@@ -139,8 +139,9 @@ export const timeEntriesService = {
         }
       }
       
-      console.warn("Could not get database user ID for filtering time entries");
-      return [];
+      // If we can't get the database user ID, return all entries instead of an empty array
+      console.warn("Could not get database user ID for filtering time entries, showing all entries");
+      return allEntries;
     } catch (error) {
       console.error(`Error fetching time entries for ticket ${ticketId}:`, error);
       throw error;
