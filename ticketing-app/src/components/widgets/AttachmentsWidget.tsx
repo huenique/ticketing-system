@@ -121,7 +121,7 @@ export default function AttachmentsWidget({
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden relative">
       {/* File list */}
       <div className="flex-grow overflow-auto">
         {attachments.length === 0 ? (
@@ -204,32 +204,6 @@ export default function AttachmentsWidget({
           </div>
         )}
       </div>
-      
-      {/* Upload controls */}
-      {!isReadOnly && onAddAttachments && (
-        <div className="border-t p-3">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={onAddAttachments}
-            className="hidden"
-            multiple
-          />
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full flex items-center justify-center"
-            onClick={handleTriggerFileInput}
-            disabled={isUploading}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {isUploading ? 'Uploading...' : 'Add Attachment'}
-          </Button>
-          {isUploading && (
-            <Progress value={uploadProgress} className="w-full h-1 mt-2" />
-          )}
-        </div>
-      )}
     </div>
   );
 } 

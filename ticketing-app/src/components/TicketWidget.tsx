@@ -4,6 +4,9 @@ import { cn } from "../lib/utils";
 import useUserStore from "../stores/userStore";
 import { Assignee, Row, TicketForm, TimeEntry, Widget } from "../types/tickets";
 import { usersService } from "../services/usersService";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Import all the widget components
 import WidgetHeader from "./widgets/WidgetHeader";
@@ -111,6 +114,46 @@ function TicketWidget({
     // Return false to further prevent default behaviors
     return false;
   };
+
+  // Add Attachment button logic for Attachments widget
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const handleTriggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Determine if this is the Attachments widget
+  const isAttachmentsWidget = widget.type === "field_attachments_gallery";
+
+  // Only for Attachments widget: render Add Attachment button as action
+  const addAttachmentAction = isAttachmentsWidget && handleImageUpload ? (
+    <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        className="hidden"
+        multiple
+      />
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleTriggerFileInput}
+              aria-label="Add Attachment"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Add Attachment</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </>
+  ) : null;
 
   const renderWidgetContent = () => {
     if (widget.collapsed) return null;
@@ -565,6 +608,7 @@ function TicketWidget({
         updateWidgetTitle={updateWidgetTitle}
         toggleWidgetCollapse={toggleWidgetCollapse}
         handleRemoveClick={handleRemoveClick}
+        action={addAttachmentAction}
       />
 
       {/* Widget content - adjust to fill remaining height */}
