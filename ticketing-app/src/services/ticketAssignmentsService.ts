@@ -115,8 +115,9 @@ export const ticketAssignmentsService = {
         }
       }
       
-      console.warn("Could not get database user ID for filtering assignments");
-      return [];
+      // If we can't get the database user ID, return all assignments instead of an empty array
+      console.warn("Could not get database user ID for filtering assignments, showing all assignments");
+      return allAssignments;
     } catch (error) {
       console.error(`Error fetching assignments for ticket ${ticketId}:`, error);
       throw error;
