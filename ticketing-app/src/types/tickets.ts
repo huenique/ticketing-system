@@ -161,6 +161,7 @@ export interface TicketAssignment {
   user_id: string; // Relationship with Users collection
   ticket_id?: string; // Relationship with Tickets collection
   is_done?: boolean; // Completion status
+  priority?: string; // Priority of the assignment (1 being highest)
 }
 
 /**

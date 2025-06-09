@@ -586,36 +586,3 @@ export const usersService = {
     return `${user.first_name} ${user.last_name}`;
   },
 };
-
-// Ticket Assignments Service
-export const ticketAssignmentsService = {
-  // Create a ticket assignment
-  createTicketAssignment: async (data: { 
-    ticket_id: string; 
-    user_id: string;
-    work_description?: string;
-    estimated_time?: string;
-    actual_time?: string;
-  }) => {
-    try {
-      const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const response = await databases.createDocument(
-        DATABASE_ID,
-        'ticket_assignments',
-        ID.unique(),
-        {
-          ticket_id: data.ticket_id,
-          user_id: data.user_id,
-          work_description: data.work_description || '',
-          estimated_time: data.estimated_time || '',
-          actual_time: data.actual_time || ''
-        }
-      );
-      
-      return response;
-    } catch (error) {
-      console.error('Error creating ticket assignment:', error);
-      throw error;
-    }
-  },
-};

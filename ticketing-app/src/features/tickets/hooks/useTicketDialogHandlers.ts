@@ -380,7 +380,8 @@ function useAssigneeHandlers(state: TicketDialogState) {
     const fieldMappings: Record<string, string> = {
       workDescription: "work_description",
       totalHours: "actual_time",
-      estTime: "estimated_time"
+      estTime: "estimated_time",
+      priority: "priority" // Add priority to field mappings
     };
     
     try {
@@ -413,26 +414,24 @@ function useAssigneeHandlers(state: TicketDialogState) {
                 return { ...a, priority: value };
               } else if (index === existingWithSamePriorityIndex) {
                 // Update the other assignee with the current assignee's old priority
-                
-                // Also update in database if we have a valid ID
-                if (a.id && !a.id.startsWith('index-') && currentTicket && currentTicket.id) {
-                  // Update work description with new priority tag
-                  let workDescription = a.workDescription || "";
-                  workDescription = workDescription.replace(/\[PRIORITY:[0-9]+\]\s*/, "");
-                  const updatedWorkDescription = `[PRIORITY:${oldPriority}] ${workDescription}`;
-                  
-                  // Update in database
-                  ticketAssignmentsService.updateTicketAssignment(a.id, {
-                    work_description: updatedWorkDescription
-                  }).catch(error => {
-                    console.error("Error updating swapped assignment priority in Appwrite:", error);
-                  });
-                }
-                
                 return { ...a, priority: oldPriority };
               }
               return a;
             });
+
+            // Update both assignees in the backend
+            if (currentTicket && currentTicket.id) {
+              if (currentAssignee.id && !currentAssignee.id.startsWith('index-')) {
+                await ticketAssignmentsService.updateTicketAssignment(currentAssignee.id, {
+                  priority: value
+                });
+              }
+              if (existingWithSamePriority.id && !existingWithSamePriority.id.startsWith('index-')) {
+                await ticketAssignmentsService.updateTicketAssignment(existingWithSamePriority.id, {
+                  priority: oldPriority
+                });
+              }
+            }
           } else {
             // No duplicate priority, just update the current assignee
             updatedAssignees = assignees.map((a, index) => {
@@ -444,6 +443,13 @@ function useAssigneeHandlers(state: TicketDialogState) {
               }
               return a;
             });
+
+            // Update the assignee in the backend
+            if (currentTicket && currentTicket.id && id && !id.startsWith('index-')) {
+              await ticketAssignmentsService.updateTicketAssignment(id, {
+                priority: value
+              });
+            }
           }
         }
       } else {
@@ -463,51 +469,25 @@ function useAssigneeHandlers(state: TicketDialogState) {
       setAssignees(updatedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
-      if (currentTicket && currentTicket.id) {
-        // Special handling for priority field since it doesn't exist in database
-        if (field === "priority" && id && !id.startsWith('index-')) {
-          // Find the assignee we're updating to get the current work description
-          const assignee = assignees.find((a, index) => 
-            (a.id === id) || (id.startsWith('index-') && id === `index-${index}`)
-          );
-          
-          if (assignee) {
-            // Extract the current work description
-            let workDescription = assignee.workDescription || "";
-            
-            // Remove any existing priority tag
-            workDescription = workDescription.replace(/\[PRIORITY:[0-9]+\]\s*/, "");
-            
-            // Add the new priority tag at the beginning
-            const updatedWorkDescription = `[PRIORITY:${value}] ${workDescription}`;
-            
-            // Update the work_description field in the database
-            const updates: Partial<Record<string, string>> = {
-              work_description: updatedWorkDescription
-            };
-            
-            try {
-              await ticketAssignmentsService.updateTicketAssignment(id, updates);
-            } catch (error) {
-              console.error("Error updating assignment priority in Appwrite:", error);
-            }
-          }
-        }
-        // Regular field update for non-priority fields
-        else if (fieldMappings[field] && id && !id.startsWith('index-')) {
-          const updates: Partial<Record<string, string>> = {
-            [fieldMappings[field]]: value
-          };
-          
-          try {
-            await ticketAssignmentsService.updateTicketAssignment(id, updates);
-          } catch (error) {
-            console.error("Error updating assignment in Appwrite:", error);
-          }
+      if (currentTicket && currentTicket.id && id && !id.startsWith('index-')) {
+        const updates: Partial<Record<string, string>> = {
+          [fieldMappings[field]]: value
+        };
+        
+        try {
+          await ticketAssignmentsService.updateTicketAssignment(id, updates);
+        } catch (error) {
+          console.error("Error updating assignment in Appwrite:", error);
+          toast.error("Failed to update team member", {
+            description: "Please try again"
+          });
         }
       }
     } catch (error) {
       console.error(`Error updating team member field '${field}':`, error);
+      toast.error("Failed to update team member", {
+        description: "Please try again"
+      });
     }
   };
 
