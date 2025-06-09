@@ -3,8 +3,8 @@
 import { UserPlus } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Customer as AppwriteCustomer } from "@/services/customersService";
-import { Customer as CommonCustomer } from "@/types/common";
+import { Customer as AppwriteCustomer, CustomerContact as AppwriteCustomerContact } from "@/services/customersService";
+import { Customer as CommonCustomer, CustomerContact } from "@/types/common";
 import { 
   createActionsColumn, 
   createIdColumn, 
@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/data-table";
 
 // Create a union type for both Customer types
-export type CustomerType = CommonCustomer | AppwriteCustomer;
+export type CustomerType = (CommonCustomer | AppwriteCustomer) & {
+  contacts?: CustomerContact[];
+};
 
 export interface CustomerActions extends DataTableActions<CustomerType> {
   onViewContacts?: (customer: CustomerType) => void;
@@ -26,9 +28,30 @@ export const getCustomersColumns = (actions: CustomerActions): ColumnDef<Custome
   const columns: ColumnDef<CustomerType>[] = [
     createStandardColumn<CustomerType>("name", "Name"),
     createStandardColumn<CustomerType>("address", "Address"),
-    createStandardColumn<CustomerType>("primary_contact_name", "Primary Contact"),
-    createStandardColumn<CustomerType>("primary_contact_number", "Primary Contact Number"),
-    createStandardColumn<CustomerType>("primary_email", "Primary Email"),
+    {
+      accessorFn: (customer) => {
+        const firstContact = customer.contacts?.[0];
+        return firstContact ? `${firstContact.first_name} ${firstContact.last_name}`.trim() : "No Contact";
+      },
+      header: "Primary Contact",
+      id: "primary_contact_name",
+    },
+    {
+      accessorFn: (customer) => {
+        const firstContact = customer.contacts?.[0];
+        return firstContact?.contact_number || "No Contact Number";
+      },
+      header: "Primary Contact Number",
+      id: "primary_contact_number",
+    },
+    {
+      accessorFn: (customer) => {
+        const firstContact = customer.contacts?.[0];
+        return firstContact?.email || "No Email";
+      },
+      header: "Primary Email",
+      id: "primary_email",
+    },
     {
       accessorFn: (customer) => customer.abn || "N/A",
       header: "ABN",

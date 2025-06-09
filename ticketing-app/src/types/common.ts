@@ -14,9 +14,6 @@ export interface Customer {
   id: string;
   name: string;
   address: string;
-  primary_contact_name: string;
-  primary_contact_number: string;
-  primary_email: string;
   abn?: string;
   customer_contact_ids?: any[];
   contacts?: CustomerContact[];
@@ -59,4 +56,14 @@ export interface Ticket {
   customer?: Customer;
   status?: Status;
   assignees?: User[];
+}
+
+export interface CustomerType extends Customer {
+  contacts?: CustomerContact[];
+}
+
+export interface NewCustomer {
+  name: string;
+  address: string;
+  abn?: string;
 }

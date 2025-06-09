@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { customersService } from "@/services/customersService";
-import { Customer } from "@/types/common";
+import { Customer, CustomerContact } from "@/types/common";
 
 interface PaginationState {
   currentPage: number;
@@ -41,8 +41,6 @@ export const useServerPaginatedCustomers = (options: UseServerPaginatedCustomers
     { id: 'all', label: 'All Fields' },
     { id: 'name', label: 'Customer Name' },
     { id: 'address', label: 'Address' },
-    { id: 'primary_contact_name', label: 'Contact Name' },
-    { id: 'primary_email', label: 'Email' },
     { id: 'abn', label: 'ABN' }
   ];
 
@@ -65,12 +63,22 @@ export const useServerPaginatedCustomers = (options: UseServerPaginatedCustomers
         id: customer.$id,
         name: customer.name,
         address: customer.address,
-        primary_contact_name: customer.primary_contact_name,
-        primary_contact_number: customer.primary_contact_number,
-        primary_email: customer.primary_email,
         abn: customer.abn || '',
         customer_contact_ids: customer.customer_contact_ids || [],
-        contacts: [], // Initialize empty contacts array
+        contacts: customer.customer_contact_ids 
+          ? customer.customer_contact_ids.map((contact: any) => ({
+              id: contact.$id,
+              customerId: customer.$id,
+              first_name: contact.first_name,
+              last_name: contact.last_name,
+              position: contact.position || "",
+              contact_number: contact.contact_number,
+              email: contact.email,
+              createdAt: contact.$createdAt,
+              updatedAt: contact.$updatedAt,
+              customer_ids: [customer.$id]
+            })) as CustomerContact[]
+          : [],
         createdAt: customer.$createdAt,
         updatedAt: customer.$updatedAt
       }));
