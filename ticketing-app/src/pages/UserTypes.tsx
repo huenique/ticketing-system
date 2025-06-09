@@ -240,7 +240,6 @@ function UserTypes() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="font-semibold text-gray-900">ID</TableHead>
               <TableHead className="font-semibold text-gray-900">Label</TableHead>
               <TableHead className="font-semibold text-gray-900">Created At</TableHead>
               <TableHead className="font-semibold text-gray-900">Last Modified</TableHead>
@@ -250,14 +249,13 @@ function UserTypes() {
           <TableBody>
             {filteredUserTypes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4 text-gray-700 font-medium">
+                <TableCell colSpan={4} className="text-center py-4 text-gray-700 font-medium">
                   No user types found
                 </TableCell>
               </TableRow>
             ) : (
               filteredUserTypes.map((userType) => (
                 <TableRow key={userType.$id} className="border-t border-gray-200">
-                  <TableCell className="text-gray-800">{userType.$id}</TableCell>
                   <TableCell className="font-medium text-gray-900">{userType.label}</TableCell>
                   <TableCell className="text-gray-800">{formatDate(userType.$createdAt)}</TableCell>
                   <TableCell className="text-gray-800">{formatDate(userType.$updatedAt)}</TableCell>

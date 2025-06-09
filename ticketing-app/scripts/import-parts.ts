@@ -72,6 +72,7 @@ async function ensurePartsCollectionExists() {
       await databases.createStringAttribute(dbId, collectionId, 'quantity', 50, true);
       await databases.createStringAttribute(dbId, collectionId, 'price', 50, true);
       await databases.createStringAttribute(dbId, collectionId, 'vendor', 255, true);
+      await databases.createStringAttribute(dbId, collectionId, 'item_number', 50, true);
       
       // Timestamps are automatically managed by Appwrite
       // No need to add them manually
@@ -120,6 +121,7 @@ async function importPartsFromCSV() {
   interface HeaderMap {
     description?: number;
     item_name?: number;
+    item_number?: number;
     reorder_quantity?: number;
     selling_price?: number;
     primary_supplier?: number;
@@ -133,6 +135,11 @@ async function importPartsFromCSV() {
     // Look for item_name instead of description
     if (normalized === 'item name') {
       headerIndices.item_name = index;
+    }
+    
+    // Look for item number
+    if (normalized === 'item number') {
+      headerIndices.item_number = index;
     }
     
     // Match Quantity field
@@ -157,6 +164,7 @@ async function importPartsFromCSV() {
   // Check if we have all required fields
   const missingFields: string[] = [];
   if (headerIndices.item_name === undefined) missingFields.push('item_name');
+  if (headerIndices.item_number === undefined) missingFields.push('item_number');
   if (headerIndices.reorder_quantity === undefined) missingFields.push('reorder_quantity');
   if (headerIndices.selling_price === undefined) missingFields.push('selling_price');
   if (headerIndices.primary_supplier === undefined) missingFields.push('primary_supplier');
@@ -188,6 +196,10 @@ async function importPartsFromCSV() {
           partData.description = values[headerIndices.item_name] || 'No description';
         }
         
+        if (headerIndices.item_number !== undefined) {
+          partData.item_number = values[headerIndices.item_number] || 'No item number';
+        }
+        
         if (headerIndices.reorder_quantity !== undefined) {
           partData.quantity = values[headerIndices.reorder_quantity] || '0';
         }
@@ -210,6 +222,7 @@ async function importPartsFromCSV() {
         
         // Ensure all required fields are present with default values if needed
         if (!partData.description) partData.description = 'No description';
+        if (!partData.item_number) partData.item_number = 'No item number';
         if (!partData.quantity) partData.quantity = '0';
         if (!partData.price) partData.price = '0';
         if (!partData.vendor) partData.vendor = 'Unknown vendor';
