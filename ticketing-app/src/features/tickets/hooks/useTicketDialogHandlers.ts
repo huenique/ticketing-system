@@ -181,11 +181,16 @@ function useImageHandlers(state: TicketDialogState) {
       
       // If we have a current ticket, update the attachments in the form
       if (currentTicket && successfulFileIds.length > 0) {
+        const updatedAttachments = [...(state.ticketForm.attachments || []), ...successfulFileIds];
         const updatedForm = {
           ...state.ticketForm,
-          attachments: [...(state.ticketForm.attachments || []), ...successfulFileIds]
+          attachments: updatedAttachments
         };
         setTicketForm(updatedForm);
+        // PATCH the ticket record in the backend
+        ticketsService.updateTicket(currentTicket.id, {
+          attachments: updatedAttachments
+        });
       }
     });
   };

@@ -8,6 +8,7 @@ interface WidgetHeaderProps {
   updateWidgetTitle?: (widgetId: string, newTitle: string) => void;
   toggleWidgetCollapse: (widgetId: string) => void;
   handleRemoveClick: (e: React.MouseEvent) => void;
+  action?: React.ReactNode;
 }
 
 const WidgetHeader: React.FC<WidgetHeaderProps> = ({
@@ -16,6 +17,7 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   updateWidgetTitle,
   toggleWidgetCollapse,
   handleRemoveClick,
+  action,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editableTitle, setEditableTitle] = useState(widget.title || "Widget");
@@ -43,7 +45,7 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   return (
     <div className="bg-neutral-50 border-b border-neutral-200 py-1 px-2 flex items-center justify-between">
       <div className={cn(
-        "flex-1",
+        "flex items-center flex-1 min-w-0",
         isEditMode ? "react-grid-dragHandle" : "",
       )}>
         <h3 className="text-xs font-medium text-neutral-700 truncate">
@@ -90,6 +92,9 @@ const WidgetHeader: React.FC<WidgetHeaderProps> = ({
             </span>
           )}
         </h3>
+        {action && (
+          <div className="ml-2 flex items-center">{action}</div>
+        )}
       </div>
 
       {isEditMode && (
