@@ -28,10 +28,9 @@ export interface Customer {
   id: string;
   name: string;
   address: string;
-  primary_contact_name: string;
-  primary_contact_number: string;
-  primary_email: string;
   abn?: string;
+  $createdAt: string;
+  $updatedAt: string;
 }
 
 // User interface based on Appwrite schema

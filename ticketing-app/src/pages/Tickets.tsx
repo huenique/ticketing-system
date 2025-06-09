@@ -84,7 +84,8 @@ const AssigneeDebugInfo = ({ assignees, users }: { assignees: any[], users: any[
 // Import the customer contact types
 import {
   customersService as fullCustomersService,
-  CustomerContact
+  CustomerContact,
+  NewCustomer
 } from "@/services/customersService";
 
 // Define a custom User type that includes auth_user_id
@@ -1347,10 +1348,7 @@ function Tickets() {
           id: c.$id,
           name: c.name,
           address: c.address,
-          primary_contact_name: c.primary_contact_name,
-          primary_contact_number: c.primary_contact_number,
-          primary_email: c.primary_email,
-          abn: c.abn,
+          abn: c.abn || "",
           $id: c.$id,
           $createdAt: c.$createdAt,
           $updatedAt: c.$updatedAt,
@@ -1399,10 +1397,7 @@ function Tickets() {
         id: c.$id, // Map $id to id
         name: c.name,
         address: c.address,
-        primary_contact_name: c.primary_contact_name,
-        primary_contact_number: c.primary_contact_number,
-        primary_email: c.primary_email,
-        abn: c.abn,
+        abn: c.abn || "",
         $id: c.$id,
         $createdAt: c.$createdAt,
         $updatedAt: c.$updatedAt,
@@ -1772,11 +1767,9 @@ function Tickets() {
     if (!customerId || !contact) return;
     
     try {
-      // Update customer with primary contact info
-      const updateData = {
-        primary_contact_name: `${contact.first_name} ${contact.last_name}`,
-        primary_contact_number: contact.contact_number,
-        primary_email: contact.email,
+      // Update customer with the contact ID
+      const updateData: Partial<NewCustomer> = {
+        customer_contact_ids: [contact.$id]
       };
       
       // Update the customer record in Appwrite
