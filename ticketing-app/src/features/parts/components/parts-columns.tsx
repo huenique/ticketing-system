@@ -29,7 +29,6 @@ export interface PartActions extends DataTableActions<Part> {}
 export const getPartsColumns = (actions: PartActions): ColumnDef<Part>[] => {
   // Create an array of columns
   const columns: ColumnDef<Part>[] = [
-    createIdColumn<Part>("ID"),
     createStandardColumn<Part>("description", "Description"),
     createStandardColumn<Part>("quantity", "Quantity"),
     createStandardColumn<Part>("price", "Price"),

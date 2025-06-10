@@ -164,9 +164,10 @@ export const columns: ColumnDef<Row>[] = [
       const rawData = row.original.rawData || {};
       const customer = rawData.customer || rawData.customer_id || {};
       
-      const primaryContactName = customer?.primary_contact_name || "N/A";
-      const primaryContactNumber = customer?.primary_contact_number || "N/A";
-      const primaryEmail = customer?.primary_email || "N/A";
+      const firstContact = customer?.contacts?.[0];
+      const contactName = firstContact ? `${firstContact.first_name} ${firstContact.last_name}`.trim() : "No Contact";
+      const contactNumber = firstContact?.contact_number || "No Contact Number";
+      const contactEmail = firstContact?.email || "No Email";
       
       return (
         <TooltipProvider>
@@ -176,9 +177,9 @@ export const columns: ColumnDef<Row>[] = [
             </TooltipTrigger>
             <TooltipContent className="p-3 max-w-sm bg-white text-black">
               <div className="space-y-1">
-                <p><strong>Contact:</strong> {primaryContactName}</p>
-                <p><strong>Phone:</strong> {primaryContactNumber}</p>
-                <p><strong>Email:</strong> {primaryEmail}</p>
+                <p><strong>Contact:</strong> {contactName}</p>
+                <p><strong>Phone:</strong> {contactNumber}</p>
+                <p><strong>Email:</strong> {contactEmail}</p>
               </div>
             </TooltipContent>
           </Tooltip>

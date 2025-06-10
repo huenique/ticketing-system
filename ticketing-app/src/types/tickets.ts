@@ -28,10 +28,9 @@ export interface Customer {
   id: string;
   name: string;
   address: string;
-  primary_contact_name: string;
-  primary_contact_number: string;
-  primary_email: string;
   abn?: string;
+  $createdAt: string;
+  $updatedAt: string;
 }
 
 // User interface based on Appwrite schema
@@ -161,6 +160,7 @@ export interface TicketAssignment {
   user_id: string; // Relationship with Users collection
   ticket_id?: string; // Relationship with Tickets collection
   is_done?: boolean; // Completion status
+  priority?: string; // Priority of the assignment (1 being highest)
 }
 
 /**

@@ -59,9 +59,6 @@ export function useAppwriteCustomers({
         id: customer.$id,
         name: customer.name,
         address: customer.address,
-        primary_contact_name: customer.primary_contact_name,
-        primary_contact_number: customer.primary_contact_number,
-        primary_email: customer.primary_email,
         abn: customer.abn || "",
         // Map contacts if they exist (now they're full objects, not just IDs)
         customer_contact_ids: customer.customer_contact_ids || [],
@@ -116,9 +113,6 @@ export function useAppwriteCustomers({
             id: customer.$id,
             name: customer.name,
             address: customer.address,
-            primary_contact_name: customer.primary_contact_name,
-            primary_contact_number: customer.primary_contact_number,
-            primary_email: customer.primary_email,
             abn: customer.abn || "",
             customer_contact_ids: customer.customer_contact_ids || [],
             contacts: customer.customer_contact_ids 
@@ -137,7 +131,7 @@ export function useAppwriteCustomers({
               : [],
             createdAt: customer.$createdAt,
             updatedAt: customer.$updatedAt,
-          })) as any;
+          }));
           setCustomers(mappedCustomers);
           console.log(`useAppwriteCustomers effect: Successfully updated state with ${mappedCustomers.length} customers`);
         } catch (err) {
@@ -171,9 +165,6 @@ export function useAppwriteCustomers({
           id: customer.$id,
           name: customer.name,
           address: customer.address,
-          primary_contact_name: customer.primary_contact_name,
-          primary_contact_number: customer.primary_contact_number,
-          primary_email: customer.primary_email,
           abn: customer.abn || "",
           // Map contacts if they exist (now they're full objects, not just IDs)
           customer_contact_ids: customer.customer_contact_ids || [],
@@ -204,102 +195,81 @@ export function useAppwriteCustomers({
   );
 
   const createCustomer = useCallback(
-    async (
-      customerData: Omit<Customer, "id" | "createdAt" | "updatedAt">,
-    ): Promise<Customer> => {
+    async (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">): Promise<Customer> => {
       try {
-        // Convert from Common format to Appwrite format
-        const appwriteData = {
-          name: customerData.name,
-          address: customerData.address,
-          primary_contact_name: customerData.primary_contact_name,
-          primary_contact_number: customerData.primary_contact_number,
-          primary_email: customerData.primary_email,
-          abn: customerData.abn || "",
-          customer_contact_ids: customerData.customer_contact_ids || [], // Initialize as empty array
-        };
-
-        const newCustomer = await customersService.createCustomer(appwriteData);
-
-        // Convert back to Common format
-        const commonCustomer = {
-          id: newCustomer.$id,
-          name: newCustomer.name,
-          address: newCustomer.address,
-          primary_contact_name: newCustomer.primary_contact_name,
-          primary_contact_number: newCustomer.primary_contact_number,
-          primary_email: newCustomer.primary_email,
-          abn: newCustomer.abn || "",
-          customer_contact_ids: newCustomer.customer_contact_ids 
-            ? newCustomer.customer_contact_ids.map((id: any) => 
-                typeof id === 'string' ? id : id.$id
-              )
+        const result = await customersService.createCustomer({
+          name: customer.name,
+          address: customer.address,
+          abn: customer.abn,
+        });
+        return {
+          id: result.$id,
+          name: result.name,
+          address: result.address,
+          abn: result.abn || "",
+          customer_contact_ids: result.customer_contact_ids || [],
+          contacts: result.customer_contact_ids 
+            ? result.customer_contact_ids.map((contact: any) => ({
+                id: contact.$id,
+                customerId: result.$id,
+                first_name: contact.first_name,
+                last_name: contact.last_name,
+                position: contact.position || "",
+                contact_number: contact.contact_number,
+                email: contact.email,
+                createdAt: contact.$createdAt,
+                updatedAt: contact.$updatedAt,
+                customer_ids: [result.$id]
+              })) as CustomerContact[]
             : [],
-          createdAt: newCustomer.$createdAt,
-          updatedAt: newCustomer.$updatedAt,
+          createdAt: result.$createdAt,
+          updatedAt: result.$updatedAt,
         };
-
-        setCustomers((prevCustomers) => [...prevCustomers, commonCustomer]);
-        return commonCustomer;
       } catch (err) {
         console.error("Error creating customer:", err);
         throw err;
       }
     },
-    [],
+    []
   );
 
   const updateCustomer = useCallback(
-    async (id: string, customerData: Partial<Customer>): Promise<Customer> => {
+    async (id: string, customer: Partial<Customer>): Promise<Customer> => {
       try {
-        // Convert from Common format to Appwrite format
-        const appwriteData: any = {};
-
-        if (customerData.name !== undefined) appwriteData.name = customerData.name;
-        if (customerData.address !== undefined)
-          appwriteData.address = customerData.address;
-        if (customerData.primary_contact_name !== undefined)
-          appwriteData.primary_contact_name = customerData.primary_contact_name;
-        if (customerData.primary_contact_number !== undefined)
-          appwriteData.primary_contact_number = customerData.primary_contact_number;
-        if (customerData.primary_email !== undefined)
-          appwriteData.primary_email = customerData.primary_email;
-        if (customerData.abn !== undefined) appwriteData.abn = customerData.abn;
-        if (customerData.customer_contact_ids !== undefined) 
-          appwriteData.customer_contact_ids = customerData.customer_contact_ids;
-
-        const updatedCustomer = await customersService.updateCustomer(id, appwriteData);
-
-        // Convert back to Common format
-        const commonCustomer = {
-          id: updatedCustomer.$id,
-          name: updatedCustomer.name,
-          address: updatedCustomer.address,
-          primary_contact_name: updatedCustomer.primary_contact_name,
-          primary_contact_number: updatedCustomer.primary_contact_number,
-          primary_email: updatedCustomer.primary_email,
-          abn: updatedCustomer.abn || "",
-          customer_contact_ids: updatedCustomer.customer_contact_ids 
-            ? updatedCustomer.customer_contact_ids.map((id: any) => 
-                typeof id === 'string' ? id : id.$id
-              )
+        const result = await customersService.updateCustomer(id, {
+          name: customer.name,
+          address: customer.address,
+          abn: customer.abn,
+        });
+        return {
+          id: result.$id,
+          name: result.name,
+          address: result.address,
+          abn: result.abn || "",
+          customer_contact_ids: result.customer_contact_ids || [],
+          contacts: result.customer_contact_ids 
+            ? result.customer_contact_ids.map((contact: any) => ({
+                id: contact.$id,
+                customerId: result.$id,
+                first_name: contact.first_name,
+                last_name: contact.last_name,
+                position: contact.position || "",
+                contact_number: contact.contact_number,
+                email: contact.email,
+                createdAt: contact.$createdAt,
+                updatedAt: contact.$updatedAt,
+                customer_ids: [result.$id]
+              })) as CustomerContact[]
             : [],
-          createdAt: updatedCustomer.$createdAt,
-          updatedAt: updatedCustomer.$updatedAt,
+          createdAt: result.$createdAt,
+          updatedAt: result.$updatedAt,
         };
-
-        setCustomers((prevCustomers) =>
-          prevCustomers.map((customer) =>
-            customer.id === id ? commonCustomer : customer,
-          ),
-        );
-        return commonCustomer;
       } catch (err) {
-        console.error(`Error updating customer ${id}:`, err);
+        console.error("Error updating customer:", err);
         throw err;
       }
     },
-    [],
+    []
   );
 
   const deleteCustomer = useCallback(async (id: string): Promise<void> => {

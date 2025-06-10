@@ -1,4 +1,4 @@
-import { Loader2, UserPlus, X } from "lucide-react";
+import { Loader2, UserPlus, X, Edit, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -31,6 +31,10 @@ import { customersService } from "@/services/customersService";
 import { getCustomersColumns, CustomerType, CustomerActions } from "@/features/customers/components/customers-columns";
 // Import DataTable component
 import { DataTable } from "@/components/ui/data-table/data-table";
+// Import CustomerContact type
+import { CustomerContact } from "@/types/common";
+// Import ColumnDef type
+import { ColumnDef } from "@tanstack/react-table";
 
 // Custom prop to create a DataTable without the search bar
 const CustomDataTable = (props: any) => {
@@ -45,9 +49,6 @@ export default function Customers() {
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     address: "",
-    primary_contact_name: "",
-    primary_contact_number: "",
-    primary_email: "",
     abn: "",
   });
 
@@ -57,10 +58,24 @@ export default function Customers() {
     id: "",
     name: "",
     address: "",
-    primary_contact_name: "",
-    primary_contact_number: "",
-    primary_email: "",
     abn: "",
+  });
+
+  // State for contacts dialog
+  const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerType | null>(null);
+  const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+
+  // State for add/edit contact dialog
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<CustomerContact | null>(null);
+  const [newContact, setNewContact] = useState({
+    first_name: "",
+    last_name: "",
+    position: "",
+    contact_number: "",
+    email: "",
   });
 
   // State for search
@@ -98,7 +113,7 @@ export default function Customers() {
   const handleAddCustomer = async () => {
     try {
       // Validation
-      if (!newCustomer.name || !newCustomer.primary_contact_name || !newCustomer.primary_email) {
+      if (!newCustomer.name || !newCustomer.abn) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -107,9 +122,6 @@ export default function Customers() {
       await customersService.createCustomer({
         name: newCustomer.name,
         address: newCustomer.address,
-        primary_contact_name: newCustomer.primary_contact_name,
-        primary_contact_number: newCustomer.primary_contact_number,
-        primary_email: newCustomer.primary_email,
         abn: newCustomer.abn,
       });
 
@@ -117,9 +129,6 @@ export default function Customers() {
       setNewCustomer({
         name: "",
         address: "",
-        primary_contact_name: "",
-        primary_contact_number: "",
-        primary_email: "",
         abn: "",
       });
       setIsAddDialogOpen(false);
@@ -135,6 +144,196 @@ export default function Customers() {
     }
   };
 
+  // Function to fetch contacts for a customer
+  const fetchCustomerContacts = async (customerId: string) => {
+    if (!customerId) return;
+    
+    try {
+      setIsLoadingContacts(true);
+      const contacts = await customersService.getCustomerContacts(customerId);
+      // Map Appwrite CustomerContact to common CustomerContact type
+      const mappedContacts = contacts.map(contact => ({
+        id: contact.$id,
+        customer_ids: [customerId],
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        position: contact.position || "",
+        contact_number: contact.contact_number,
+        email: contact.email,
+        createdAt: contact.$createdAt || new Date().toISOString(),
+        updatedAt: contact.$updatedAt || new Date().toISOString(),
+      }));
+      setCustomerContacts(mappedContacts);
+    } catch (error) {
+      console.error("Error fetching customer contacts:", error);
+      setCustomerContacts([]);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
+  // Handle adding a new contact
+  const handleAddContact = async () => {
+    if (!selectedCustomer) return;
+
+    try {
+      // Extract customer ID
+      const appwriteCustomer = selectedCustomer as Partial<{ $id: string }>;
+      const commonCustomer = selectedCustomer as Partial<{ id: string }>;
+      const customerId = appwriteCustomer.$id || commonCustomer.id || "";
+
+      // Validation
+      if (!newContact.first_name || !newContact.last_name || !newContact.contact_number || !newContact.email) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      // Add contact
+      await customersService.createCustomerContact({
+        customer_ids: [customerId],
+        first_name: newContact.first_name,
+        last_name: newContact.last_name,
+        position: newContact.position,
+        contact_number: newContact.contact_number,
+        email: newContact.email,
+      });
+
+      // Reset form and close dialog
+      setNewContact({
+        first_name: "",
+        last_name: "",
+        position: "",
+        contact_number: "",
+        email: "",
+      });
+      setIsContactDialogOpen(false);
+      
+      // Refresh contacts
+      fetchCustomerContacts(customerId);
+      
+      // Show success message
+      toast.success("Contact added successfully");
+    } catch (error) {
+      console.error("Error adding contact:", error);
+      toast.error("Failed to add contact");
+    }
+  };
+
+  // Handle updating a contact
+  const handleUpdateContact = async () => {
+    if (!editingContact || !selectedCustomer) return;
+
+    try {
+      // Extract customer ID
+      const appwriteCustomer = selectedCustomer as Partial<{ $id: string }>;
+      const commonCustomer = selectedCustomer as Partial<{ id: string }>;
+      const customerId = appwriteCustomer.$id || commonCustomer.id || "";
+
+      // Validation
+      if (!editingContact.first_name || !editingContact.last_name || !editingContact.contact_number || !editingContact.email) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+
+      // Update contact
+      await customersService.updateCustomerContact(editingContact.id, {
+        first_name: editingContact.first_name,
+        last_name: editingContact.last_name,
+        position: editingContact.position,
+        contact_number: editingContact.contact_number,
+        email: editingContact.email,
+      });
+
+      // Close dialog
+      setIsContactDialogOpen(false);
+      
+      // Refresh contacts
+      fetchCustomerContacts(customerId);
+      
+      // Show success message
+      toast.success("Contact updated successfully");
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      toast.error("Failed to update contact");
+    }
+  };
+
+  // Handle deleting a contact
+  const handleDeleteContact = async (contactId: string) => {
+    if (!selectedCustomer) return;
+
+    try {
+      // Extract customer ID
+      const appwriteCustomer = selectedCustomer as Partial<{ $id: string }>;
+      const commonCustomer = selectedCustomer as Partial<{ id: string }>;
+      const customerId = appwriteCustomer.$id || commonCustomer.id || "";
+
+      // Delete contact
+      await customersService.deleteCustomerContact(contactId);
+      
+      // Refresh contacts
+      fetchCustomerContacts(customerId);
+      
+      // Show success message
+      toast.success("Contact deleted successfully");
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      toast.error("Failed to delete contact");
+    }
+  };
+
+  // Get columns for the contacts table
+  const getContactColumns = (): ColumnDef<CustomerContact>[] => [
+    {
+      accessorKey: "first_name",
+      header: "First Name",
+    },
+    {
+      accessorKey: "last_name",
+      header: "Last Name",
+    },
+    {
+      accessorKey: "position",
+      header: "Position",
+    },
+    {
+      accessorKey: "contact_number",
+      header: "Phone",
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }: { row: { original: CustomerContact } }) => {
+        const contact = row.original;
+        return (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setEditingContact(contact);
+                setIsContactDialogOpen(true);
+              }}
+              className="p-1 text-blue-600 hover:text-blue-800"
+              title="Edit Contact"
+            >
+              <Edit size={16} />
+            </button>
+            <button
+              onClick={() => handleDeleteContact(contact.id)}
+              className="p-1 text-red-600 hover:text-red-800"
+              title="Delete Contact"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
+
   // Handle customer actions (edit and delete)
   const customerActions: CustomerActions = {
     onEdit: (customer: CustomerType) => {
@@ -148,9 +347,6 @@ export default function Customers() {
         id: customerId,
         name: customer.name || "",
         address: customer.address || "",
-        primary_contact_name: customer.primary_contact_name || "",
-        primary_contact_number: customer.primary_contact_number || "",
-        primary_email: customer.primary_email || "",
         abn: customer.abn || "",
       });
       setIsEditDialogOpen(true);
@@ -174,13 +370,22 @@ export default function Customers() {
         toast.error("Failed to delete customer");
       }
     },
+    onViewContacts: (customer: CustomerType) => {
+      setSelectedCustomer(customer);
+      setIsContactsDialogOpen(true);
+      // Extract customer ID using the same logic as onEdit
+      const appwriteCustomer = customer as Partial<{ $id: string }>;
+      const commonCustomer = customer as Partial<{ id: string }>;
+      const customerId = appwriteCustomer.$id || commonCustomer.id || "";
+      fetchCustomerContacts(customerId);
+    },
   };
 
   // Handle updating a customer
   const handleUpdateCustomer = async () => {
     try {
       // Validation
-      if (!editingCustomer.name || !editingCustomer.primary_contact_name || !editingCustomer.primary_email) {
+      if (!editingCustomer.name) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -189,9 +394,6 @@ export default function Customers() {
       await customersService.updateCustomer(editingCustomer.id, {
         name: editingCustomer.name,
         address: editingCustomer.address,
-        primary_contact_name: editingCustomer.primary_contact_name,
-        primary_contact_number: editingCustomer.primary_contact_number,
-        primary_email: editingCustomer.primary_email,
         abn: editingCustomer.abn,
       });
 
@@ -355,55 +557,6 @@ export default function Customers() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_name" className="text-right font-medium text-gray-800">
-                Contact Name*
-              </label>
-              <Input
-                id="contact_name"
-                value={newCustomer.primary_contact_name}
-                onChange={(e) =>
-                  setNewCustomer({
-                    ...newCustomer,
-                    primary_contact_name: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_number" className="text-right font-medium text-gray-800">
-                Contact Number
-              </label>
-              <Input
-                id="contact_number"
-                value={newCustomer.primary_contact_number}
-                onChange={(e) =>
-                  setNewCustomer({
-                    ...newCustomer,
-                    primary_contact_number: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="email" className="text-right font-medium text-gray-800">
-                Email*
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={newCustomer.primary_email}
-                onChange={(e) =>
-                  setNewCustomer({
-                    ...newCustomer,
-                    primary_email: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="abn" className="text-right font-medium text-gray-800">
                 ABN
               </label>
@@ -466,55 +619,6 @@ export default function Customers() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_name" className="text-right font-medium text-gray-800">
-                Contact Name*
-              </label>
-              <Input
-                id="contact_name"
-                value={editingCustomer.primary_contact_name}
-                onChange={(e) =>
-                  setEditingCustomer({
-                    ...editingCustomer,
-                    primary_contact_name: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="contact_number" className="text-right font-medium text-gray-800">
-                Contact Number
-              </label>
-              <Input
-                id="contact_number"
-                value={editingCustomer.primary_contact_number}
-                onChange={(e) =>
-                  setEditingCustomer({
-                    ...editingCustomer,
-                    primary_contact_number: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="email" className="text-right font-medium text-gray-800">
-                Email*
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={editingCustomer.primary_email}
-                onChange={(e) =>
-                  setEditingCustomer({
-                    ...editingCustomer,
-                    primary_email: e.target.value,
-                  })
-                }
-                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="abn" className="text-right font-medium text-gray-800">
                 ABN
               </label>
@@ -535,6 +639,171 @@ export default function Customers() {
               className="bg-green-700 text-white hover:bg-green-800 font-medium"
             >
               Update Customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contacts Dialog */}
+      <Dialog open={isContactsDialogOpen} onOpenChange={setIsContactsDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] bg-white border-2 border-gray-300">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-gray-900 font-bold">
+              {selectedCustomer?.name} - Contacts
+            </DialogTitle>
+            <DialogDescription className="text-gray-700">
+              View and manage customer contacts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="flex justify-end mb-4">
+              <Button
+                className="bg-green-700 text-white hover:bg-green-800 font-medium"
+                onClick={() => {
+                  setEditingContact(null);
+                  setIsContactDialogOpen(true);
+                }}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Contact
+              </Button>
+            </div>
+            {isLoadingContacts ? (
+              <div className="flex justify-center items-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                <span className="ml-2 text-sm text-gray-500">Loading contacts...</span>
+              </div>
+            ) : customerContacts.length === 0 ? (
+              <div className="text-center text-gray-500 py-4">
+                No contacts found for this customer.
+              </div>
+            ) : (
+              <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
+                <DataTable
+                  columns={getContactColumns()}
+                  data={customerContacts}
+                  noSearchBar={true}
+                  isLoading={isLoadingContacts}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsContactsDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Contact Dialog */}
+      <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-2 border-gray-300">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-gray-900 font-bold">
+              {editingContact ? "Edit Contact" : "Add Contact"}
+            </DialogTitle>
+            <DialogDescription className="text-gray-700">
+              {editingContact ? "Update the contact details below." : "Enter the contact details below to add a new contact."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="first_name" className="text-right font-medium text-gray-800">
+                First Name*
+              </label>
+              <Input
+                id="first_name"
+                value={editingContact?.first_name || newContact.first_name}
+                onChange={(e) => {
+                  if (editingContact) {
+                    setEditingContact({ ...editingContact, first_name: e.target.value });
+                  } else {
+                    setNewContact({ ...newContact, first_name: e.target.value });
+                  }
+                }}
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="last_name" className="text-right font-medium text-gray-800">
+                Last Name*
+              </label>
+              <Input
+                id="last_name"
+                value={editingContact?.last_name || newContact.last_name}
+                onChange={(e) => {
+                  if (editingContact) {
+                    setEditingContact({ ...editingContact, last_name: e.target.value });
+                  } else {
+                    setNewContact({ ...newContact, last_name: e.target.value });
+                  }
+                }}
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="position" className="text-right font-medium text-gray-800">
+                Position
+              </label>
+              <Input
+                id="position"
+                value={editingContact?.position || newContact.position}
+                onChange={(e) => {
+                  if (editingContact) {
+                    setEditingContact({ ...editingContact, position: e.target.value });
+                  } else {
+                    setNewContact({ ...newContact, position: e.target.value });
+                  }
+                }}
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="contact_number" className="text-right font-medium text-gray-800">
+                Phone*
+              </label>
+              <Input
+                id="contact_number"
+                value={editingContact?.contact_number || newContact.contact_number}
+                onChange={(e) => {
+                  if (editingContact) {
+                    setEditingContact({ ...editingContact, contact_number: e.target.value });
+                  } else {
+                    setNewContact({ ...newContact, contact_number: e.target.value });
+                  }
+                }}
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="email" className="text-right font-medium text-gray-800">
+                Email*
+              </label>
+              <Input
+                id="email"
+                value={editingContact?.email || newContact.email}
+                onChange={(e) => {
+                  if (editingContact) {
+                    setEditingContact({ ...editingContact, email: e.target.value });
+                  } else {
+                    setNewContact({ ...newContact, email: e.target.value });
+                  }
+                }}
+                className="col-span-3 border-2 border-gray-300 focus:border-blue-600"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              onClick={editingContact ? handleUpdateContact : handleAddContact}
+              className="bg-green-700 text-white hover:bg-green-800 font-medium"
+            >
+              {editingContact ? "Update Contact" : "Add Contact"}
             </Button>
           </DialogFooter>
         </DialogContent>

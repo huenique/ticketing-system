@@ -32,16 +32,16 @@ import { PRESET_TABLES } from "@/constants/tickets";
 import {
   customersService as ticketsCustomersService,
   statusesService,
-  ticketsService,
-  ticketAssignmentsService
+  ticketsService
 } from "@/services/ticketsService";
 import { timeEntriesService } from "@/services";
 import { usersService, User as ServiceUser } from "@/services/usersService";
-import { Customer, Row, Ticket, TimeEntry } from "@/types/tickets";
+import { Customer, Row, Ticket, TimeEntry, TicketAssignment, Tab } from "@/types/tickets";
 import { Status } from "@/services/ticketsService";
 import { convertTicketToRow } from "@/utils/ticketUtils";
 import { partsService, Part } from "@/services/partsService";
 import { workflowsService, Workflow as DBWorkflow } from '../services/workflowsService';
+import { ticketAssignmentsService } from "@/services/ticketAssignmentsService";
 
 // Components
 import TabNavigation from "../components/TabNavigation";
@@ -84,7 +84,8 @@ const AssigneeDebugInfo = ({ assignees, users }: { assignees: any[], users: any[
 // Import the customer contact types
 import {
   customersService as fullCustomersService,
-  CustomerContact
+  CustomerContact,
+  NewCustomer
 } from "@/services/customersService";
 
 // Define a custom User type that includes auth_user_id
@@ -351,6 +352,12 @@ function Tickets() {
           filteredTabs.push(existingTabs.find((tab) => tab.title === "All Tickets")!);
         }
 
+        // Always keep "Pipeline" tab if it exists
+        const pipelineTab = existingTabs.find((tab) => tab.title === "Pipeline");
+        if (pipelineTab) {
+          filteredTabs.push(pipelineTab);
+        }
+
         // Only add tabs for statuses that don't already exist
         const existingTabTitles = new Set(existingTabs.map(tab => tab.title));
         
@@ -455,7 +462,7 @@ function Tickets() {
         if (!isMounted) return;
           
         // Filter tickets based on user permissions
-        const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
+        const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
 
         // Convert tickets to rows
         const allTicketRows = filteredTickets.map((ticket) =>
@@ -532,7 +539,7 @@ function Tickets() {
   }, [ticketsRefreshCounter, currentWorkflow]);
 
   // Function to filter tickets based on user permissions
-  const filterTicketsByUserPermission = (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+  const filterTicketsByUserPermission = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
     // Convert ServiceUser array to TicketUser array
     const users = serviceUsers.map(mapServiceUserToTicketUser);
     
@@ -595,37 +602,117 @@ function Tickets() {
     
     console.log(`Current user maps to database user ID: ${currentDbUserId}`);
     
-    // If not admin, only show tickets assigned to the current user
-    const filteredTickets = workflowFilteredTickets.filter((ticket) => {
-      // Skip filtering if no assignee_ids or if ticket has no assignments
-      if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
-        return false;
-      }
-      
-      // For debugging: log the assignee IDs for this ticket
-      const ticketId = ticket.id || (ticket as any).$id;
-      console.log(`Checking ticket ${ticketId} with assignees:`, ticket.assignee_ids);
-      
-      // Check if the current DB user ID is in the assignees list
-      return ticket.assignee_ids.some(assignee => {
-        if (typeof assignee === 'string') {
-          // If it's just a string ID, compare directly with the DB user ID
-          const matches = assignee === currentDbUserId;
-          console.log(`Comparing assignee ID ${assignee} with user DB ID ${currentDbUserId}: ${matches}`);
-          return matches;
-        } else if (typeof assignee === 'object' && assignee !== null) {
-          // If it's an object, it should have an $id property to compare
-          const assigneeId = (assignee as any).$id || '';
-          const matches = assigneeId === currentDbUserId;
-          console.log(`Comparing assignee object ID ${assigneeId} with user DB ID ${currentDbUserId}: ${matches}`);
-          return matches;
+    // If not admin, only show tickets where the user has the highest priority
+    const filteredTickets = await Promise.all(
+      workflowFilteredTickets.map(async (ticket) => {
+        // Skip filtering if no assignee_ids or if ticket has no assignments
+        if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
+          return null;
         }
-        return false;
-      });
+        
+        // Get all assignments for this ticket
+        const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticket.id || (ticket as any).$id);
+        
+        // Find the current user's assignment
+        const userAssignment = assignments.find((assignment: TicketAssignment) => {
+          const assignmentUserId = typeof assignment.user_id === 'object'
+            ? (assignment.user_id as any).$id || (assignment.user_id as any).id
+            : assignment.user_id;
+          return assignmentUserId === currentDbUserId;
+        });
+        
+        if (!userAssignment) {
+          return null;
+        }
+        
+        // Get the user's priority
+        const userPriority = parseInt(userAssignment.priority || '999', 10);
+        
+        // For non-admin users, only show tickets where they have priority 1
+        if (currentUser?.role !== 'admin') {
+          return userPriority === 1 ? ticket : null;
+        }
+        
+        // For admin users, show all tickets
+        return ticket;
+      })
+    );
+    
+    return filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
+  };
+
+  // Function to filter tickets for Pipeline tab (tickets where user is assigned but not top priority)
+  const filterTicketsForPipeline = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+    // Convert ServiceUser array to TicketUser array
+    const ticketUsers = serviceUsers.map(mapServiceUserToTicketUser);
+    
+    // First, filter tickets by the current workflow
+    const workflowFilteredTickets = tickets.filter(ticket => {
+      const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
+      const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
+      return ticketWorkflow === currentWorkflowName.toLowerCase();
     });
     
-    console.log(`Filtered ${workflowFilteredTickets.length} tickets down to ${filteredTickets.length} for user ${currentUser.name} in workflow ${currentWorkflow}`);
-    return filteredTickets;
+    // If user is admin, show all tickets within the current workflow
+    if (isAdmin) {
+      return workflowFilteredTickets;
+    }
+    
+    if (!currentUser) {
+      return [];
+    }
+    
+    // Create a mapping of auth_user_id to user documents
+    const usersByAuthId = new Map<string, TicketUser>();
+    const usersById = new Map<string, TicketUser>();
+    
+    ticketUsers.forEach(user => {
+      usersById.set(user.id || '', user);
+      if (user.auth_user_id) {
+        usersByAuthId.set(user.auth_user_id, user);
+      }
+    });
+    
+    const currentDbUser = usersByAuthId.get(currentUser.id);
+    
+    if (!currentDbUser || !currentDbUser.id) {
+      return [];
+    }
+    
+    const currentDbUserId = currentDbUser.id;
+    
+    // Filter tickets where user is assigned but doesn't have top priority
+    const filteredTickets = await Promise.all(
+      workflowFilteredTickets.map(async (ticket) => {
+        if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
+          return null;
+        }
+        
+        const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticket.id || (ticket as any).$id);
+        
+        const userAssignment = assignments.find((assignment: TicketAssignment) => {
+          const assignmentUserId = typeof assignment.user_id === 'object'
+            ? (assignment.user_id as any).$id || (assignment.user_id as any).id
+            : assignment.user_id;
+          return assignmentUserId === currentDbUserId;
+        });
+        
+        if (!userAssignment) {
+          return null;
+        }
+        
+        const userPriority = parseInt(userAssignment.priority || '999', 10);
+        
+        // For non-admin users, only show tickets where they have priority > 1
+        if (currentUser?.role !== 'admin') {
+          return userPriority > 1 ? ticket : null;
+        }
+        
+        return ticket;
+      })
+    );
+    
+    return filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
   };
 
   // Creates tabs based on statusOptions and applies presets to current workflow 
@@ -690,7 +777,7 @@ function Tickets() {
       ]);
         
       // STEP 6: Filter tickets based on user permissions and current workflow
-      const filteredTickets = filterTicketsByUserPermission(ticketsWithRelationships, users);
+      const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
       const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket));
@@ -699,8 +786,9 @@ function Tickets() {
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
-      const tabsToAdd = [];
+      const tabsToAdd: Tab[] = [];
 
+      // Add All Tickets tab if it doesn't exist
       if (!existingTabTitles.has("All Tickets")) {
         tabsToAdd.push({
           id: "tab-all-tickets",
@@ -709,6 +797,16 @@ function Tickets() {
         });
       }
 
+      // Add Pipeline tab if it doesn't exist
+      if (!existingTabTitles.has("Pipeline")) {
+        tabsToAdd.push({
+          id: "tab-pipeline",
+          title: "Pipeline",
+          appliedPreset: "Engineering" // Mark this tab with the preset
+        });
+      }
+
+      // Add status tabs
       updatedStatusLabels.forEach((status) => {
         if (!existingTabTitles.has(status)) {
           tabsToAdd.push({
@@ -739,11 +837,21 @@ function Tickets() {
       if (allTicketsTab) {
         createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
       }
+
+      // Create or update Pipeline tab table
+      const pipelineTab = (tabsToAdd.find(t => t.title === "Pipeline") || 
+        existingTabs.find(t => t.title === "Pipeline"));
+      
+      if (pipelineTab) {
+        const pipelineTickets = await filterTicketsForPipeline(ticketsWithRelationships, users);
+        const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket));
+        createTicketsTableForAllTickets(pipelineTab.id, pipelineRows);
+      }
       
       // Then update all status tabs
       const allTabs = [...existingTabs, ...tabsToAdd];
       allTabs.forEach((tab) => {
-        if (tab.title !== "All Tickets" && tab.status) {
+        if (tab.title !== "All Tickets" && tab.title !== "Pipeline" && tab.status) {
           createFilteredTable(tab.id, tab.status, allTicketRows);
         }
       });
@@ -847,7 +955,7 @@ function Tickets() {
         assignee_ids: ticketData.assignee_ids || [],
         attachments: ticketData.attachments || [],
         part_ids: ticketData.part_ids || [], // Include part_ids from the ticket data
-        workflow: ticketData.workflow || currentWorkflow, // Set the workflow from the form or current workflow
+        workflow: ticketData.workflow || workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering", // Use workflow name instead of ID
       };
 
       console.log("Formatted ticket data for creation:", {
@@ -954,7 +1062,7 @@ function Tickets() {
   };
 
   // Function to refresh all status-based tabs based on updated All Tickets data
-  const refreshStatusTabs = (allTicketsRows: Row[]) => {
+  const refreshStatusTabs = async (allTicketsRows: Row[]) => {
     // Get a reference to the tables store
     const tablesStore = useTablesStore.getState();
     const currentTables = tablesStore.tables;
@@ -963,22 +1071,47 @@ function Tickets() {
 
     if (!presetTable) return;
 
+    // Get fresh tickets and users for Pipeline tab
+    const [ticketsWithRelationships, users] = await Promise.all([
+      ticketsService.getTicketsWithRelationships(),
+      usersService.getAllUsers()
+    ]);
+
     // Loop through all tabs
-    tabs.forEach((tab: { id: string; status?: string }) => {
+    tabs.forEach((tab: { id: string; status?: string; title: string }) => {
       // Skip the All Tickets tab
-      if (tab.id === "tab-all-tickets" || !tab.status) return;
+      if (tab.id === "tab-all-tickets") return;
 
-      // Filter rows for this tab based on its status
-      const filteredRows = allTicketsRows.filter(
-        (row) => row.cells["col-7"] === tab.status,
-      );
+      // Handle Pipeline tab
+      if (tab.title === "Pipeline") {
+        // Get pipeline tickets
+        filterTicketsForPipeline(ticketsWithRelationships, users).then(pipelineTickets => {
+          const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket));
+          
+          // Update this tab's table with pipeline rows
+          updatedTables[tab.id] = {
+            ...updatedTables[tab.id],
+            columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
+            rows: pipelineRows,
+          };
+        });
+        return;
+      }
 
-      // Update this tab's table with filtered rows
-      updatedTables[tab.id] = {
-        ...updatedTables[tab.id],
-        columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
-        rows: filteredRows,
-      };
+      // Handle status tabs
+      if (tab.status) {
+        // Filter rows for this tab based on its status
+        const filteredRows = allTicketsRows.filter(
+          (row) => row.cells["col-7"] === tab.status,
+        );
+
+        // Update this tab's table with filtered rows
+        updatedTables[tab.id] = {
+          ...updatedTables[tab.id],
+          columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
+          rows: filteredRows,
+        };
+      }
     });
 
     // Update all tables at once
@@ -1215,10 +1348,7 @@ function Tickets() {
           id: c.$id,
           name: c.name,
           address: c.address,
-          primary_contact_name: c.primary_contact_name,
-          primary_contact_number: c.primary_contact_number,
-          primary_email: c.primary_email,
-          abn: c.abn,
+          abn: c.abn || "",
           $id: c.$id,
           $createdAt: c.$createdAt,
           $updatedAt: c.$updatedAt,
@@ -1267,10 +1397,7 @@ function Tickets() {
         id: c.$id, // Map $id to id
         name: c.name,
         address: c.address,
-        primary_contact_name: c.primary_contact_name,
-        primary_contact_number: c.primary_contact_number,
-        primary_email: c.primary_email,
-        abn: c.abn,
+        abn: c.abn || "",
         $id: c.$id,
         $createdAt: c.$createdAt,
         $updatedAt: c.$updatedAt,
@@ -1485,7 +1612,7 @@ function Tickets() {
         assignee_ids: selectedAssignees,
         attachments: uploadedFileIds, // Use the file IDs from storage
         part_ids: selectedParts, // Add the selected parts
-        workflow: currentWorkflow // Set current workflow
+        workflow: workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering" // Use workflow name instead of ID
       };
       
       console.log("Creating ticket with relationship fields:", {
@@ -1512,7 +1639,8 @@ function Tickets() {
             // Leave other fields empty by default
             work_description: '',
             estimated_time: '',
-            actual_time: ''
+            actual_time: '',
+            priority: '1' // Set default priority to 1
           })
         );
         
@@ -1639,11 +1767,9 @@ function Tickets() {
     if (!customerId || !contact) return;
     
     try {
-      // Update customer with primary contact info
-      const updateData = {
-        primary_contact_name: `${contact.first_name} ${contact.last_name}`,
-        primary_contact_number: contact.contact_number,
-        primary_email: contact.email,
+      // Update customer with the contact ID
+      const updateData: Partial<NewCustomer> = {
+        customer_contact_ids: [contact.$id]
       };
       
       // Update the customer record in Appwrite

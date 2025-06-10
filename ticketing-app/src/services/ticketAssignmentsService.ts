@@ -168,19 +168,15 @@ export const ticketAssignmentsService = {
     ticketId: string
   ): Promise<TicketAssignment> => {
     try {
-      // Process work description to include priority tag
-      const priority = assignee.priority || "5";
-      const baseWorkDescription = assignee.workDescription || "";
-      const workDescription = `[PRIORITY:${priority}] ${baseWorkDescription}`;
-      
       // Map the Assignee properties to TicketAssignment properties
       const assignmentData: Omit<TicketAssignment, "id"> = {
-        work_description: workDescription,
+        work_description: assignee.workDescription || "",
         estimated_time: assignee.estTime,
         actual_time: assignee.totalHours,
         user_id: assignee.user_id || "",
         ticket_id: ticketId,
-        is_done: assignee.is_done || false
+        is_done: assignee.is_done || false,
+        priority: assignee.priority || "5"
       };
 
       // Create the ticket assignment
@@ -258,27 +254,14 @@ export const ticketAssignmentsService = {
           console.warn(`Could not fetch user with ID ${assignment.user_id}`, error);
         }
       }
-
-      // Extract work description
-      let workDescription = assignment.work_description || "";
-      
-      // Extract priority from work description if it exists
-      let priority = "5"; // Default priority
-      const priorityMatch = workDescription.match(/\[PRIORITY:([0-9]+)\]/);
-      if (priorityMatch && priorityMatch[1]) {
-        priority = priorityMatch[1];
-        // Remove the priority tag from the work description for display
-        workDescription = workDescription.replace(/\[PRIORITY:[0-9]+\]\s*/, "");
-      }
       
       return {
         id: assignmentId,
         name: userName,
-        workDescription: workDescription,
+        workDescription: assignment.work_description || "",
         totalHours: assignment.actual_time || "0",
         estTime: assignment.estimated_time || "0",
-        // Use extracted priority
-        priority: priority,
+        priority: assignment.priority || "5",
         user_id: assignment.user_id,
         ticket_id: assignment.ticket_id,
         is_done: assignment.is_done || false

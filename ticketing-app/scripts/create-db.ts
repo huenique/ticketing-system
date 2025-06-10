@@ -465,6 +465,17 @@ async function createCollections() {
   );
   await safe(
     () =>
+      databases.createStringAttribute(
+        dbId,
+        'ticket_assignments',
+        'priority',
+        255,
+        false
+      ),
+    'attribute ticket_assignments.priority'
+  );
+  await safe(
+    () =>
       databases.createBooleanAttribute(
         dbId,
         'ticket_assignments',
@@ -545,6 +556,10 @@ async function createCollections() {
     'attribute parts.description'
   );
   await safe(
+    () => databases.createStringAttribute(dbId, 'parts', 'item_number', 255, false),
+    'attribute parts.item_number'
+  );
+  await safe(
     () => databases.createStringAttribute(dbId, 'parts', 'quantity', 255, true),
     'attribute parts.quantity'
   );
@@ -577,6 +592,18 @@ async function createCollections() {
         ['ASC']
       ),
     'index parts_description_fulltext'
+  );
+  await safe(
+    () =>
+      databases.createIndex(
+        dbId,
+        'parts',
+        'parts_item_number_fulltext',
+        'fulltext' as IndexType,
+        ['item_number'],
+        ['ASC']
+      ),
+    'index parts_item_number_fulltext'
   );
   await safe(
     () =>

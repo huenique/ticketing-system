@@ -22,7 +22,6 @@ export interface UserTypeActions extends DataTableActions<UserType> {}
 export const getUserTypesColumns = (actions: UserTypeActions): ColumnDef<UserType>[] => {
   // Create an array of columns
   const columns: ColumnDef<UserType>[] = [
-    createIdColumn<UserType>("ID"),
     createStandardColumn<UserType>("label", "Label"),
     {
       accessorFn: (userType) => userType.$createdAt 
