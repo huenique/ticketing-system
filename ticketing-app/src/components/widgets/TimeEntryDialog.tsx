@@ -21,8 +21,8 @@ const TimeEntryDialog: React.FC<TimeEntryDialogProps> = ({
   onSubmit,
   assigneeName = "Unassigned"
 }) => {
-  const [startTime, setStartTime] = useState("");
-  const [stopTime, setStopTime] = useState("");
+  const [startTime, setStartTime] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [stopTime, setStopTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [duration, setDuration] = useState("0");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState("");
