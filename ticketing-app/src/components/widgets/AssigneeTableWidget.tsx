@@ -2,6 +2,7 @@ import React from "react";
 import { Assignee, TimeEntry } from "@/types/tickets";
 import useUserStore from "@/stores/userStore";
 import TimeEntryDialog from "./TimeEntryDialog";
+import AssigneeDialog from "./AssigneeDialog";
 
 interface AssigneeTableWidgetProps {
   assignees: Assignee[];
@@ -62,151 +63,10 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
             onClick={() => setShowAssigneeForm(!showAssigneeForm)}
             className="text-xs bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20"
           >
-            {showAssigneeForm ? "Cancel" : "Add Member"}
+            Add Member
           </button>
         )}
       </div>
-
-      {showAssigneeForm &&
-        currentUser?.role !== "user" &&
-        setNewAssignee &&
-        newAssignee &&
-        handleAddAssignee && (
-          <div className="mb-4 p-4 border rounded-lg bg-neutral-50">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Name
-                </label>
-                {isLoadingUsers ? (
-                  <div className="mt-1 flex items-center text-sm text-gray-500">
-                    Loading users...
-                  </div>
-                ) : (
-                  <select
-                    value={newAssignee.name}
-                    onChange={(e) => {
-                      const selectedUser = users.find(user => 
-                        `${user.first_name} ${user.last_name}` === e.target.value
-                      );
-                      
-                      setNewAssignee({ 
-                        ...newAssignee, 
-                        name: e.target.value,
-                        user_id: selectedUser?.$id || ""
-                      });
-                    }}
-                    className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select a user</option>
-                    {users.map((user) => (
-                      <option 
-                        key={user.$id} 
-                        value={`${user.first_name} ${user.last_name}`}
-                      >
-                        {user.first_name} {user.last_name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Work Description
-                </label>
-                <input
-                  type="text"
-                  value={newAssignee.workDescription}
-                  onChange={(e) =>
-                    setNewAssignee({
-                      ...newAssignee,
-                      workDescription: e.target.value,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Priority
-                </label>
-                {(() => {
-                  // Find the lowest available priority (starting from 1)
-                  const assignedPriorities = assignees
-                    .map(a => parseInt(a.priority || '0', 10))
-                    .filter(n => !isNaN(n));
-                  let nextPriority = 1;
-                  while (assignedPriorities.includes(nextPriority)) {
-                    nextPriority++;
-                  }
-                  // If the newAssignee priority is not set or is already taken, set it to nextPriority
-                  if (!newAssignee.priority || assignedPriorities.includes(parseInt(newAssignee.priority, 10))) {
-                    setNewAssignee({
-                      ...newAssignee,
-                      priority: String(nextPriority),
-                    });
-                  }
-                  return (
-                    <select
-                      value={newAssignee.priority || String(nextPriority)}
-                      onChange={(e) =>
-                        setNewAssignee({
-                          ...newAssignee,
-                          priority: e.target.value,
-                        })
-                      }
-                      className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    >
-                      <option value={String(nextPriority)}>{nextPriority}</option>
-                    </select>
-                  );
-                })()}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Actual Time
-                </label>
-                <input
-                  type="number"
-                  value={newAssignee.totalHours}
-                  onChange={(e) =>
-                    setNewAssignee({
-                      ...newAssignee,
-                      totalHours: e.target.value,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  step="0.1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700">
-                  Est. Time
-                </label>
-                <input
-                  type="number"
-                  value={newAssignee.estTime}
-                  onChange={(e) =>
-                    setNewAssignee({
-                      ...newAssignee,
-                      estTime: e.target.value,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-md border border-neutral-300 py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  step="0.1"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={handleAddAssignee}
-                className="bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm hover:bg-primary/90"
-              >
-                Add Member
-              </button>
-            </div>
-          </div>
-        )}
 
       {assignees?.length > 0 ? (
         <div className="overflow-x-auto">
@@ -534,6 +394,19 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
         onSubmit={handleNewTimeEntry}
         assigneeName={selectedAssigneeName}
       />
+
+      {setShowAssigneeForm && handleAddAssignee && (
+        <AssigneeDialog
+          open={showAssigneeForm}
+          onOpenChange={setShowAssigneeForm}
+          onSubmit={handleAddAssignee}
+          newAssignee={newAssignee}
+          setNewAssignee={setNewAssignee}
+          users={users}
+          isLoadingUsers={isLoadingUsers}
+          assignees={assignees}
+        />
+      )}
     </div>
   );
 };
