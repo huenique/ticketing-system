@@ -8,12 +8,13 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { Paperclip, X, Download } from "lucide-react";
 import { getFilePreview, getFileDownload } from "@/services/storageService";
+import TimeEntryDialog from "./TimeEntryDialog";
 
 interface TimeEntriesCardWidgetProps {
   timeEntries: TimeEntry[];
   handleUpdateTimeEntry: (id: string, field: string, value: string) => void;
   handleRemoveTimeEntry: (id: string) => void;
-  handleAddTimeEntry: (assigneeId: string, userId?: string) => void;
+  handleAddTimeEntry: (assigneeId: string, userId?: string, timeEntryData?: Partial<TimeEntry>) => void;
 }
 
 const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
@@ -25,6 +26,9 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
   const { currentUser } = useUserStore();
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [isTimeEntryDialogOpen, setIsTimeEntryDialogOpen] = useState(false);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
   
   // Handle file upload
   const handleFileUpload = async (entryId: string, files: FileList) => {
@@ -72,6 +76,27 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
       setUploading(prev => ({ ...prev, [entryId]: false }));
     }
   };
+
+  const handleNewTimeEntry = (timeEntryData: Partial<TimeEntry>) => {
+    console.log("Time entry data from dialog:", timeEntryData);
+    
+    // Create a new time entry with the form data and user information
+    const newTimeEntry: Partial<TimeEntry> = {
+      startTime: timeEntryData.startTime,
+      stopTime: timeEntryData.stopTime,
+      duration: timeEntryData.duration,
+      dateCreated: timeEntryData.dateCreated,
+      remarks: timeEntryData.remarks,
+      files: timeEntryData.files,
+      assigneeId: selectedAssigneeId,
+      user_id: selectedUserId,
+      assigneeName: currentUser?.name || "Unassigned"
+    };
+
+    console.log("Sending time entry data to handler:", newTimeEntry);
+    // Call the original handleAddTimeEntry with the assignee ID, user ID, and time entry data
+    handleAddTimeEntry(selectedAssigneeId, selectedUserId, newTimeEntry);
+  };
   
   return (
     <div className="mt-4">
@@ -79,18 +104,17 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
         <div className="text-gray-500 text-sm">
           Record time spent working on this ticket
         </div>
-        {handleAddTimeEntry && (
-          <Button
-            onClick={() => {
-              // Pass empty assigneeId but current user's ID (if available)
-              handleAddTimeEntry("", currentUser?.id || "");
-            }}
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            Add Time Entry
-          </Button>
-        )}
+        <Button
+          onClick={() => {
+            setSelectedAssigneeId("");
+            setSelectedUserId(currentUser?.id || "");
+            setIsTimeEntryDialogOpen(true);
+          }}
+          size="sm"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          Add Time Entry
+        </Button>
       </div>
       
       {timeEntries && timeEntries.length > 0 ? (
@@ -109,7 +133,7 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
                     Start Time
@@ -147,7 +171,7 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
                 </div>
               </div>
               
-              <div className="mb-3">
+              <div className="mb-4">
                 <label className="block text-xs text-gray-500 mb-1">
                   Remarks
                 </label>
@@ -208,49 +232,37 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
                 )}
                 
                 {entry.files && entry.files.length > 0 && (
-                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  <div className="flex flex-wrap gap-1 mt-2">
                     {entry.files.map((fileId, index) => (
                       <div 
-                        key={`${entry.id}-file-${index}-${fileId}`}
-                        className="border rounded-md p-2 flex flex-col justify-between transition-all hover:border-blue-300"
+                        key={`${entry.id}-file-${index}`}
+                        className="group relative inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
                       >
-                        <div className="flex items-center mb-2">
-                          <div className="w-8 h-8 flex items-center justify-center bg-neutral-100 rounded mr-2">
-                            <Paperclip className="h-4 w-4 text-neutral-500" />
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                            <p className="text-xs font-medium truncate">File {index + 1}</p>
-                            <p className="text-xs text-neutral-500 truncate">{fileId.substring(0, 6)}...</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end space-x-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6" 
-                            onClick={() => {
-                              // Remove file
-                              const newFiles = [...entry.files || []];
-                              newFiles.splice(index, 1);
-                              handleUpdateTimeEntry(
-                                entry.id,
-                                "files",
-                                JSON.stringify(newFiles)
-                              );
-                            }}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6"
-                            onClick={() => window.open(getFileDownload(fileId), '_blank')}
-                          >
-                            <Download className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <a 
+                          href={getFileDownload(fileId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1"
+                          title="Download file"
+                        >
+                          <Download className="h-2.5 w-2.5" />
+                          <span>{index + 1}</span>
+                        </a>
+                        <button
+                          onClick={() => {
+                            const newFiles = [...entry.files || []];
+                            newFiles.splice(index, 1);
+                            handleUpdateTimeEntry(
+                              entry.id,
+                              "files",
+                              JSON.stringify(newFiles)
+                            );
+                          }}
+                          className="opacity-0 group-hover:opacity-100 ml-0.5 text-neutral-500 hover:text-red-500 transition-opacity"
+                          title="Remove file"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -275,10 +287,17 @@ const TimeEntriesCardWidget: React.FC<TimeEntriesCardWidgetProps> = ({
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">
-          No time entries recorded for this ticket yet.
+        <div className="text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-md">
+          No time entries recorded yet.
         </div>
       )}
+
+      <TimeEntryDialog
+        open={isTimeEntryDialogOpen}
+        onOpenChange={setIsTimeEntryDialogOpen}
+        onSubmit={handleNewTimeEntry}
+        assigneeName={currentUser?.name || "Unassigned"}
+      />
     </div>
   );
 };

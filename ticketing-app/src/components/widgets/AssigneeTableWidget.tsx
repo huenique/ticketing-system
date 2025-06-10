@@ -1,7 +1,7 @@
 import React from "react";
-import { toast } from "sonner";
-import { Assignee } from "../../types/tickets";
-import useUserStore from "../../stores/userStore";
+import { Assignee, TimeEntry } from "@/types/tickets";
+import useUserStore from "@/stores/userStore";
+import TimeEntryDialog from "./TimeEntryDialog";
 
 interface AssigneeTableWidgetProps {
   assignees: Assignee[];
@@ -14,7 +14,7 @@ interface AssigneeTableWidgetProps {
   handleAddAssignee?: () => void;
   handleRemoveAssignee?: (id: string) => void;
   handleUpdateAssignee?: (id: string, field: string, value: string) => void;
-  handleAddTimeEntry?: (assigneeId: string, userId?: string) => void;
+  handleAddTimeEntry?: (assigneeId: string, userId?: string, timeEntryData?: Partial<TimeEntry>) => void;
   markAssigneeCompleted?: (id: string, completed: boolean) => void;
 }
 
@@ -33,6 +33,26 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
   markAssigneeCompleted,
 }) => {
   const { currentUser } = useUserStore();
+  const [isTimeEntryDialogOpen, setIsTimeEntryDialogOpen] = React.useState(false);
+  const [selectedAssigneeId, setSelectedAssigneeId] = React.useState("");
+  const [selectedUserId, setSelectedUserId] = React.useState("");
+  const [selectedAssigneeName, setSelectedAssigneeName] = React.useState("");
+
+  const handleNewTimeEntry = (timeEntryData: Partial<TimeEntry>) => {
+    // Create a new time entry with the form data
+    const newTimeEntry: Partial<TimeEntry> = {
+      ...timeEntryData,
+      id: `temp_${Date.now()}`,
+      assigneeId: selectedAssigneeId,
+      user_id: selectedUserId,
+      assigneeName: selectedAssigneeName
+    };
+
+    // Call the original handleAddTimeEntry with the complete time entry data
+    if (handleAddTimeEntry) {
+      handleAddTimeEntry(selectedAssigneeId, selectedUserId, newTimeEntry);
+    }
+  };
 
   return (
     <div className="overflow-auto">
@@ -343,9 +363,12 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                             <>
                               {handleAddTimeEntry && (
                                 <button
-                                  onClick={() =>
-                                    handleAddTimeEntry(assignee.id || `index-${index}`, assignee.user_id)
-                                  }
+                                  onClick={() => {
+                                    setSelectedAssigneeId(assignee.id || `index-${index}`);
+                                    setSelectedUserId(assignee.user_id || "");
+                                    setSelectedAssigneeName(assignee.name || "");
+                                    setIsTimeEntryDialogOpen(true);
+                                  }}
                                   disabled={assignee.is_done}
                                   className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-gray-300 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} focus:outline-none mr-2`}
                                   title={assignee.is_done ? "Cannot add time entry to completed task" : "Add time entry"}
@@ -432,19 +455,10 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                 {handleAddTimeEntry && (
                                   <button
                                     onClick={() => {
-                                      // Extract user_id from the assignee
-                                      let userId = assignee.user_id;
-                                      
-                                      if (typeof userId === 'object' && userId !== null) {
-                                        if ('$id' in userId) {
-                                          userId = (userId as any).$id;
-                                        } else if ('id' in userId) {
-                                          userId = (userId as any).id;
-                                        }
-                                      }
-                                      
-                                      // Pass both assignee.id and the userId
-                                      handleAddTimeEntry(assignee.id || `index-${index}`, userId);
+                                      setSelectedAssigneeId(assignee.id || `index-${index}`);
+                                      setSelectedUserId(assignee.user_id || "");
+                                      setSelectedAssigneeName(assignee.name || "");
+                                      setIsTimeEntryDialogOpen(true);
                                     }}
                                     disabled={assignee.is_done}
                                     className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-gray-300 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} focus:outline-none mr-2`}
@@ -513,6 +527,13 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
           team members.
         </div>
       )}
+
+      <TimeEntryDialog
+        open={isTimeEntryDialogOpen}
+        onOpenChange={setIsTimeEntryDialogOpen}
+        onSubmit={handleNewTimeEntry}
+        assigneeName={selectedAssigneeName}
+      />
     </div>
   );
 };
