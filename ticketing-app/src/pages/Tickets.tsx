@@ -2419,7 +2419,7 @@ function Tickets() {
               {/* Primary Contact */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="primary_contact_id" className="text-right text-sm font-medium">
-                  Primary Contact
+                  Contact
                 </label>
                 <div className="col-span-3">
                   <Select

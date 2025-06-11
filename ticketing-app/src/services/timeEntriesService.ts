@@ -167,13 +167,13 @@ export const timeEntriesService = {
       const ticketId = typeof data.ticket_id === 'object'
         ? (data.ticket_id as any).$id || (data.ticket_id as any).id
         : data.ticket_id;
-      
+
       // Transform from frontend TimeEntry format to database format
       const dataToSave: Record<string, any> = {
-        // Use default values for required fields if not provided
-        start_time: data.startTime || data.start_time || new Date().toTimeString().split(' ')[0],
-        stop_time: data.stopTime || data.stop_time || "",
-        total_duration: data.duration || data.total_duration || "0",
+        // Map frontend field names to database field names
+        start_time: data.startTime || "",
+        stop_time: data.stopTime || "",
+        total_duration: data.duration || "0",
         remarks: data.remarks || "",
         files: data.files || [],
         ticket_id: ticketId,
