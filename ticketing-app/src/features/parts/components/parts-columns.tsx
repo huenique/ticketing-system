@@ -12,6 +12,7 @@ import {
 // Update Part interface based on the actual Part type in the application
 export interface Part {
   $id: string;
+  item_number: string;
   description: string;
   quantity: string;
   price: string;
@@ -29,6 +30,7 @@ export interface PartActions extends DataTableActions<Part> {}
 export const getPartsColumns = (actions: PartActions): ColumnDef<Part>[] => {
   // Create an array of columns
   const columns: ColumnDef<Part>[] = [
+    createStandardColumn<Part>("item_number", "Item Number"),
     createStandardColumn<Part>("description", "Description"),
     createStandardColumn<Part>("quantity", "Quantity"),
     createStandardColumn<Part>("price", "Price"),
