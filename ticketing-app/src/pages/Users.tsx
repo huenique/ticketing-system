@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { ChangePasswordDialog } from "@/components/ui/change-password-dialog";
 
 // Import server paginated users hook
 import { useServerPaginatedUsers } from "@/hooks/useServerPaginatedUsers";
@@ -89,6 +90,10 @@ function Users() {
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Add state for change password dialog
+  const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
+  const [userToChangePassword, setUserToChangePassword] = useState<User | null>(null);
+
   // Define a simpler type for the new user form data
   type NewUserFormData = {
     first_name: string;
@@ -138,6 +143,21 @@ function Users() {
   const handleDeleteClick = (userId: string) => {
     setUserToDelete(userId);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleChangePasswordClick = (user: any) => {
+    // Only allow password change for users with auth_user_id
+    if (!user.auth_user_id) {
+      toast.error("Cannot change password: User is not linked to an authentication account");
+      return;
+    }
+    setUserToChangePassword(user as User);
+    setIsChangePasswordDialogOpen(true);
+  };
+
+  const handleChangePasswordClose = () => {
+    setIsChangePasswordDialogOpen(false);
+    setUserToChangePassword(null);
   };
   
   const confirmDelete = async () => {
@@ -468,7 +488,8 @@ function Users() {
           <DataTable
             columns={getUsersColumns({
               onEdit: (item: any) => handleEditClick(item),
-              onDelete: handleDeleteClick
+              onDelete: handleDeleteClick,
+              onChangePassword: handleChangePasswordClick
             })}
             data={serverUsers as any}
             isLoading={isLoading}
@@ -810,6 +831,17 @@ function Users() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change Password Dialog */}
+      {userToChangePassword && (
+        <ChangePasswordDialog
+          isOpen={isChangePasswordDialogOpen}
+          onClose={handleChangePasswordClose}
+          userEmail={userToChangePassword.auth_user_id || ""}
+          userName={`${userToChangePassword.first_name} ${userToChangePassword.last_name}`}
+          authUserId={userToChangePassword.auth_user_id || ""}
+        />
+      )}
     </div>
   );
 }

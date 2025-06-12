@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { Key } from "lucide-react";
 import { 
   createActionsColumn, 
   createIdColumn, 
@@ -27,6 +28,7 @@ export interface User {
 
 export interface UserActions extends DataTableActions<User> {
   onViewDetails?: (user: User) => void;
+  onChangePassword?: (user: User) => void;
 }
 
 export const getUsersColumns = (actions: UserActions): ColumnDef<User>[] => {
@@ -67,11 +69,26 @@ export const getUsersColumns = (actions: UserActions): ColumnDef<User>[] => {
     createUpdatedAtColumn<User>(),
   ];
 
-  // Add the actions column
+  // Add the actions column with extra actions for change password
+  const extraActions = [];
+  
+  // Add change password action for all users (validation happens in the handler)
+  if (actions.onChangePassword) {
+    extraActions.push({
+      icon: Key,
+      label: "Change Password",
+      onClick: (user: User) => {
+        actions.onChangePassword!(user);
+      },
+      className: "p-1 text-orange-600 hover:text-orange-800"
+    });
+  }
+
   const actionsColumn = createActionsColumn<User>({
     onEdit: actions.onEdit,
     onDelete: actions.onDelete,
-    onView: actions.onViewDetails
+    onView: actions.onViewDetails,
+    extraActions: extraActions
   });
 
   return [...columns, actionsColumn];

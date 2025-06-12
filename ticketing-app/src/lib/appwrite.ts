@@ -201,6 +201,16 @@ export const authService = {
     }
   },
 
+  // Update password for currently logged-in user
+  async updatePassword(newPassword: string, oldPassword?: string) {
+    try {
+      return await account.updatePassword(newPassword, oldPassword);
+    } catch (error) {
+      console.error("Error updating password:", error);
+      throw error;
+    }
+  },
+
   // Send verification email
   async sendVerificationEmail(url: string) {
     try {
