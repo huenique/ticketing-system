@@ -12,13 +12,8 @@ interface PartsWidgetProps {
 export function PartsWidget({ parts }: PartsWidgetProps) {
   if (!parts || parts.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Parts Used</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-muted-foreground">No parts used</div>
-        </CardContent>
+      <Card className="p-4 bg-gray-100 h-full">
+        <div className="text-muted-foreground">No parts used</div>
       </Card>
     );
   }
