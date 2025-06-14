@@ -735,11 +735,35 @@ function Tickets() {
 
       console.log("Applying preset to workflow:", currentWorkflow);
       
-      // STEP 1: Get current statuses fresh from backend
+      // STEP 1: Create user types if they don't exist
+      const existingUserTypes = await usersService.getAllUserTypes();
+      const existingUserTypeLabels = existingUserTypes.map(type => type.label);
+      
+      const requiredUserTypes = [
+        "Technician",
+        "Accounts",
+        "Supervisor",
+        "Manager"
+      ];
+      
+      const missingUserTypes = requiredUserTypes.filter(
+        type => !existingUserTypeLabels.includes(type)
+      );
+      
+      if (missingUserTypes.length > 0) {
+        await Promise.all(
+          missingUserTypes.map(type =>
+            usersService.createUserType({ label: type })
+          )
+        );
+        console.log("Created missing user types:", missingUserTypes);
+      }
+      
+      // STEP 2: Get current statuses fresh from backend
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
 
-      // STEP 2: Define the required engineering statuses
+      // STEP 3: Define the required engineering statuses
       const requiredStatuses = [
         "New",
         "Awaiting Customer Response",
@@ -750,7 +774,7 @@ function Tickets() {
         "Declined"
       ];
 
-      // STEP 3: Add missing required statuses
+      // STEP 4: Add missing required statuses
       const missingRequiredStatuses = requiredStatuses.filter(
         (status) => !existingStatusLabels.includes(status)
       );
@@ -763,26 +787,26 @@ function Tickets() {
         );
       }
 
-      // STEP 4: Fetch statuses again after adding required ones
+      // STEP 5: Fetch statuses again after adding required ones
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
 
       // Update the settings store with all available statuses
       settingsStore.setStatusOptions(updatedStatusLabels);
 
-      // STEP 5: Fetch tickets and users
+      // STEP 6: Fetch tickets and users
       const [ticketsWithRelationships, users] = await Promise.all([
         ticketsService.getTicketsWithRelationships(),
         usersService.getAllUsers()
       ]);
         
-      // STEP 6: Filter tickets based on user permissions and current workflow
+      // STEP 7: Filter tickets based on user permissions and current workflow
       const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
       const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket));
 
-      // STEP 7: Build tabs
+      // STEP 8: Build tabs
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
@@ -818,7 +842,7 @@ function Tickets() {
         }
       });
 
-      // STEP 8: Apply all changes in one batch
+      // STEP 9: Apply all changes in one batch
       // Update tabs first
       if (tabsToAdd.length > 0) {
         const updatedTabs = [...existingTabs, ...tabsToAdd];
@@ -868,7 +892,7 @@ function Tickets() {
         localStorage.setItem("applied-preset-workflows", JSON.stringify(updatedAppliedPresets));
       }
 
-      // STEP 9: No need to increment the refresh counter - we've done all the updates directly
+      // STEP 10: No need to increment the refresh counter - we've done all the updates directly
       console.log("Preset applied successfully");
     } catch (error) {
       console.error(`Error applying preset to workflow ${currentWorkflow}:`, error);
