@@ -19,7 +19,6 @@ interface DocumentMetadata {
 export interface User extends DocumentMetadata {
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: {
     $id: string;
     label: string;
@@ -37,7 +36,6 @@ export interface UserType extends DocumentMetadata {
 export type NewUser = {
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: string | { $id: string; label: string };
   auth_user_id?: string;
 };

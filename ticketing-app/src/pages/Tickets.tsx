@@ -94,7 +94,6 @@ interface TicketUser {
   $id: string;
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: string;
   auth_user_id?: string;
 }
@@ -125,7 +124,6 @@ const mapServiceUserToTicketUser = (user: ServiceUser): TicketUser => ({
   $id: user.$id || '',
   first_name: user.first_name || '',
   last_name: user.last_name || '',
-  username: user.username || '',
   // Convert user_type_id to string if it's an object
   user_type_id: typeof user.user_type_id === 'object' ? user.user_type_id.$id : user.user_type_id || '',
   auth_user_id: user.auth_user_id || ''
