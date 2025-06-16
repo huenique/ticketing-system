@@ -58,7 +58,7 @@ interface TicketDialogHandlers {
   handleRemoveTimeEntry: (id: string) => void;
   handleUpdateTimeEntry: (id: string, field: string, value: string) => void;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
+  markAssigneeCompleted: (id: string, completed: string | boolean) => void;
   handleInitializeTicketDialog: (ticket: Row) => void;
   handleSaveTicketChanges: () => Promise<boolean>;
   viewTicket: (ticket: Row, tabId: string) => Promise<void>;
@@ -200,21 +200,24 @@ function useImageHandlers(state: TicketDialogState) {
 
 // Hook for assignee operations with direct state updates
 function useAssigneeHandlers(state: TicketDialogState) {
-  const { 
-    assignees, 
-    setAssignees, 
-    currentTicket, 
-    newAssignee, 
-    setNewAssignee, 
-    setShowAssigneeForm,
+  const {
+    currentTicket,
+    assignees,
+    setAssignees,
+    timeEntries,
     setTimeEntries,
-    timeEntries
+    ticketForm,
+    setTicketForm,
+    newAssignee,
+    setNewAssignee,
+    setShowAssigneeForm,
+    setCurrentTicket
   } = state;
   
   const { currentUser } = useUserStore();
 
   const handleAddAssignee = async () => {
-    if (newAssignee.name.trim() === "") return;
+    if (state.newAssignee.name.trim() === "") return;
 
     // Compute the lowest available priority (starting from 1)
     const assignedPriorities = assignees
@@ -228,7 +231,7 @@ function useAssigneeHandlers(state: TicketDialogState) {
     // Always assign the lowest available priority to the new assignee
     const assigneeId = `a${Date.now()}`;
     const assigneeToAdd: Assignee = {
-      ...newAssignee,
+      ...state.newAssignee,
       id: assigneeId,
       priority: String(nextPriority),
     };
@@ -492,72 +495,190 @@ function useAssigneeHandlers(state: TicketDialogState) {
   };
 
   // Handle task/assignee completion status
-  const markAssigneeCompleted = async (assigneeId: string, completed: boolean | string) => {
-    // Convert to boolean regardless of input type
-    const isCompleted = completed === true || completed === "true";
-
-    // Update the assignees state - use direct update
-    const updatedAssignees = assignees.map(assignee => 
-      assignee.id === assigneeId ? { ...assignee, is_done: isCompleted } : assignee
-    );
-    setAssignees(updatedAssignees);
-
+  const markAssigneeCompleted = async (id: string, completed: string | boolean) => {
     try {
-      // If we're in edit mode and have a current ticket, update in Appwrite
-      if (currentTicket && currentTicket.id && assigneeId) {
-        // Update the is_done field in the database
-        await ticketAssignmentsService.updateTicketAssignment(assigneeId, {
+      // Convert string to boolean if needed
+      const isCompleted = typeof completed === 'string' ? completed === 'true' : completed;
+      
+      console.log(`Marking assignee ${id} as ${isCompleted ? 'completed' : 'incomplete'}`);
+      
+      // Find the assignee
+      const assignee = assignees.find(a => a.id === id);
+      if (!assignee) {
+        console.error(`Assignee ${id} not found`);
+        return;
+      }
+
+      // Get all time entries for this assignee's user_id
+      const assigneeTimeEntries = timeEntries.filter(entry => {
+        // Handle both object and string user_id
+        const entryUserId = typeof entry.user_id === 'object' 
+          ? (entry.user_id as any).$id || (entry.user_id as any).id 
+          : entry.user_id;
+        const assigneeUserId = typeof assignee.user_id === 'object'
+          ? (assignee.user_id as any).$id || (assignee.user_id as any).id
+          : assignee.user_id;
+        return entryUserId === assigneeUserId;
+      });
+
+      console.log("Time entries for assignee:", assigneeTimeEntries);
+      
+      // Sum up all durations, properly parsing the duration strings
+      const totalTimeSpent = assigneeTimeEntries.reduce((sum, entry) => {
+        // Parse the duration string to a number, defaulting to 0 if parsing fails
+        const duration = parseFloat(entry.duration) || 0;
+        console.log(`Processing duration: ${entry.duration} (parsed as ${duration}) from entry ${entry.id}`);
+        return sum + duration;
+      }, 0);
+      
+      console.log("Total time spent:", totalTimeSpent);
+
+      // Store the ticket ID at the start to ensure we have it throughout the function
+      const ticketId = currentTicket?.id || currentTicket?.cells["col-1"];
+      if (!ticketId) {
+        throw new Error("No current ticket ID found");
+      }
+
+      // Fetch the current ticket data to get the most up-to-date total hours
+      const currentTicketData = await ticketsService.getTicket(ticketId);
+      if (!currentTicketData) {
+        throw new Error("Failed to fetch current ticket data");
+      }
+
+      // Get the current total hours from the database
+      const currentTotalHours = parseFloat(currentTicketData.total_hours?.toString() || "0");
+      console.log("Current total hours from database:", currentTotalHours);
+      
+      // Calculate new total hours based on whether we're marking as completed or incomplete
+      let newTotalHours: number;
+      
+      if (isCompleted) {
+        // When marking as completed, add the time entries to the current total
+        newTotalHours = currentTotalHours + totalTimeSpent;
+        console.log(`Adding ${totalTimeSpent} hours to current total ${currentTotalHours}`);
+      } else {
+        // When marking as incomplete, subtract the time entries from the current total
+        newTotalHours = currentTotalHours - totalTimeSpent;
+        console.log(`Subtracting ${totalTimeSpent} hours from current total ${currentTotalHours}`);
+      }
+      
+      // Ensure we don't go below 0
+      newTotalHours = Math.max(0, newTotalHours);
+      console.log("New total hours:", newTotalHours);
+
+      // Update the UI immediately with the calculated value
+      if (currentTicket) {
+        const immediateUpdatedTicket = {
+          ...currentTicket,
+          id: ticketId,
+          cells: {
+            ...currentTicket.cells,
+            "col-8": newTotalHours.toString()
+          }
+        };
+        console.log("Immediate UI update with calculated total hours:", newTotalHours);
+        setCurrentTicket(immediateUpdatedTicket);
+      }
+      
+      // Update the ticket's total hours in the database - ONLY update total_hours
+      await ticketsService.updateTicket(ticketId, {
+        total_hours: newTotalHours
+      });
+
+      // Fetch the updated ticket data to ensure we have the latest values
+      const updatedTicketData = await ticketsService.getTicket(ticketId);
+      if (!updatedTicketData) {
+        throw new Error("Failed to fetch updated ticket data");
+      }
+
+      // Get the final total hours from the database
+      const finalTotalHours = parseFloat(updatedTicketData.total_hours?.toString() || "0");
+      console.log("Final total hours from database:", finalTotalHours);
+      console.log("Updated ticket data:", JSON.stringify(updatedTicketData, null, 2));
+      
+      // Update the ticket form state with the final value from the database
+      setTicketForm(prev => ({
+        ...prev,
+        totalHours: finalTotalHours
+      }));
+
+      // Update the current ticket's cells with the final value from the database
+      if (currentTicket) {
+        const updatedTicket = {
+          ...currentTicket,
+          id: ticketId,
+          cells: {
+            ...currentTicket.cells,
+            "col-8": finalTotalHours.toString()
+          },
+          // Preserve the rawData which contains parts and other important data
+          rawData: {
+            ...currentTicket.rawData,
+            total_hours: finalTotalHours
+          }
+        };
+        console.log("Updating current ticket with new total hours:", finalTotalHours);
+        console.log("Updated ticket object:", JSON.stringify(updatedTicket, null, 2));
+        setCurrentTicket(updatedTicket);
+      }
+
+      // Update the assignee's completion status in the database
+      if (assignee.ticket_id) {
+        await ticketAssignmentsService.updateTicketAssignment(id, {
           is_done: isCompleted
         });
-
-        // Refresh the assignees list from the database
-        const refreshedAssignees = await ticketAssignmentsService.getAssigneesForTicket(currentTicket.id);
-        setAssignees(refreshedAssignees);
       }
+
+      // Update the local state
+      setAssignees(prev => prev.map(a => 
+        a.id === id ? { ...a, is_done: isCompleted } : a
+      ));
+
+      // Refresh assignees from the database
+      const updatedAssignees = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId);
+      const mappedAssignees = await Promise.all(
+        updatedAssignees.map(ticketAssignmentsService.assignmentToAssignee)
+      );
+      setAssignees(mappedAssignees);
+
+      // Update the ticket's status in the active tab with the final value from the database
+      const updatedRow: Row = {
+        id: ticketId,
+        cells: {
+          // Preserve essential fields from the current ticket
+          "col-1": currentTicket?.cells["col-1"] || ticketId,
+          "col-2": currentTicket?.cells["col-2"] || "",
+          "col-3": currentTicket?.cells["col-3"] || "",
+          "col-4": currentTicket?.cells["col-4"] || "",
+          "col-5": currentTicket?.cells["col-5"] || "",
+          "col-6": currentTicket?.cells["col-6"] || "",
+          "col-7": currentTicket?.cells["col-7"] || "",
+          "col-8": finalTotalHours.toString(), // Always use the final database value
+          "col-9": currentTicket?.cells["col-9"] || "",
+          "col-10": currentTicket?.cells["col-10"] || "",
+          "col-11": currentTicket?.cells["col-11"] || "",
+          // Preserve any other fields that might exist
+          ...Object.fromEntries(
+            Object.entries(currentTicket?.cells || {}).filter(([key]) => 
+              !key.startsWith('col-') && !key.startsWith('col_')
+            )
+          )
+        },
+        // Preserve the rawData which contains parts and other important data
+        rawData: {
+          ...currentTicket?.rawData,
+          // Update with the latest data from the database
+          ...updatedTicketData,
+          total_hours: finalTotalHours
+        }
+      };
+      console.log("Final updated row:", JSON.stringify(updatedRow, null, 2));
+      setCurrentTicket(updatedRow);
+
+      toast.success(`Team member marked as ${isCompleted ? 'completed' : 'incomplete'}`);
     } catch (error) {
-      console.error("Error updating assignee completion status:", error);
-      // We don't show an error toast here to avoid disrupting the UX
-    }
-
-    // Find the assignee that was updated
-    const updatedAssignee = assignees.find((assignee) => assignee.id === assigneeId);
-
-    // If we're working with a current ticket, update its status in the All Tickets tab
-    if (updatedAssignee && currentTicket) {
-      const ticketId = currentTicket.cells["col-1"];
-
-      // Update the ticket in the current tab
-      const tablesState = useTablesStore.getState();
-      const updatedTables = { ...tablesState.tables };
-      const activeTab = Object.keys(updatedTables)[0]; // Assume first tab is active if not specified
-      
-      if (updatedTables[activeTab]) {
-        // Find the row that matches this ticket
-        const updatedRows = updatedTables[activeTab].rows.map((row: Row) => {
-          if (row.cells["col-1"] === ticketId) {
-            return {
-              ...row,
-              completed: isCompleted,
-              cells: {
-                ...row.cells,
-                "col-6": isCompleted ? "Completed" : "In Progress", // Update Status column if it exists
-              },
-            };
-          }
-          return row;
-        });
-
-        updatedTables[activeTab] = {
-          ...updatedTables[activeTab],
-          rows: updatedRows,
-        };
-
-        // Update the global tables state
-        useTablesStore.getState().setTables(updatedTables);
-
-        // Save to localStorage
-        localStorage.setItem("ticket-tables", JSON.stringify(updatedTables));
-      }
+      console.error("Error marking assignee as completed:", error);
+      toast.error("Failed to update team member status");
     }
   };
 

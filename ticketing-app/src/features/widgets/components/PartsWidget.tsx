@@ -19,7 +19,7 @@ export function PartsWidget({ parts }: PartsWidgetProps) {
   }
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 bg-gray-100 h-full">
         <div className="flex flex-wrap gap-2">
           {parts.map((part, index) => {
             const description = typeof part === "object" && part !== null && part.description

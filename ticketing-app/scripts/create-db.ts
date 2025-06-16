@@ -387,7 +387,7 @@ async function createCollections() {
     'attribute tickets.billable_hours'
   );
   await safe(
-    () => databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true),
+    () => databases.createFloatAttribute(dbId, 'tickets', 'total_hours', false, 0),
     'attribute tickets.total_hours'
   );
   await safe(

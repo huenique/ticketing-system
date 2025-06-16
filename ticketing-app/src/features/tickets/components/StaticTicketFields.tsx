@@ -63,6 +63,9 @@ const StaticTicketFields: React.FC<StaticTicketFieldsProps> = ({ currentTicket, 
     handleFieldChange?.("status", newStatus);
   };
 
+  // Get total hours directly from the ticket cells
+  const totalHours = currentTicket?.cells["col-8"] || "0.0";
+
   return (
     <div className="grid grid-cols-3 gap-2 mb-2 p-2 bg-neutral-50 rounded-lg text-sm">
       <div className="flex items-center gap-1">
@@ -97,7 +100,7 @@ const StaticTicketFields: React.FC<StaticTicketFieldsProps> = ({ currentTicket, 
       </div>
       <div className="flex items-center gap-1">
         <span className="text-neutral-500">Total:</span>
-        <span className="font-medium">{currentTicket?.cells["col-8"] || "0.0"}h</span>
+        <span className="font-medium">{totalHours}h</span>
       </div>
     </div>
   );

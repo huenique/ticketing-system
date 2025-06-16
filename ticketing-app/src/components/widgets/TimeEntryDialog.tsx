@@ -50,6 +50,17 @@ const TimeEntryDialog: React.FC<TimeEntryDialogProps> = ({
         }
 
         const totalDuration = durationHours + durationMinutes / 60;
+        console.log("Calculated duration:", {
+          startTime,
+          stopTime,
+          startHours,
+          startMinutes,
+          stopHours,
+          stopMinutes,
+          durationHours,
+          durationMinutes,
+          totalDuration
+        });
         setDuration(totalDuration.toFixed(1));
       } catch (error) {
         console.error("Error calculating duration:", error);

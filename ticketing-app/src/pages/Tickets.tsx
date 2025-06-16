@@ -105,7 +105,6 @@ interface TicketFormData {
   primary_contact_id: string; // This is a UI-only field for the form
   description: string;
   billable_hours: number;
-  total_hours: number;
   assignee_ids: string[];
   attachments: string[];
   part_ids: string[]; // Array of selected part IDs
@@ -1275,7 +1274,6 @@ function Tickets() {
     primary_contact_id: "",
     description: "",
     billable_hours: 0,
-    total_hours: 0,
     assignee_ids: [],
     attachments: [],
     part_ids: [],
@@ -1678,7 +1676,6 @@ function Tickets() {
         primary_contact_id: "",
         description: "",
         billable_hours: 0,
-        total_hours: 0,
         assignee_ids: [],
         attachments: [],
         part_ids: [],
@@ -1716,7 +1713,6 @@ function Tickets() {
         primary_contact_id: "",
         description: "",
         billable_hours: 0,
-        total_hours: 0,
         assignee_ids: [],
         attachments: [],
         part_ids: [],
@@ -2565,26 +2561,6 @@ function Tickets() {
                   onChange={(e) =>
                     handleNewTicketFormChange(
                       "billable_hours",
-                      parseFloat(e.target.value) || 0,
-                    )
-                  }
-                  className="col-span-3"
-                  min="0"
-                  step="0.5"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="total_hours" className="text-right text-sm font-medium">
-                  Total Hours
-                </label>
-                <Input
-                  id="total_hours"
-                  type="number"
-                  value={newTicketData.total_hours}
-                  onChange={(e) =>
-                    handleNewTicketFormChange(
-                      "total_hours",
                       parseFloat(e.target.value) || 0,
                     )
                   }
