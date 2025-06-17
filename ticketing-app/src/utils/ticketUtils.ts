@@ -10,6 +10,34 @@ import {
 } from "../constants/tickets";
 
 /**
+ * Helper function to determine which status to display based on user permissions
+ * @param ticket - The ticket object
+ * @param isAdmin - Whether the current user is an admin
+ * @returns The effective status object to display
+ */
+export function getEffectiveStatus(ticket: any, isAdmin: boolean): any {
+  // For admin users: always use status_id (ignore task_status_id)
+  if (isAdmin) {
+    return typeof ticket.status_id === "object" ? ticket.status_id : ticket.status;
+  }
+  
+  // For non-admin users:
+  // If task_status exists and has a value, use task_status_id
+  // Otherwise, use status_id
+  const taskStatus = typeof ticket.task_status_id === "object" ? ticket.task_status_id : ticket.task_status;
+  const regularStatus = typeof ticket.status_id === "object" ? ticket.status_id : ticket.status;
+  
+  // Check if task_status exists and has a meaningful value
+  if (taskStatus && (taskStatus.label || taskStatus.$id)) {
+    console.log("Using task_status for non-admin user:", taskStatus);
+    return taskStatus;
+  }
+  
+  console.log("Using regular status for non-admin user:", regularStatus);
+  return regularStatus;
+}
+
+/**
  * Generate mock data for a table row
  */
 export function generateMockRowData(rowIndex: number): Record<string, string> {
@@ -293,6 +321,7 @@ export function getScrollbarStyles(): string {
  */
 export function convertTicketToRow(
   ticket: any, // Use 'any' temporarily to handle the unexpected response structure
+  isAdmin: boolean = true, // Default to admin view for backward compatibility
 ): Row {
   // Format timestamps if they exist
   const dateCreated = new Date().toLocaleDateString("en-US", {
@@ -302,8 +331,8 @@ export function convertTicketToRow(
   });
 
   // Handle the case where relationship fields are already expanded objects
-  const status =
-    typeof ticket.status_id === "object" ? ticket.status_id : ticket.status;
+  // Use the effective status based on user permissions
+  const status = getEffectiveStatus(ticket, isAdmin);
   const customer =
     typeof ticket.customer_id === "object" ? ticket.customer_id : ticket.customer;
 
@@ -384,9 +413,15 @@ export function convertTicketToRow(
   // Use $id for Appwrite's document ID if available
   const documentId = ticket.$id || ticket.id || `generated-${Date.now()}`;
 
-  // Store the status label directly in the cells, while keeping the status_id in rawData
+  // Store the status label directly in the cells, while keeping both status IDs in rawData
   const statusLabel = status?.label || "";
   const statusId = status?.$id || status?.id || "";
+  
+  // Also get the original status IDs for rawData
+  const originalStatus = typeof ticket.status_id === "object" ? ticket.status_id : ticket.status;
+  const originalTaskStatus = typeof ticket.task_status_id === "object" ? ticket.task_status_id : ticket.task_status;
+  const originalStatusId = originalStatus?.$id || originalStatus?.id || "";
+  const originalTaskStatusId = originalTaskStatus?.$id || originalTaskStatus?.id || "";
 
   const cells = {
     "col-1": `TK-${documentId.substring(0, 8)}`, // Ticket ID (shortened for display)
@@ -409,7 +444,9 @@ export function convertTicketToRow(
     cells,
     rawData: {
       ...ticket,
-      status_id: statusId, // Keep the original status_id relationship field
+      status_id: originalStatusId, // Keep the original status_id relationship field
+      task_status_id: originalTaskStatusId, // Keep the task_status_id relationship field
+      effective_status_id: statusId, // Store which status was actually used for display
     },
   };
 }

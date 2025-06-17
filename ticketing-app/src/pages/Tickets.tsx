@@ -101,6 +101,7 @@ interface TicketUser {
 // Interface for the ticket form data (extends Ticket with UI-only fields)
 interface TicketFormData {
   status_id: string;
+  task_status_id?: string; // Optional task status for non-admin users
   customer_id: string;
   primary_contact_id: string; // This is a UI-only field for the form
   description: string;
@@ -463,7 +464,7 @@ function Tickets() {
 
         // Convert tickets to rows
         const allTicketRows = filteredTickets.map((ticket) =>
-          convertTicketToRow(ticket),
+          convertTicketToRow(ticket, isAdmin),
         );
 
         // Get current tables state directly from store
@@ -801,7 +802,7 @@ function Tickets() {
       const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
-      const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket));
+      const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
 
       // STEP 8: Build tabs
       const existingTabs = tabsStore.tabs;
@@ -865,7 +866,7 @@ function Tickets() {
       
       if (pipelineTab) {
         const pipelineTickets = await filterTicketsForPipeline(ticketsWithRelationships, users);
-        const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket));
+        const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
         createTicketsTableForAllTickets(pipelineTab.id, pipelineRows);
       }
       
@@ -1025,7 +1026,7 @@ function Tickets() {
         );
 
         // If successful, convert to proper row format
-        newRow = convertTicketToRow(ticketWithRelationships);
+        newRow = convertTicketToRow(ticketWithRelationships, isAdmin);
       } catch (relationshipError) {
         console.warn(
           "Error fetching relationships for newly created ticket:",
@@ -1107,7 +1108,7 @@ function Tickets() {
       if (tab.title === "Pipeline") {
         // Get pipeline tickets
         filterTicketsForPipeline(ticketsWithRelationships, users).then(pipelineTickets => {
-          const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket));
+          const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
           
           // Update this tab's table with pipeline rows
           updatedTables[tab.id] = {
@@ -1160,9 +1161,12 @@ function Tickets() {
         const selectedStatus = allStatuses.find(status => status.label === processedValue);
         
         if (selectedStatus) {
+          // Determine which status field to update based on user permissions
+          const statusFieldToUpdate = isAdmin ? 'status_id' : 'task_status_id';
+          
           // Update the ticket in Appwrite first
           await ticketsService.updateTicket(currentTicket.id, {
-            status_id: selectedStatus.$id || selectedStatus.id
+            [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id
           });
 
           // Then update the UI
@@ -1181,7 +1185,7 @@ function Tickets() {
                     },
                     rawData: {
                       ...row.rawData,
-                      status_id: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
+                      [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
                     },
                   };
                 }
@@ -1203,7 +1207,7 @@ function Tickets() {
                     },
                     rawData: {
                       ...row.rawData,
-                      status_id: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
+                      [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
                     },
                   };
                 }

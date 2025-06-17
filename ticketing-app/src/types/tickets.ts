@@ -10,7 +10,8 @@ import {
 // Define interfaces based on Appwrite schema
 export interface Ticket {
   id: string;
-  status_id: string; // Relationship field to statuses collection
+  status_id: string; // Relationship field to statuses collection (used by admin)
+  task_status_id?: string; // Relationship field to statuses collection (used by non-admin users)
   customer_id: string; // Relationship field to customers collection
   billable_hours: number;
   total_hours: number;

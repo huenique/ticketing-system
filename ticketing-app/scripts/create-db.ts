@@ -359,6 +359,20 @@ async function createCollections() {
       databases.createRelationshipAttribute(
         dbId,
         'tickets',
+        'statuses',
+        'manyToOne'as RelationshipType,
+        false,
+        'task_status_id',
+        undefined,
+        'setNull' as RelationMutate,
+      ),
+    'relationship tickets.task_status_id'
+  );
+  await safe(
+    () =>
+      databases.createRelationshipAttribute(
+        dbId,
+        'tickets',
         'customers',
         'manyToOne'as RelationshipType,
         false,
