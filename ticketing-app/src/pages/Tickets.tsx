@@ -94,7 +94,6 @@ interface TicketUser {
   $id: string;
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: string;
   auth_user_id?: string;
 }
@@ -106,7 +105,6 @@ interface TicketFormData {
   primary_contact_id: string; // This is a UI-only field for the form
   description: string;
   billable_hours: number;
-  total_hours: number;
   assignee_ids: string[];
   attachments: string[];
   part_ids: string[]; // Array of selected part IDs
@@ -125,7 +123,6 @@ const mapServiceUserToTicketUser = (user: ServiceUser): TicketUser => ({
   $id: user.$id || '',
   first_name: user.first_name || '',
   last_name: user.last_name || '',
-  username: user.username || '',
   // Convert user_type_id to string if it's an object
   user_type_id: typeof user.user_type_id === 'object' ? user.user_type_id.$id : user.user_type_id || '',
   auth_user_id: user.auth_user_id || ''
@@ -735,11 +732,35 @@ function Tickets() {
 
       console.log("Applying preset to workflow:", currentWorkflow);
       
-      // STEP 1: Get current statuses fresh from backend
+      // STEP 1: Create user types if they don't exist
+      const existingUserTypes = await usersService.getAllUserTypes();
+      const existingUserTypeLabels = existingUserTypes.map(type => type.label);
+      
+      const requiredUserTypes = [
+        "Technician",
+        "Accounts",
+        "Supervisor",
+        "Manager"
+      ];
+      
+      const missingUserTypes = requiredUserTypes.filter(
+        type => !existingUserTypeLabels.includes(type)
+      );
+      
+      if (missingUserTypes.length > 0) {
+        await Promise.all(
+          missingUserTypes.map(type =>
+            usersService.createUserType({ label: type })
+          )
+        );
+        console.log("Created missing user types:", missingUserTypes);
+      }
+      
+      // STEP 2: Get current statuses fresh from backend
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
 
-      // STEP 2: Define the required engineering statuses
+      // STEP 3: Define the required engineering statuses
       const requiredStatuses = [
         "New",
         "Awaiting Customer Response",
@@ -750,7 +771,7 @@ function Tickets() {
         "Declined"
       ];
 
-      // STEP 3: Add missing required statuses
+      // STEP 4: Add missing required statuses
       const missingRequiredStatuses = requiredStatuses.filter(
         (status) => !existingStatusLabels.includes(status)
       );
@@ -763,26 +784,26 @@ function Tickets() {
         );
       }
 
-      // STEP 4: Fetch statuses again after adding required ones
+      // STEP 5: Fetch statuses again after adding required ones
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
 
       // Update the settings store with all available statuses
       settingsStore.setStatusOptions(updatedStatusLabels);
 
-      // STEP 5: Fetch tickets and users
+      // STEP 6: Fetch tickets and users
       const [ticketsWithRelationships, users] = await Promise.all([
         ticketsService.getTicketsWithRelationships(),
         usersService.getAllUsers()
       ]);
         
-      // STEP 6: Filter tickets based on user permissions and current workflow
+      // STEP 7: Filter tickets based on user permissions and current workflow
       const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
       const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket));
 
-      // STEP 7: Build tabs
+      // STEP 8: Build tabs
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
@@ -818,7 +839,7 @@ function Tickets() {
         }
       });
 
-      // STEP 8: Apply all changes in one batch
+      // STEP 9: Apply all changes in one batch
       // Update tabs first
       if (tabsToAdd.length > 0) {
         const updatedTabs = [...existingTabs, ...tabsToAdd];
@@ -868,7 +889,7 @@ function Tickets() {
         localStorage.setItem("applied-preset-workflows", JSON.stringify(updatedAppliedPresets));
       }
 
-      // STEP 9: No need to increment the refresh counter - we've done all the updates directly
+      // STEP 10: No need to increment the refresh counter - we've done all the updates directly
       console.log("Preset applied successfully");
     } catch (error) {
       console.error(`Error applying preset to workflow ${currentWorkflow}:`, error);
@@ -1253,7 +1274,6 @@ function Tickets() {
     primary_contact_id: "",
     description: "",
     billable_hours: 0,
-    total_hours: 0,
     assignee_ids: [],
     attachments: [],
     part_ids: [],
@@ -1656,7 +1676,6 @@ function Tickets() {
         primary_contact_id: "",
         description: "",
         billable_hours: 0,
-        total_hours: 0,
         assignee_ids: [],
         attachments: [],
         part_ids: [],
@@ -1694,7 +1713,6 @@ function Tickets() {
         primary_contact_id: "",
         description: "",
         billable_hours: 0,
-        total_hours: 0,
         assignee_ids: [],
         attachments: [],
         part_ids: [],
@@ -2543,26 +2561,6 @@ function Tickets() {
                   onChange={(e) =>
                     handleNewTicketFormChange(
                       "billable_hours",
-                      parseFloat(e.target.value) || 0,
-                    )
-                  }
-                  className="col-span-3"
-                  min="0"
-                  step="0.5"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="total_hours" className="text-right text-sm font-medium">
-                  Total Hours
-                </label>
-                <Input
-                  id="total_hours"
-                  type="number"
-                  value={newTicketData.total_hours}
-                  onChange={(e) =>
-                    handleNewTicketFormChange(
-                      "total_hours",
                       parseFloat(e.target.value) || 0,
                     )
                   }

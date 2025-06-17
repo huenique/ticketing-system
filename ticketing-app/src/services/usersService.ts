@@ -19,7 +19,6 @@ interface DocumentMetadata {
 export interface User extends DocumentMetadata {
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: {
     $id: string;
     label: string;
@@ -30,13 +29,13 @@ export interface User extends DocumentMetadata {
 // User type interface
 export interface UserType extends DocumentMetadata {
   label: string;
+  allowedStatuses?: string[];
 }
 
 // Type for creating a new user (without metadata fields)
 export type NewUser = {
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: string | { $id: string; label: string };
   auth_user_id?: string;
 };
@@ -44,6 +43,7 @@ export type NewUser = {
 // Type for creating/updating a user type
 export type UserTypeInput = {
   label: string;
+  allowedStatuses?: string[];
 };
 
 // Users service object

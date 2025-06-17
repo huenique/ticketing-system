@@ -23,6 +23,14 @@ const mapToTimeEntry = (document: any): TimeEntry => {
   // Use time fields directly from the document - they're already in HH:MM:SS format
   const startTime = document.start_time || "";
   const stopTime = document.stop_time || "";
+  const duration = document.total_duration || "0";
+
+  console.log("Mapping time entry from document:", {
+    startTime,
+    stopTime,
+    duration,
+    total_duration: document.total_duration
+  });
 
   return {
     id: document.$id || "",
@@ -30,7 +38,7 @@ const mapToTimeEntry = (document: any): TimeEntry => {
     assigneeName,
     startTime,
     stopTime,
-    duration: document.total_duration || "0",
+    duration,
     dateCreated,
     remarks: document.remarks || "",
     files: document.files || [],
@@ -180,7 +188,7 @@ export const timeEntriesService = {
         user_id: userId
       };
       
-      console.log("Saving time entry to Appwrite:", dataToSave);
+      console.log("Saving time entry to Appwrite with duration:", dataToSave.total_duration);
       
       const response = await databases.createDocument(
         DATABASE_ID,
@@ -188,7 +196,7 @@ export const timeEntriesService = {
         ID.unique(),
         dataToSave
       );
-      console.log("Created time entry:", response);
+      console.log("Created time entry response:", response);
       return mapToTimeEntry(response);
     } catch (error) {
       console.error("Error creating time entry:", error);

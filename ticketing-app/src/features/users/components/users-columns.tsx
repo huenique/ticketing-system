@@ -15,7 +15,6 @@ export interface User {
   $id: string;
   first_name: string;
   last_name: string;
-  username: string;
   auth_user_id?: string;
   user_type_id: any; // This can be either a string or an object with $id and label
   $createdAt: string;
@@ -34,7 +33,6 @@ export interface UserActions extends DataTableActions<User> {
 export const getUsersColumns = (actions: UserActions): ColumnDef<User>[] => {
   // Create an array of columns
   const columns: ColumnDef<User>[] = [
-    createStandardColumn<User>("username", "Username"),
     {
       accessorFn: (user) => `${user.first_name} ${user.last_name}`,
       header: "Full Name",

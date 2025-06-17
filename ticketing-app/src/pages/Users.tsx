@@ -98,7 +98,6 @@ function Users() {
   type NewUserFormData = {
     first_name: string;
     last_name: string;
-    username: string;
     user_type_id: string;
     email: string;
     password: string;
@@ -108,7 +107,6 @@ function Users() {
   const [newUserData, setNewUserData] = useState<NewUserFormData>({
     first_name: "",
     last_name: "",
-    username: "",
     user_type_id: "",
     email: "",
     password: "",
@@ -134,7 +132,6 @@ function Users() {
     setEditFormData({
       first_name: user.first_name,
       last_name: user.last_name,
-      username: user.username,
       user_type_id: user.user_type_id, // This will be the actual user_type_id object
     });
     setIsEditDialogOpen(true);
@@ -279,7 +276,6 @@ function Users() {
         await addUser({
           first_name: newUserData.first_name,
           last_name: newUserData.last_name,
-          username: newUserData.username,
           user_type_id: newUserData.user_type_id,
           auth_user_id: authUser.$id // Set the auth user ID from the newly created auth user
         });
@@ -290,7 +286,6 @@ function Users() {
         setNewUserData({
           first_name: "",
           last_name: "",
-          username: "",
           user_type_id: "",
           email: "",
           password: "",
@@ -379,7 +374,6 @@ function Users() {
   const searchFields = [
     { id: "first_name", label: "First Name" },
     { id: "last_name", label: "Last Name" },
-    { id: "username", label: "Username" },
   ];
 
   if (loading && users.length === 0) {
@@ -550,20 +544,6 @@ function Users() {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="username" className="text-sm font-medium block text-gray-800">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={editFormData.username || ""}
-                onChange={handleEditFormChange}
-                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
-              />
-            </div>
-
-            <div className="space-y-1">
               <label htmlFor="user_type_id" className="text-sm font-medium block text-gray-800">
                 User Type
               </label>
@@ -715,24 +695,6 @@ function Users() {
                   className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
                 />
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="username" className="text-sm font-medium block text-gray-800">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={newUserData.username}
-                onChange={handleNewUserFormChange}
-                required
-                className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
-              />
-              <p className="text-xs text-gray-700 mt-1">
-                Username for the user within the system
-              </p>
             </div>
 
             <div className="space-y-1">

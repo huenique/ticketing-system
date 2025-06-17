@@ -1,8 +1,6 @@
 import { create } from "zustand";
 
-import { authService } from "@/lib/appwrite";
 import { User, usersService, UserType, UserTypeInput } from "@/services/usersService";
-import useUserStore from "./userStore";
 
 import { persist } from "./middleware";
 
@@ -13,7 +11,6 @@ type RelationshipInput = string | { $id: string; label: string };
 interface UserInput {
   first_name: string;
   last_name: string;
-  username: string;
   user_type_id: RelationshipInput;
   auth_user_id?: string; // Optional as it will be automatically set in some cases
 }

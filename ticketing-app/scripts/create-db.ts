@@ -83,10 +83,6 @@ async function createCollections() {
     'attribute users.last_name'
   );
   await safe(
-    () => databases.createStringAttribute(dbId, 'users', 'username', 255, true),
-    'attribute users.username'
-  );
-  await safe(
     () => databases.createStringAttribute(dbId, 'users', 'auth_user_id', 255, false),
     'attribute users.auth_user_id'
   );
@@ -391,7 +387,7 @@ async function createCollections() {
     'attribute tickets.billable_hours'
   );
   await safe(
-    () => databases.createFloatAttribute(dbId, 'tickets', 'total_hours', true),
+    () => databases.createFloatAttribute(dbId, 'tickets', 'total_hours', false, 0),
     'attribute tickets.total_hours'
   );
   await safe(

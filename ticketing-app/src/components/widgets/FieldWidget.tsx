@@ -223,7 +223,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
                 : String(widget.value || "")) as string
             }
             onChange={(e) => handleFieldChange(widget.field || "", e.target.value)}
-            className="text-sm"
+            className="text-sm h-full bg-gray-100"
           />
         </div>
       );

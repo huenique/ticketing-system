@@ -21,16 +21,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import useUsersStore from "@/stores/usersStore";
+import { useAppwriteStatuses } from "@/hooks/useAppwriteStatuses";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type UserType = {
   $id: string;
   label: string;
+  allowedStatuses?: string[];
   $createdAt?: string;
   $updatedAt?: string;
 };
 
 function UserTypes() {
   const { userTypes, loading, error, fetchUserTypes, addUserType, updateUserType, deleteUserType } = useUsersStore();
+  const { statuses, fetchStatuses } = useAppwriteStatuses();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -40,16 +44,18 @@ function UserTypes() {
   const [selectedUserType, setSelectedUserType] = useState<UserType | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [userTypeToDelete, setUserTypeToDelete] = useState<string | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredUserTypes, setFilteredUserTypes] = useState<UserType[]>([]);
 
-  // Fetch user types when component mounts
+  // Fetch user types and statuses when component mounts
   useEffect(() => {
     fetchUserTypes();
-  }, [fetchUserTypes]);
+    fetchStatuses();
+  }, [fetchUserTypes, fetchStatuses]);
 
   // Filter user types when search query or user types change
   useEffect(() => {
@@ -100,6 +106,7 @@ function UserTypes() {
   const handleEditClick = (userType: UserType) => {
     setSelectedUserType(userType);
     setEditLabel(userType.label);
+    setSelectedStatuses(userType.allowedStatuses || []);
     setIsEditDialogOpen(true);
   };
 
@@ -112,7 +119,10 @@ function UserTypes() {
 
     setIsSubmitting(true);
     try {
-      await updateUserType(selectedUserType.$id, { label: editLabel });
+      await updateUserType(selectedUserType.$id, { 
+        label: editLabel,
+        allowedStatuses: selectedStatuses 
+      });
       toast.success("User type updated successfully");
       setIsEditDialogOpen(false);
       setSelectedUserType(null);
@@ -379,6 +389,43 @@ function UserTypes() {
                 required
                 className="w-full rounded-md border-2 border-gray-300 p-2 text-sm text-gray-900"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium block text-gray-800">
+                Allowed Statuses
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto border-2 border-gray-300 rounded-md p-2">
+                {statuses.map((status) => {
+                  const statusId = status.$id || status.id;
+                  if (!statusId) return null;
+                  
+                  return (
+                    <div key={statusId} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`status-${statusId}`}
+                        checked={selectedStatuses.includes(statusId)}
+                        onCheckedChange={(checked: boolean) => {
+                          if (checked) {
+                            setSelectedStatuses([...selectedStatuses, statusId]);
+                          } else {
+                            setSelectedStatuses(selectedStatuses.filter(id => id !== statusId));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`status-${statusId}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {status.label}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                Select which statuses this user type can access
+              </p>
             </div>
 
             <DialogFooter className="flex justify-end space-x-2 pt-4">

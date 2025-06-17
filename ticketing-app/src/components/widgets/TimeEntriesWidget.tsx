@@ -345,7 +345,7 @@ const TimeEntriesWidget: React.FC<TimeEntriesWidgetProps> = ({
           </table>
         </div>
       ) : (
-        <div className="text-center py-4 text-neutral-500 text-sm bg-neutral-50 rounded-md">
+        <div className="text-center py-4 text-neutral-500 text-sm bg-gray-100 rounded-md">
           No time entries recorded yet.
         </div>
       )}

@@ -45,7 +45,6 @@ const useUserStore = create<UserState>()(
             id: user.$id,
             name: user.name,
             email: user.email,
-            username: user.email.split("@")[0], // Default username based on email
             role: isAdmin ? "admin" : "user", // Set role based on labels
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`, // Generate avatar
           };
@@ -71,7 +70,6 @@ const useUserStore = create<UserState>()(
           await get().login({
             email: credentials.email,
             password: credentials.password,
-            username: credentials.email, // Keep username for compatibility
           });
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
@@ -102,7 +100,6 @@ const useUserStore = create<UserState>()(
               id: user.$id,
               name: user.name,
               email: user.email,
-              username: user.email.split("@")[0],
               role: isAdmin ? "admin" : "user", // Set role based on labels
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
             };
