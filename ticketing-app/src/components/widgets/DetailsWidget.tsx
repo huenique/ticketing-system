@@ -8,6 +8,7 @@ interface DetailsWidgetProps {
   currentTicket?: Row | null;
   setTicketForm: (form: TicketForm) => void;
   handleFieldChange: (fieldName: string, value: string) => void;
+  isAdmin?: boolean;
 }
 
 const DetailsWidget: React.FC<DetailsWidgetProps> = ({
@@ -15,6 +16,7 @@ const DetailsWidget: React.FC<DetailsWidgetProps> = ({
   currentTicket,
   setTicketForm,
   handleFieldChange,
+  isAdmin = true,
 }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -22,12 +24,11 @@ const DetailsWidget: React.FC<DetailsWidgetProps> = ({
         <div className="h-[38px]">
           <StatusWidget
             value={ticketForm.status}
-            onChange={(value) => {
-              // Update the form state
+            isAdmin={isAdmin}
+            onChange={(value, fieldName) => {
               setTicketForm({ ...ticketForm, status: value });
-
-              // Call handleFieldChange to ensure the status is updated in the widget
-              handleFieldChange("status", value);
+              const targetFieldName = fieldName || "status";
+              handleFieldChange(targetFieldName, value);
             }}
           />
         </div>
@@ -60,10 +61,8 @@ const DetailsWidget: React.FC<DetailsWidgetProps> = ({
               onChange={(e) => {
                 const value = e.target.value === '' ? null : parseFloat(e.target.value);
                 
-                // Call handleFieldChange to update the form state with string value
                 handleFieldChange("billableHours", e.target.value === null ? '' : e.target.value);
                 
-                // Also update the ticketForm state directly
                 setTicketForm({
                   ...ticketForm,
                   billableHours: value
@@ -90,10 +89,8 @@ const DetailsWidget: React.FC<DetailsWidgetProps> = ({
               onChange={(e) => {
                 const value = e.target.value === '' ? null : parseFloat(e.target.value);
                 
-                // Call handleFieldChange to update the form state with string value
                 handleFieldChange("totalHours", e.target.value === null ? '' : e.target.value);
                 
-                // Also update the ticketForm state directly
                 setTicketForm({
                   ...ticketForm,
                   totalHours: value

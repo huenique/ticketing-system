@@ -9,8 +9,9 @@ interface FieldWidgetProps {
   widget: Widget;
   ticketForm: TicketForm;
   currentTicket?: Row | null;
-  handleFieldChange: (fieldName: string, value: string, widgetId?: string) => void;
+  handleFieldChange: (field: string, value: string) => void;
   setTicketForm?: (form: TicketForm) => void;
+  isAdmin?: boolean;
 }
 
 const FieldWidget: React.FC<FieldWidgetProps> = ({
@@ -19,6 +20,7 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
   currentTicket,
   handleFieldChange,
   setTicketForm,
+  isAdmin = true,
 }) => {
   // Based on the field type, render the appropriate input
   switch (widget.fieldType) {
@@ -35,17 +37,20 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
         console.log("Rendering status widget with value:", {
           statusValue,
           ticketFormStatus: ticketForm.status,
-          widgetValue: widget.value
+          widgetValue: widget.value,
+          isAdmin: isAdmin
         });
         
         return (
           <div className="h-full flex items-center">
             <StatusWidget
               value={statusValue}
-              onChange={(value) => {
-                console.log("Status widget onChange called with:", value);
-                // Call handleFieldChange to update the form state
-                handleFieldChange(widget.field || "", value);
+              isAdmin={isAdmin}
+              onChange={(value, fieldName) => {
+                console.log("Status widget onChange called with:", { value, fieldName, isAdmin });
+                // Call handleFieldChange with the appropriate field name based on user role
+                const targetFieldName = fieldName || widget.field || "";
+                handleFieldChange(targetFieldName, value);
 
                 // Also update the ticketForm state directly to ensure it's saved
                 if (setTicketForm) {

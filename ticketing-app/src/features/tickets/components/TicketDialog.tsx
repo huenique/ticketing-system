@@ -70,6 +70,7 @@ interface TicketDialogProps {
   markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
   modifiedTimeEntries: Set<string>;
   usersWithAuthId?: any[]; // Optional prop for debug purposes to pass users with auth_user_id
+  isAdmin?: boolean; // Add isAdmin prop to handle user role-based field updates
 }
 
 // Inside your component or function
@@ -730,6 +731,7 @@ const WidgetGrid = ({
   setNewAssignee,
   markAssigneeCompleted,
   users,
+  isAdmin,
 }: {
   widgets: Widget[];
   isEditLayoutMode: boolean;
@@ -760,6 +762,7 @@ const WidgetGrid = ({
   setNewAssignee: (assignee: Assignee) => void;
   markAssigneeCompleted: (assigneeId: string, completed: boolean | string) => void;
   users?: any[]; // Make users optional
+  isAdmin?: boolean; // Add isAdmin prop to handle user role-based field updates
 }) => (
   <div className="w-full relative">
     <ResponsiveGridLayout
@@ -822,6 +825,7 @@ const WidgetGrid = ({
             setNewAssignee={setNewAssignee}
             isEditMode={isEditLayoutMode}
             markAssigneeCompleted={markAssigneeCompleted}
+            isAdmin={isAdmin}
           />
         </div>
       ))}
@@ -907,6 +911,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
   markAssigneeCompleted,
   modifiedTimeEntries,
   usersWithAuthId,
+  isAdmin,
 }) => {
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -1183,6 +1188,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                   setNewAssignee={setNewAssignee}
                   markAssigneeCompleted={markAssigneeCompleted}
                   users={usersWithAuthId}
+                  isAdmin={isAdmin}
                 />
               );
             } else {
@@ -1232,6 +1238,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
                         setNewAssignee={setNewAssignee}
                         markAssigneeCompleted={markAssigneeCompleted}
                         users={usersWithAuthId}
+                        isAdmin={isAdmin}
                       />
                     </div>
                   )}

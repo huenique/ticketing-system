@@ -2922,6 +2922,7 @@ function Tickets() {
         markAssigneeCompleted={ticketDialogHandlers.markAssigneeCompleted}
         modifiedTimeEntries={ticketDialogHandlers.modifiedTimeEntries}
         usersWithAuthId={users}
+        isAdmin={isAdmin} // Pass isAdmin prop to handle user role-based field updates
       />
 
       {/* New Workflow Dialog */}
