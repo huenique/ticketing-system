@@ -1059,10 +1059,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
   // Add a function to handle dialog close that saves changes
   const handleDialogClose = async () => {
-    // If there are unsaved changes, save them first
-    if (modifiedTimeEntries.size > 0) {
-      await handleSaveTicketChanges();
-    }
+    // Always save changes before closing to ensure all modifications are persisted
+    await handleSaveTicketChanges();
     
     // Close the dialog
     setViewDialogOpen(false);
