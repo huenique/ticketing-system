@@ -108,7 +108,6 @@ interface TicketFormData {
   billable_hours: number;
   assignee_ids: string[];
   attachments: string[];
-  part_ids: string[]; // Array of selected part IDs
   workflow: string; // New workflow field for tickets
 }
 
@@ -1280,7 +1279,6 @@ function Tickets() {
     billable_hours: 0,
     assignee_ids: [],
     attachments: [],
-    part_ids: [],
     workflow: "", // New workflow field for tickets
   });
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -1290,8 +1288,7 @@ function Tickets() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
   const [customerContactsLoading, setCustomerContactsLoading] = useState(false);
-  const [parts, setParts] = useState<Part[]>([]);
-  const [selectedParts, setSelectedParts] = useState<string[]>([]);
+
 
   // State for customer selection
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
@@ -1302,20 +1299,11 @@ function Tickets() {
   const [displayedCustomers, setDisplayedCustomers] = useState<Customer[]>([]);
   const customersLimit = 20; // Items per page
 
-  // State for parts selection
-  const [partsSearchQuery, setPartsSearchQuery] = useState("");
-  const [partsPage, setPartsPage] = useState(1);
-  const [partsTotalPages, setPartsTotalPages] = useState(1);
-  const [partsTotalItems, setPartsTotalItems] = useState(0);
-  const [isLoadingParts, setIsLoadingParts] = useState(false);
-  const [displayedParts, setDisplayedParts] = useState<Part[]>([]);
-  const partsLimit = 20; // Items per page
+
 
   // Customer selection dialog
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
-  const [isParsDialogOpen, setIsParsDialogOpen] = useState(false);
   const customerSearchInputRef = useRef<HTMLInputElement>(null);
-  const partsSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Function to fetch contacts for a customer
   const fetchCustomerContacts = async (customerId: string) => {
@@ -1388,12 +1376,7 @@ function Tickets() {
         // Store the original ServiceUser objects
         setUsers(usersData);
         
-        // Fetch parts
-        const partsData = await partsService.getAllParts();
-        console.log("Fetched parts:", partsData);
-        setParts(partsData.parts);
-        // Initially set the first page of parts to display
-        setDisplayedParts(partsData.parts.slice(0, partsLimit));
+
       } catch (error) {
         console.error("Error fetching form data:", error);
       }
@@ -1444,34 +1427,7 @@ function Tickets() {
     }
   };
 
-  // Load parts with pagination and search
-  const loadParts = async (page = 1, query = "") => {
-    setIsLoadingParts(true);
-    try {
-      // Use the parts service's searchParts method for server-side search
-      const result = await partsService.searchParts(
-        query,
-        "all", // Search in all fields
-        page,
-        partsLimit
-      );
-      
-      setDisplayedParts(result.parts);
-      setPartsTotalItems(result.total);
-      setPartsTotalPages(Math.ceil(result.total / partsLimit));
-      setParts(prev => {
-        // Merge with existing parts to maintain selected state
-        const existingMap = new Map(prev.map(p => [p.$id, p]));
-        result.parts.forEach(p => existingMap.set(p.$id, p));
-        return Array.from(existingMap.values());
-      });
-    } catch (error) {
-      console.error("Error loading parts:", error);
-      setDisplayedParts([]);
-    } finally {
-      setIsLoadingParts(false);
-    }
-  };
+
 
   // Hook for customer search and pagination - only trigger on page change now
   useEffect(() => {
@@ -1480,12 +1436,7 @@ function Tickets() {
     }
   }, [isCustomerDialogOpen, customersPage]);
 
-  // Hook for parts search and pagination - only trigger on page change now
-  useEffect(() => {
-    if (isParsDialogOpen && partsPage > 1) {
-      loadParts(partsPage, partsSearchQuery);
-    }
-  }, [isParsDialogOpen, partsPage]);
+
 
   // Fetch customers and parts only when dialog first opens
   useEffect(() => {
@@ -1574,18 +1525,7 @@ function Tickets() {
     });
   };
 
-  // Handle part selection
-  const handlePartSelection = (partId: string) => {
-    console.log("Toggling part selection for:", partId);
-    setSelectedParts((prev) => {
-      // If already selected, remove it
-      if (prev.includes(partId)) {
-        return prev.filter((id) => id !== partId);
-      }
-      // Otherwise add it
-      return [...prev, partId];
-    });
-  };
+
 
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1635,7 +1575,6 @@ function Tickets() {
         ...baseTicketData,
         assignee_ids: selectedAssignees,
         attachments: uploadedFileIds, // Use the file IDs from storage
-        part_ids: selectedParts, // Add the selected parts
         workflow: workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering" // Use workflow name instead of ID
       };
       
@@ -1643,7 +1582,6 @@ function Tickets() {
         status_id: ticketData.status_id,
         customer_id: ticketData.customer_id,
         assignee_ids: ticketData.assignee_ids,
-        part_ids: ticketData.part_ids,
         workflow: ticketData.workflow,
         attachments: ticketData.attachments,
       });
@@ -1682,12 +1620,10 @@ function Tickets() {
         billable_hours: 0,
         assignee_ids: [],
         attachments: [],
-        part_ids: [],
         workflow: "", // New workflow field for tickets
       });
       setSelectedAssignees([]);
       setUploadedFiles([]);
-      setSelectedParts([]); // Reset selected parts
       setCustomerContacts([]);
       
       // Close dialog
@@ -1719,13 +1655,11 @@ function Tickets() {
         billable_hours: 0,
         assignee_ids: [],
         attachments: [],
-        part_ids: [],
         workflow: currentWorkflow // Set the current workflow
       });
       
       setSelectedAssignees([]);
       setUploadedFiles([]);
-      setSelectedParts([]); // Reset selected parts
       setCustomerContacts([]);
       console.log("Form data reset when dialog opened");
     }
@@ -1811,22 +1745,10 @@ function Tickets() {
     }
   }, [isCustomerDialogOpen]);
 
-  useEffect(() => {
-    if (isParsDialogOpen && partsSearchInputRef.current) {
-      setTimeout(() => {
-        partsSearchInputRef.current?.focus();
-      }, 100);
-    }
-  }, [isParsDialogOpen]);
-
   // Reset pagination when search query changes
   useEffect(() => {
     setCustomersPage(1);
   }, [customerSearchQuery]);
-
-  useEffect(() => {
-    setPartsPage(1);
-  }, [partsSearchQuery]);
 
   // Make the refresh counter incrementor available globally
   // for child components to trigger workflow-filtered refreshes
@@ -2201,8 +2123,6 @@ function Tickets() {
           if (!open) {
             setCustomerSearchQuery("");
             setCustomersPage(1);
-            setPartsSearchQuery("");
-            setPartsPage(1);
           }
         }}
       >
@@ -2665,197 +2585,9 @@ function Tickets() {
                 </div>
               </div>
               
-              {/* Parts - Simple Button + Dialog */}
-              <div className="grid grid-cols-4 items-start gap-4">
-                <label className="text-right text-sm font-medium mt-2">Parts</label>
-                <div className="col-span-3">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setIsParsDialogOpen(true);
-                    }}
-                  >
-                    {selectedParts.length > 0
-                      ? `${selectedParts.length} part${selectedParts.length > 1 ? 's' : ''} selected`
-                      : "Select parts..."}
-                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
 
-                  {/* Show selected parts as tags */}
-                  {selectedParts.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedParts.map((id) => {
-                        const part = parts.find((p) => p.$id === id);
-                        if (!part) return null;
 
-                        return (
-                          <div
-                            key={id}
-                            className="bg-green-100 text-green-800 px-2 py-1 rounded-md text-sm flex items-center"
-                          >
-                            {part.description} - {part.quantity}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedParts((prev) =>
-                                  prev.filter((partId) => partId !== id),
-                                )
-                              }
-                              className="ml-2 text-green-600 hover:text-green-800"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Parts Selection Dialog */}
-              <Dialog open={isParsDialogOpen} onOpenChange={setIsParsDialogOpen}>
-                <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle>Select Parts</DialogTitle>
-                    <DialogDescription>
-                      Search and select parts for this ticket. You can select multiple parts.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex gap-2 mb-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={partsSearchInputRef}
-                        placeholder="Search parts..."
-                        className="pl-8"
-                        value={partsSearchQuery}
-                        onChange={(e) => setPartsSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            loadParts(1, partsSearchQuery);
-                          }
-                        }}
-                      />
-                    </div>
-                    <Button 
-                      onClick={() => loadParts(1, partsSearchQuery)}
-                      disabled={isLoadingParts}
-                    >
-                      Search
-                    </Button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto border rounded-md mb-4" style={{ maxHeight: "300px" }}>
-                    {isLoadingParts ? (
-                      <div className="flex justify-center items-center h-32">
-                        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                        <span className="ml-2 text-sm text-gray-500">Loading...</span>
-                      </div>
-                    ) : displayedParts.length === 0 ? (
-                      <div className="p-4 text-center text-muted-foreground">No parts found</div>
-                    ) : (
-                      <div className="divide-y">
-                        {displayedParts.map((part) => (
-                          <div
-                            key={part.$id}
-                            className={`p-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
-                              selectedParts.includes(part.$id || "") ? 'bg-green-50' : ''
-                            }`}
-                            onClick={() => handlePartSelection(part.$id || "")}
-                          >
-                            <div className="flex items-center">
-                              <Check
-                                className={
-                                  selectedParts.includes(part.$id || "")
-                                    ? "mr-2 h-4 w-4"
-                                    : "mr-2 h-4 w-4 invisible"
-                                }
-                              />
-                              <span>{part.description}</span>
-                            </div>
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              {part.quantity} | ${part.price}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* Pagination control */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        {partsTotalItems > 0 ? (
-                          <>
-                            Showing page {partsPage} of {partsTotalPages}
-                            <span className="mx-1">·</span>
-                            {partsTotalItems} total
-                          </>
-                        ) : (
-                          "No results"
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPartsPage(prev => Math.max(prev - 1, 1))}
-                          disabled={partsPage <= 1}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        {Array.from({ length: Math.min(3, partsTotalPages) }, (_, i) => {
-                          // Show current page and surrounding pages
-                          let pageToShow;
-                          if (partsTotalPages <= 3) {
-                            pageToShow = i + 1;
-                          } else if (partsPage === 1) {
-                            pageToShow = i + 1;
-                          } else if (partsPage === partsTotalPages) {
-                            pageToShow = partsTotalPages - 2 + i;
-                          } else {
-                            pageToShow = partsPage - 1 + i;
-                          }
-                          
-                          return (
-                            <Button
-                              key={i}
-                              variant={pageToShow === partsPage ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setPartsPage(pageToShow)}
-                              className="h-8 w-8 p-0"
-                            >
-                              {pageToShow}
-                            </Button>
-                          );
-                        })}
-                        {partsTotalPages > 3 && partsPage < partsTotalPages - 1 && (
-                          <span className="text-gray-500">...</span>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPartsPage(prev => prev < partsTotalPages ? prev + 1 : prev)}
-                          disabled={partsPage >= partsTotalPages}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsParsDialogOpen(false)}>
-                      Done
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </div>
             <DialogFooter>
               <Button

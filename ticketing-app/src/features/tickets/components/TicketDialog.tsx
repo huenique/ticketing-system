@@ -806,34 +806,40 @@ const WidgetGrid = ({
           key={widget.id}
           className={`widget-container ${!isEditLayoutMode ? "static pointer-events-auto" : ""}`}
         >
-          <TicketWidget
-            widget={widget}
-            ticketForm={ticketForm}
-            currentTicket={currentTicket}
-            handleFieldChange={handleFieldChange}
-            toggleWidgetCollapse={toggleWidgetCollapse}
-            removeWidget={removeWidget}
-            updateWidgetTitle={updateWidgetTitle}
-            assignees={assignees}
-            timeEntries={timeEntries}
-            uploadedImages={uploadedImages}
-            handleAddAssignee={handleAddAssignee}
-            handleRemoveAssignee={handleRemoveAssignee}
-            handleUpdateAssignee={handleUpdateAssignee}
-            handleAddTimeEntry={handleAddTimeEntry}
-            handleRemoveTimeEntry={handleRemoveTimeEntry}
-            handleUpdateTimeEntry={handleUpdateTimeEntry}
-            setTicketForm={setTicketForm}
-            handleImageUpload={handleImageUpload}
-            setUploadedImages={setUploadedImages}
-            showAssigneeForm={showAssigneeForm}
-            setShowAssigneeForm={setShowAssigneeForm}
-            newAssignee={newAssignee}
-            setNewAssignee={setNewAssignee}
-            isEditMode={isEditLayoutMode}
-            markAssigneeCompleted={markAssigneeCompleted}
-            isAdmin={isAdmin}
-          />
+                      <TicketWidget
+              widget={widget}
+              ticketForm={ticketForm}
+              currentTicket={currentTicket}
+              handleFieldChange={handleFieldChange}
+              toggleWidgetCollapse={toggleWidgetCollapse}
+              removeWidget={removeWidget}
+              updateWidgetTitle={updateWidgetTitle}
+              assignees={assignees}
+              timeEntries={timeEntries}
+              uploadedImages={uploadedImages}
+              handleAddAssignee={handleAddAssignee}
+              handleRemoveAssignee={handleRemoveAssignee}
+              handleUpdateAssignee={handleUpdateAssignee}
+              handleAddTimeEntry={handleAddTimeEntry}
+              handleRemoveTimeEntry={handleRemoveTimeEntry}
+              handleUpdateTimeEntry={handleUpdateTimeEntry}
+              setTicketForm={setTicketForm}
+              handleImageUpload={handleImageUpload}
+              setUploadedImages={setUploadedImages}
+              showAssigneeForm={showAssigneeForm}
+              setShowAssigneeForm={setShowAssigneeForm}
+              newAssignee={newAssignee}
+              setNewAssignee={setNewAssignee}
+              isEditMode={isEditLayoutMode}
+              markAssigneeCompleted={markAssigneeCompleted}
+              isAdmin={isAdmin}
+              onPartsUpdate={() => {
+                // Refresh ticket data when parts are updated
+                if (currentTicket) {
+                  window.location.reload(); // Temporary solution, can be improved with proper state management
+                }
+              }}
+            />
         </div>
       ))}
     </ResponsiveGridLayout>

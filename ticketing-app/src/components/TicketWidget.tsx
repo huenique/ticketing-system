@@ -7,6 +7,7 @@ import { usersService } from "../services/usersService";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { WIDGET_TYPES } from "@/constants/tickets";
 
 // Import all the widget components
 import WidgetHeader from "./widgets/WidgetHeader";
@@ -27,6 +28,7 @@ interface TicketWidgetProps {
   removeWidget: (widgetId: string) => void;
   updateWidgetTitle?: (widgetId: string, newTitle: string) => void;
   isAdmin?: boolean;
+  onPartsUpdate?: () => void; // Callback to refresh ticket data when parts are added
 
   // Additional props for specific widget types
   assignees?: Assignee[];
@@ -76,6 +78,7 @@ function TicketWidget({
   isEditMode = true,
   markAssigneeCompleted,
   isAdmin,
+  onPartsUpdate,
 }: TicketWidgetProps & {
   newAssignee: Assignee;
   setNewAssignee: (assignee: Assignee) => void;
@@ -85,6 +88,9 @@ function TicketWidget({
   // State for users dropdown
   const [users, setUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  
+  // State for parts dialog
+  const [isPartsDialogOpen, setIsPartsDialogOpen] = useState(false);
 
   // Fetch users on component mount
   useEffect(() => {
@@ -127,6 +133,9 @@ function TicketWidget({
 
   // Determine if this is the Attachments widget
   const isAttachmentsWidget = widget.type === "field_attachments_gallery";
+  
+  // Determine if this is the Parts widget
+  const isPartsWidget = widget.type === WIDGET_TYPES.FIELD_PARTS;
 
   // Only for Attachments widget: render Add Attachment button as action
   const addAttachmentAction = isAttachmentsWidget && handleImageUpload ? (
@@ -156,6 +165,39 @@ function TicketWidget({
       </TooltipProvider>
     </>
   ) : null;
+
+  // Debug logging for parts widget
+  if (isPartsWidget) {
+    console.log("Parts widget detected:", {
+      widgetType: widget.type,
+      isAdmin,
+      hasTicketId: !!currentTicket?.id,
+      ticketId: currentTicket?.id
+    });
+  }
+
+  // Only for Parts widget: render Add Parts button as action
+  const addPartsAction = isPartsWidget && !isAdmin && currentTicket?.id ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setIsPartsDialogOpen(true)}
+            aria-label="Add Parts"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Add Parts</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : null;
+
+  // Determine which action to show
+  const widgetAction = addAttachmentAction || addPartsAction;
 
   const renderWidgetContent = () => {
     if (widget.collapsed) return null;
@@ -260,6 +302,9 @@ function TicketWidget({
             handleFieldChange={handleFieldChange}
             setTicketForm={setTicketForm}
             isAdmin={isAdmin}
+            onPartsUpdate={onPartsUpdate}
+            isPartsDialogOpen={isPartsDialogOpen}
+            setIsPartsDialogOpen={setIsPartsDialogOpen}
           />
         );
       }
@@ -612,7 +657,7 @@ function TicketWidget({
         updateWidgetTitle={updateWidgetTitle}
         toggleWidgetCollapse={toggleWidgetCollapse}
         handleRemoveClick={handleRemoveClick}
-        action={addAttachmentAction}
+        action={widgetAction}
       />
 
       {/* Widget content - adjust to fill remaining height */}
