@@ -424,9 +424,16 @@ const DialogHeader = ({
   return (
     <div className="flex justify-between items-center mb-2 px-4 pt-4">
       <div className="flex flex-col">
-        <h2 className="text-xl font-semibold">
-          Ticket Details: {currentTicket?.cells["col-1"]}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">
+            Ticket Details: {currentTicket?.cells["col-1"]}
+          </h2>
+          {currentUser?.role !== "admin" && currentTicket?.rawData?.status_id && (
+            <span className="ml-2 px-2 py-1 mt-1 text-sm rounded-full bg-primary/10 text-primary">
+              {currentTicket.rawData.status.label}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center space-x-3">
         {/* Send Email Button */}
