@@ -26,6 +26,7 @@ interface TicketWidgetProps {
   toggleWidgetCollapse: (widgetId: string) => void;
   removeWidget: (widgetId: string) => void;
   updateWidgetTitle?: (widgetId: string, newTitle: string) => void;
+  isAdmin?: boolean;
 
   // Additional props for specific widget types
   assignees?: Assignee[];
@@ -74,6 +75,7 @@ function TicketWidget({
   setNewAssignee,
   isEditMode = true,
   markAssigneeCompleted,
+  isAdmin,
 }: TicketWidgetProps & {
   newAssignee: Assignee;
   setNewAssignee: (assignee: Assignee) => void;
@@ -257,6 +259,7 @@ function TicketWidget({
             currentTicket={currentTicket}
             handleFieldChange={handleFieldChange}
             setTicketForm={setTicketForm}
+            isAdmin={isAdmin}
           />
         );
       }
@@ -272,6 +275,7 @@ function TicketWidget({
             currentTicket={currentTicket}
             setTicketForm={setTicketForm}
             handleFieldChange={handleFieldChange}
+            isAdmin={isAdmin}
           />
         );
 

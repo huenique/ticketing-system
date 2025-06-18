@@ -5,14 +5,16 @@ import { statusesService } from "../../services/ticketsService";
 
 interface StatusWidgetProps {
   value?: string;
-  onChange?: (value: string) => void;
+  onChange?: (value: string, fieldName?: string) => void;
   readOnly?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function StatusWidget({
   value = "",
   onChange,
   readOnly = false,
+  isAdmin = true,
 }: StatusWidgetProps) {
   const { statusOptions, fetchStatusOptions } = useSettingsStore();
   const [currentValue, setCurrentValue] = useState(value);
@@ -52,9 +54,10 @@ export default function StatusWidget({
             console.log("Found status label:", status.label);
             // Update the internal value with the label
             setCurrentValue(status.label);
-            // Inform parent of the label change
+            // Inform parent of the label change with the appropriate field name
             if (onChange) {
-              onChange(status.label);
+              const fieldName = isAdmin ? 'status_id' : 'task_status_id';
+              onChange(status.label, fieldName);
             }
           }
         } catch (error) {
@@ -64,7 +67,7 @@ export default function StatusWidget({
     };
 
     loadStatusFromId();
-  }, [value, statusOptions, onChange, loading]);
+  }, [value, statusOptions, onChange, loading, isAdmin]);
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLabel = e.target.value;
@@ -76,16 +79,19 @@ export default function StatusWidget({
       const selectedStatus = allStatuses.find(status => status.label === newLabel);
       
       if (selectedStatus) {
-        // Store both the label and ID
+        // Store both the label and ID, with the appropriate field name based on user role
         if (onChange) {
-          onChange(newLabel);
+          const fieldName = isAdmin ? 'status_id' : 'task_status_id';
+          console.log(`StatusWidget: Updating ${fieldName} for ${isAdmin ? 'admin' : 'non-admin'} user`);
+          onChange(newLabel, fieldName);
         }
       }
     } catch (error) {
       console.error("Error finding status ID:", error);
       // Still update the label even if we can't find the ID
       if (onChange) {
-        onChange(newLabel);
+        const fieldName = isAdmin ? 'status_id' : 'task_status_id';
+        onChange(newLabel, fieldName);
       }
     }
   };
@@ -101,10 +107,11 @@ export default function StatusWidget({
       console.log(`Status '${currentValue}' not found in options. Defaulting to first option.`);
       setCurrentValue(statusOptions[0]);
       if (onChange) {
-        onChange(statusOptions[0]);
+        const fieldName = isAdmin ? 'status_id' : 'task_status_id';
+        onChange(statusOptions[0], fieldName);
       }
     }
-  }, [statusOptions, currentValue, onChange, loading]);
+  }, [statusOptions, currentValue, onChange, loading, isAdmin]);
 
   if (readOnly) {
     return (

@@ -103,6 +103,7 @@ export const ticketsService = {
       const hasExpandedRelationships =
         tickets.length > 0 &&
         (typeof tickets[0].status_id === "object" ||
+          typeof tickets[0].task_status_id === "object" ||
           typeof tickets[0].customer_id === "object" ||
           (Array.isArray(tickets[0].assignee_ids) &&
             tickets[0].assignee_ids.length > 0 &&
@@ -110,8 +111,17 @@ export const ticketsService = {
 
       if (hasExpandedRelationships) {
         console.log("Using already expanded relationships from Appwrite");
-        // Relationships are already expanded, just return the tickets as is
-        return tickets;
+        // Relationships are already expanded, but we need to ensure consistent structure
+        return tickets.map((ticket: any) => ({
+          ...ticket,
+          // Ensure we have consistent field names for expanded relationships
+          status: typeof ticket.status_id === "object" ? ticket.status_id : ticket.status,
+          task_status: typeof ticket.task_status_id === "object" ? ticket.task_status_id : ticket.task_status,
+          customer: typeof ticket.customer_id === "object" ? ticket.customer_id : ticket.customer,
+          assignees: Array.isArray(ticket.assignee_ids) && ticket.assignee_ids.length > 0 && typeof ticket.assignee_ids[0] === "object"
+            ? ticket.assignee_ids
+            : ticket.assignees || [],
+        }));
       }
 
       // If relationships are not already expanded, load them manually
@@ -136,6 +146,7 @@ export const ticketsService = {
         ...ticket,
         // Add related data
         status: statusMap.get(ticket.status_id),
+        task_status: ticket.task_status_id ? statusMap.get(ticket.task_status_id) : null,
         customer: customerMap.get(ticket.customer_id),
         assignees:
           ticket.assignee_ids?.map((id: string) => userMap.get(id)).filter(Boolean) ||
@@ -178,6 +189,14 @@ export const ticketsService = {
         statusId = (ticket.status_id as Status).$id;
       }
 
+      // Get the task_status_id as a string if possible
+      let taskStatusId = null;
+      if (typeof ticket.task_status_id === "string") {
+        taskStatusId = ticket.task_status_id;
+      } else if (isObjectWithId(ticket.task_status_id)) {
+        taskStatusId = (ticket.task_status_id as Status).$id;
+      }
+
       // Get the customer_id as a string if possible
       let customerId = null;
       if (typeof ticket.customer_id === "string") {
@@ -199,8 +218,9 @@ export const ticketsService = {
       }
 
       // Fetch related data in parallel
-      const [status, customer, users] = await Promise.all([
+      const [status, taskStatus, customer, users] = await Promise.all([
         statusId ? getDocument<Status>(STATUSES_COLLECTION, statusId) : null,
+        taskStatusId ? getDocument<Status>(STATUSES_COLLECTION, taskStatusId) : null,
         customerId ? getDocument<Customer>(CUSTOMERS_COLLECTION, customerId) : null,
         Promise.all(
           assigneeIds.map((id) =>
@@ -215,6 +235,7 @@ export const ticketsService = {
       return {
         ...ticket,
         status,
+        task_status: taskStatus,
         customer,
         assignees: users.filter(Boolean), // Filter out any failed user fetches
       };
@@ -244,6 +265,22 @@ export const ticketsService = {
           // If it's an object with $id, extract the ID
           formattedTicketData.status_id = (
             formattedTicketData.status_id as {
+              $id: string;
+            }
+          ).$id;
+        }
+        // If it's already a string, keep it as is
+      }
+
+      // Process task_status_id (many-to-one relationship)
+      if (formattedTicketData.task_status_id) {
+        if (
+          typeof formattedTicketData.task_status_id === "object" &&
+          "$id" in formattedTicketData.task_status_id
+        ) {
+          // If it's an object with $id, extract the ID
+          formattedTicketData.task_status_id = (
+            formattedTicketData.task_status_id as {
               $id: string;
             }
           ).$id;
@@ -362,6 +399,22 @@ export const ticketsService = {
           // If it's an object with $id, extract the ID safely
           formattedTicketData.status_id = (
             formattedTicketData.status_id as {
+              $id: string;
+            }
+          ).$id;
+        }
+        // If it's already a string, keep it as is
+      }
+
+      // Process task_status_id (many-to-one relationship) if included in the update
+      if (formattedTicketData.task_status_id !== undefined) {
+        if (
+          typeof formattedTicketData.task_status_id === "object" &&
+          "$id" in formattedTicketData.task_status_id
+        ) {
+          // If it's an object with $id, extract the ID safely
+          formattedTicketData.task_status_id = (
+            formattedTicketData.task_status_id as {
               $id: string;
             }
           ).$id;
