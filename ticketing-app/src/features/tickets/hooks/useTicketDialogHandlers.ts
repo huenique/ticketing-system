@@ -1588,6 +1588,7 @@ export default function useTicketDialogHandlers(
     // Check if this tab has a preset
     const currentTabData = tabs.find((tab) => tab.id === tabId);
     const hasEngineeringPreset = currentTabData && (currentTabData.isEngineeringPreset || currentTabData.appliedPreset === "Engineering");
+    const isPipelineTab = currentTabData?.title === "Pipeline";
     setCurrentTicketPreset(hasEngineeringPreset ? "Engineering" : undefined);
 
     // Get data from ticket
@@ -1647,7 +1648,7 @@ export default function useTicketDialogHandlers(
     try {
       if (ticketId) {
         console.log(`Fetching assignments for ticket ID: ${ticketId}`);
-        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId);
+        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId, isPipelineTab);
         console.log(`Retrieved ${assigneeData.length} assignees from ticket_assignments collection`);
         console.log("Raw assignee data:", JSON.stringify(assigneeData, null, 2));
         

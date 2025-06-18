@@ -62,8 +62,10 @@ export const ticketAssignmentsService = {
    * If user is admin, return all assignments for the ticket
    * If user is not admin, return only assignments for the current user
    * Filtering is done client-side after fetching all data for the ticket
+   * @param ticketId - The ticket ID to get assignments for
+   * @param showAllForPipeline - If true, shows all assignments regardless of user role (for Pipeline tab)
    */
-  getAssignmentsByTicketId: async (ticketId: string): Promise<TicketAssignment[]> => {
+  getAssignmentsByTicketId: async (ticketId: string, showAllForPipeline: boolean = false): Promise<TicketAssignment[]> => {
     try {
       console.log(`Fetching assignments for ticket: ${ticketId}`);
       
@@ -82,9 +84,9 @@ export const ticketAssignmentsService = {
       const userRole = await getCurrentUserRole();
       console.log(`Current user role: ${userRole}`);
       
-      // If admin, return all assignments
-      if (userRole === "admin") {
-        console.log("User is admin, showing all assignments for ticket");
+      // If admin or showAllForPipeline is true, return all assignments
+      if (userRole === "admin" || showAllForPipeline) {
+        console.log(showAllForPipeline ? "Pipeline tab requested, showing all assignments for ticket" : "User is admin, showing all assignments for ticket");
         return allAssignments;
       }
       
@@ -275,11 +277,13 @@ export const ticketAssignmentsService = {
   /**
    * Get all assignments for a ticket and convert them to Assignee objects
    * Respects role-based access control - regular users only see their own assignments
+   * @param ticketId - The ticket ID to get assignees for
+   * @param showAllForPipeline - If true, shows all assignees regardless of user role (for Pipeline tab)
    */
-  getAssigneesForTicket: async (ticketId: string): Promise<Assignee[]> => {
+  getAssigneesForTicket: async (ticketId: string, showAllForPipeline: boolean = false): Promise<Assignee[]> => {
     try {
       // This will apply the role-based filtering internally
-      const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId);
+      const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId, showAllForPipeline);
       
       // Convert each assignment to an assignee
       const assignees = await Promise.all(
