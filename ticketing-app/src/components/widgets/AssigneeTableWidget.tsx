@@ -55,6 +55,40 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
     }
   };
 
+  const handleMarkAssigneeCompleted = (assigneeId: string, completed: boolean) => {
+    const targetAssignee = assignees.find(a => (a.id || `index-${assignees.indexOf(a)}`) === assigneeId);
+    if (!targetAssignee || !handleUpdateAssignee || !markAssigneeCompleted) return;
+
+    if (completed) {
+      // Marking as done: set priority to 0 and adjust other priorities
+      const currentPriority = parseInt(targetAssignee.priority || "5", 10);
+      
+      // First, update all assignees with higher priorities (decrease by 1)
+      assignees.forEach((assignee, index) => {
+        const assigneeIdForUpdate = assignee.id || `index-${index}`;
+        const assigneePriority = parseInt(assignee.priority || "5", 10);
+        
+        if (assigneeIdForUpdate !== assigneeId && assigneePriority > currentPriority && !assignee.is_done) {
+          handleUpdateAssignee(assigneeIdForUpdate, "priority", String(assigneePriority - 1));
+        }
+      });
+      
+      // Set the target assignee's priority to 0
+      handleUpdateAssignee(assigneeId, "priority", "0");
+    } else {
+      // Unmarking as done: find the highest priority among active items and set to that + 1
+      const activePriorities = assignees
+        .filter(a => !a.is_done && (a.id || `index-${assignees.indexOf(a)}`) !== assigneeId)
+        .map(a => parseInt(a.priority || "1", 10));
+      
+      const maxActivePriority = activePriorities.length > 0 ? Math.max(...activePriorities) : 0;
+      handleUpdateAssignee(assigneeId, "priority", String(maxActivePriority + 1));
+    }
+
+    // Finally, mark the assignee as completed/uncompleted
+    markAssigneeCompleted(assigneeId, completed);
+  };
+
   return (
     <div className="overflow-auto">
       <div className="mb-3 flex justify-end items-center">
@@ -97,12 +131,19 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
               {assignees
                 .slice()
                 .sort((a, b) => {
-                  // Sort by priority (lowest number first)
+                  // Sort by completion status first (active items first, then completed)
+                  if (a.is_done !== b.is_done) {
+                    return a.is_done ? 1 : -1;
+                  }
+                  
+                  // For items with the same completion status, sort by priority
                   const priorityA = parseInt(a.priority || "5", 10);
                   const priorityB = parseInt(b.priority || "5", 10);
-                  // If priorities are equal, maintain the current order
-                  if (priorityA === priorityB) return 0;
-                  // Otherwise sort numerically
+                  
+                  // If both are done (priority 0), maintain current order
+                  if (a.is_done && b.is_done) return 0;
+                  
+                  // Otherwise sort numerically (lowest priority number first)
                   return priorityA - priorityB;
                 })
                 .map((assignee, index) => (
@@ -145,44 +186,49 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {(() => {
-                        // Gather all unique priorities from assignees
-                        const priorities = assignees
-                          .map(a => a.priority)
-                          .filter(Boolean);
-                        // Add the next available priority
-                        const nextPriority = String(assignees.length + 1);
-                        if (!priorities.includes(nextPriority)) {
-                          priorities.push(nextPriority);
-                        }
-                        // Ensure the current assignee's priority is present
-                        if (assignee.priority && !priorities.includes(assignee.priority)) {
-                          priorities.push(assignee.priority);
-                        }
-                        // Remove duplicates and sort numerically
-                        const uniqueSorted = Array.from(new Set(priorities)).sort((a, b) => Number(a) - Number(b));
-                        return (
-                          <select
-                            value={assignee.priority || "5"}
-                            onChange={(e) =>
-                              handleUpdateAssignee &&
-                              handleUpdateAssignee(
-                                assignee.id || `index-${index}`,
-                                "priority",
-                                e.target.value,
-                              )
-                            }
-                            disabled={assignee.is_done}
-                            className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
-                          >
-                            {uniqueSorted.map((priority) => (
-                              <option key={priority} value={priority}>
-                                {priority}
-                              </option>
-                            ))}
-                          </select>
-                        );
-                      })()}
+                      {assignee.is_done ? (
+                        <span className="text-neutral-500">Done</span>
+                      ) : (
+                        (() => {
+                          // Only show priority options for active (non-done) assignees
+                          const activePriorities = assignees
+                            .filter(a => !a.is_done)
+                            .map(a => a.priority)
+                            .filter(Boolean);
+                          // Add the next available priority
+                          const nextPriority = String(assignees.filter(a => !a.is_done).length + 1);
+                          if (!activePriorities.includes(nextPriority)) {
+                            activePriorities.push(nextPriority);
+                          }
+                          // Ensure the current assignee's priority is present
+                          if (assignee.priority && !activePriorities.includes(assignee.priority)) {
+                            activePriorities.push(assignee.priority);
+                          }
+                          // Remove duplicates and sort numerically
+                          const uniqueSorted = Array.from(new Set(activePriorities)).sort((a, b) => Number(a) - Number(b));
+                          return (
+                            <select
+                              value={assignee.priority || "5"}
+                              onChange={(e) =>
+                                handleUpdateAssignee &&
+                                handleUpdateAssignee(
+                                  assignee.id || `index-${index}`,
+                                  "priority",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={assignee.is_done}
+                              className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                            >
+                              {uniqueSorted.map((priority) => (
+                                <option key={priority} value={priority}>
+                                  {priority}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <input
@@ -249,37 +295,35 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                   </svg>
                                 </button>
                               )}
-                              {markAssigneeCompleted && (
-                                <button
-                                  onClick={() =>
-                                    markAssigneeCompleted(
-                                      assignee.id || `index-${index}`,
-                                      !assignee.is_done,
-                                    )
-                                  }
-                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                  title={
-                                    assignee.is_done
-                                      ? "Mark as Not Done"
-                                      : "Mark as Done"
-                                  }
+                              <button
+                                onClick={() =>
+                                  handleMarkAssigneeCompleted(
+                                    assignee.id || `index-${index}`,
+                                    !assignee.is_done,
+                                  )
+                                }
+                                className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                title={
+                                  assignee.is_done
+                                    ? "Mark as Not Done"
+                                    : "Mark as Done"
+                                }
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
                                 >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </button>
                               {handleRemoveAssignee && (
                                 <button
                                   onClick={() =>
@@ -340,37 +384,35 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                                     </svg>
                                   </button>
                                 )}
-                                {markAssigneeCompleted && (
-                                  <button
-                                    onClick={() =>
-                                      markAssigneeCompleted(
-                                        assignee.id || `index-${index}`,
-                                        !assignee.is_done,
-                                      )
-                                    }
-                                    className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
-                                    title={
-                                      assignee.is_done
-                                        ? "Mark as Not Done"
-                                        : "Mark as Done"
-                                    }
+                                <button
+                                  onClick={() =>
+                                    handleMarkAssigneeCompleted(
+                                      assignee.id || `index-${index}`,
+                                      !assignee.is_done,
+                                    )
+                                  }
+                                  className={`inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white ${assignee.is_done ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 hover:bg-gray-500"} focus:outline-none mr-2`}
+                                  title={
+                                    assignee.is_done
+                                      ? "Mark as Not Done"
+                                      : "Mark as Done"
+                                  }
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
                                   >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </button>
                               </>
                             )}
                         </>
