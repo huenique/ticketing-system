@@ -12,6 +12,9 @@ interface FieldWidgetProps {
   handleFieldChange: (field: string, value: string) => void;
   setTicketForm?: (form: TicketForm) => void;
   isAdmin?: boolean;
+  onPartsUpdate?: () => void; // Callback to refresh ticket data
+  isPartsDialogOpen?: boolean;
+  setIsPartsDialogOpen?: (open: boolean) => void;
 }
 
 const FieldWidget: React.FC<FieldWidgetProps> = ({
@@ -21,6 +24,9 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
   handleFieldChange,
   setTicketForm,
   isAdmin = true,
+  onPartsUpdate,
+  isPartsDialogOpen,
+  setIsPartsDialogOpen,
 }) => {
   // Based on the field type, render the appropriate input
   switch (widget.fieldType) {
@@ -236,9 +242,17 @@ const FieldWidget: React.FC<FieldWidgetProps> = ({
     case "parts":
       // Get parts from the current ticket's raw data
       const parts = currentTicket?.rawData?.part_ids || [];
+      const ticketId = currentTicket?.id || null;
       return (
         <div className="h-full">
-          <PartsWidget parts={parts} />
+          <PartsWidget 
+            parts={parts} 
+            ticketId={ticketId || undefined}
+            isAdmin={isAdmin}
+            onPartsUpdate={onPartsUpdate}
+            isPartsDialogOpen={isPartsDialogOpen}
+            setIsPartsDialogOpen={setIsPartsDialogOpen}
+          />
         </div>
       );
 

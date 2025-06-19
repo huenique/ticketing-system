@@ -26,8 +26,14 @@ export interface CustomerActions extends DataTableActions<CustomerType> {
 export const getCustomersColumns = (actions: CustomerActions): ColumnDef<CustomerType>[] => {
   // Create an array of columns
   const columns: ColumnDef<CustomerType>[] = [
-    createStandardColumn<CustomerType>("name", "Name"),
-    createStandardColumn<CustomerType>("address", "Address"),
+    {
+      ...createStandardColumn<CustomerType>("name", "Name"),
+      size: 200,
+    },
+    {
+      ...createStandardColumn<CustomerType>("address", "Address"),
+      size: 250,
+    },
     {
       accessorFn: (customer) => {
         const firstContact = customer.contacts?.[0];
@@ -35,6 +41,7 @@ export const getCustomersColumns = (actions: CustomerActions): ColumnDef<Custome
       },
       header: "Primary Contact",
       id: "primary_contact_name",
+      size: 150,
     },
     {
       accessorFn: (customer) => {
@@ -43,6 +50,7 @@ export const getCustomersColumns = (actions: CustomerActions): ColumnDef<Custome
       },
       header: "Primary Contact Number",
       id: "primary_contact_number",
+      size: 150,
     },
     {
       accessorFn: (customer) => {
@@ -51,28 +59,41 @@ export const getCustomersColumns = (actions: CustomerActions): ColumnDef<Custome
       },
       header: "Primary Email",
       id: "primary_email",
+      size: 200,
     },
     {
       accessorFn: (customer) => customer.abn || "N/A",
       header: "ABN",
       id: "abn",
+      size: 120,
     },
-    createUpdatedAtColumn<CustomerType>(),
+    {
+      ...createUpdatedAtColumn<CustomerType>(),
+      size: 120,
+    },
   ];
 
   // Add a custom actions column with the contacts button
-  const actionsColumn = createActionsColumn<CustomerType>({
-    onEdit: actions.onEdit,
-    onDelete: actions.onDelete,
-    extraActions: actions.onViewContacts ? [
-      {
-        icon: UserPlus,
-        label: "View Contacts",
-        onClick: (customer) => actions.onViewContacts!(customer),
-        className: "p-1 text-gray-600 hover:text-gray-800"
-      }
-    ] : undefined
-  });
+  const actionsColumn: ColumnDef<CustomerType> = {
+    ...createActionsColumn<CustomerType>({
+      onEdit: actions.onEdit,
+      onDelete: actions.onDelete,
+      extraActions: actions.onViewContacts ? [
+        {
+          icon: UserPlus,
+          label: "View Contacts",
+          onClick: (customer) => actions.onViewContacts!(customer),
+          className: "p-1 text-gray-600 hover:text-gray-800"
+        }
+      ] : undefined
+    }),
+    size: 120,
+    meta: {
+      sticky: true,
+      stickyPosition: 'right'
+    },
+    accessorFn: () => null // Required by ColumnDef type
+  };
 
   return [...columns, actionsColumn];
 }; 

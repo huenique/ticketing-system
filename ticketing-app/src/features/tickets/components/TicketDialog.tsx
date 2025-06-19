@@ -424,9 +424,16 @@ const DialogHeader = ({
   return (
     <div className="flex justify-between items-center mb-2 px-4 pt-4">
       <div className="flex flex-col">
-        <h2 className="text-xl font-semibold">
-          Ticket Details: {currentTicket?.cells["col-1"]}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">
+            Ticket Details: {currentTicket?.cells["col-1"]}
+          </h2>
+          {currentUser?.role !== "admin" && currentTicket?.rawData?.status_id && (
+            <span className="ml-2 px-2 py-1 mt-1 text-sm rounded-full bg-primary/10 text-primary">
+              {currentTicket.rawData.status.label}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center space-x-3">
         {/* Send Email Button */}
@@ -799,34 +806,40 @@ const WidgetGrid = ({
           key={widget.id}
           className={`widget-container ${!isEditLayoutMode ? "static pointer-events-auto" : ""}`}
         >
-          <TicketWidget
-            widget={widget}
-            ticketForm={ticketForm}
-            currentTicket={currentTicket}
-            handleFieldChange={handleFieldChange}
-            toggleWidgetCollapse={toggleWidgetCollapse}
-            removeWidget={removeWidget}
-            updateWidgetTitle={updateWidgetTitle}
-            assignees={assignees}
-            timeEntries={timeEntries}
-            uploadedImages={uploadedImages}
-            handleAddAssignee={handleAddAssignee}
-            handleRemoveAssignee={handleRemoveAssignee}
-            handleUpdateAssignee={handleUpdateAssignee}
-            handleAddTimeEntry={handleAddTimeEntry}
-            handleRemoveTimeEntry={handleRemoveTimeEntry}
-            handleUpdateTimeEntry={handleUpdateTimeEntry}
-            setTicketForm={setTicketForm}
-            handleImageUpload={handleImageUpload}
-            setUploadedImages={setUploadedImages}
-            showAssigneeForm={showAssigneeForm}
-            setShowAssigneeForm={setShowAssigneeForm}
-            newAssignee={newAssignee}
-            setNewAssignee={setNewAssignee}
-            isEditMode={isEditLayoutMode}
-            markAssigneeCompleted={markAssigneeCompleted}
-            isAdmin={isAdmin}
-          />
+                      <TicketWidget
+              widget={widget}
+              ticketForm={ticketForm}
+              currentTicket={currentTicket}
+              handleFieldChange={handleFieldChange}
+              toggleWidgetCollapse={toggleWidgetCollapse}
+              removeWidget={removeWidget}
+              updateWidgetTitle={updateWidgetTitle}
+              assignees={assignees}
+              timeEntries={timeEntries}
+              uploadedImages={uploadedImages}
+              handleAddAssignee={handleAddAssignee}
+              handleRemoveAssignee={handleRemoveAssignee}
+              handleUpdateAssignee={handleUpdateAssignee}
+              handleAddTimeEntry={handleAddTimeEntry}
+              handleRemoveTimeEntry={handleRemoveTimeEntry}
+              handleUpdateTimeEntry={handleUpdateTimeEntry}
+              setTicketForm={setTicketForm}
+              handleImageUpload={handleImageUpload}
+              setUploadedImages={setUploadedImages}
+              showAssigneeForm={showAssigneeForm}
+              setShowAssigneeForm={setShowAssigneeForm}
+              newAssignee={newAssignee}
+              setNewAssignee={setNewAssignee}
+              isEditMode={isEditLayoutMode}
+              markAssigneeCompleted={markAssigneeCompleted}
+              isAdmin={isAdmin}
+              onPartsUpdate={() => {
+                // Refresh ticket data when parts are updated
+                if (currentTicket) {
+                  window.location.reload(); // Temporary solution, can be improved with proper state management
+                }
+              }}
+            />
         </div>
       ))}
     </ResponsiveGridLayout>
@@ -1059,10 +1072,8 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
 
   // Add a function to handle dialog close that saves changes
   const handleDialogClose = async () => {
-    // If there are unsaved changes, save them first
-    if (modifiedTimeEntries.size > 0) {
-      await handleSaveTicketChanges();
-    }
+    // Always save changes before closing to ensure all modifications are persisted
+    await handleSaveTicketChanges();
     
     // Close the dialog
     setViewDialogOpen(false);

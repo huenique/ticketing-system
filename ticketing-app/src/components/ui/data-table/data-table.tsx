@@ -33,6 +33,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Extend the ColumnMeta type to include sticky properties
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends unknown, TValue> {
+    sticky?: boolean;
+    stickyPosition?: 'left' | 'right';
+  }
+}
 
 interface PaginationProps {
   pageCount: number;
@@ -336,8 +345,16 @@ export function DataTableContent<TData, TValue>({
           {tableToUse.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
+                const isSticky = header.column.columnDef.meta?.sticky;
+                const stickyPosition = header.column.columnDef.meta?.stickyPosition;
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead 
+                    key={header.id}
+                    className={cn(
+                      isSticky && stickyPosition === 'right' && "sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]",
+                      isSticky && stickyPosition === 'left' && "sticky left-0 bg-white z-10 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]"
+                    )}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -359,11 +376,21 @@ export function DataTableContent<TData, TValue>({
                 onClick={() => onRowClick && onRowClick(row.original)}
                 className={onRowClick ? "cursor-pointer" : ""}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const isSticky = cell.column.columnDef.meta?.sticky;
+                  const stickyPosition = cell.column.columnDef.meta?.stickyPosition;
+                  return (
+                    <TableCell 
+                      key={cell.id}
+                      className={cn(
+                        isSticky && stickyPosition === 'right' && "sticky right-0 bg-white z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]",
+                        isSticky && stickyPosition === 'left' && "sticky left-0 bg-white z-10 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]"
+                      )}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))
           ) : (
