@@ -205,26 +205,66 @@ export const columns: ColumnDef<Row>[] = [
       // If we have raw data, try to get part descriptions from it
       const rawTicket = row.original.rawData;
       if (rawTicket && rawTicket.part_ids && Array.isArray(rawTicket.part_ids)) {
-        return (
-          <div className="flex flex-wrap gap-2">
-            {rawTicket.part_ids.map((part: any, index: number) => {
-              let description = "";
-              // Check if it's an object with description
-              if (typeof part === "object" && part !== null && part.description) {
-                description = `${part.description}${part.quantity ? ` (${part.quantity})` : ""}`;
-              } else {
-                // Otherwise just show the ID or string representation
-                description = String(typeof part === "object" ? part.$id || part.id || "Unknown Part" : part);
-              }
-              
-              return (
-                <div key={index} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-chart-4/20 text-chart-4">
-                  {description}
+        const formattedParts = rawTicket.part_ids.map((part: any, index: number) => {
+          let description = "";
+          // Check if it's an object with description
+          if (typeof part === "object" && part !== null && part.description) {
+            description = `${part.description}${part.quantity ? ` (${part.quantity})` : ""}`;
+          } else {
+            // Otherwise just show the ID or string representation
+            description = String(typeof part === "object" ? part.$id || part.id || "Unknown Part" : part);
+          }
+          return { key: index, description };
+        });
+
+        const MAX_VISIBLE_PARTS = 2;
+        const visibleParts = formattedParts.slice(0, MAX_VISIBLE_PARTS);
+        const hiddenParts = formattedParts.slice(MAX_VISIBLE_PARTS);
+
+        if (formattedParts.length <= MAX_VISIBLE_PARTS) {
+          // Show all parts if 2 or fewer
+          return (
+            <div className="flex flex-wrap gap-2">
+              {visibleParts.map((part: { key: number; description: string }) => (
+                <div key={part.key} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-chart-4/20 text-chart-4">
+                  {part.description}
                 </div>
-              );
-            })}
-          </div>
-        );
+              ))}
+            </div>
+          );
+        } else {
+          // Show first 2 parts + "+X more" with tooltip
+          return (
+            <div className="flex flex-wrap gap-2 items-center">
+              {visibleParts.map((part: { key: number; description: string }) => (
+                <div key={part.key} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-chart-4/20 text-chart-4">
+                  {part.description}
+                </div>
+              ))}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-muted/50 text-muted-foreground cursor-help hover:bg-muted/70 transition-colors">
+                      +{hiddenParts.length} more
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="p-3 max-w-sm bg-white text-black">
+                    <div className="space-y-2">
+                      <p className="font-medium text-sm">All Parts Used:</p>
+                      <div className="space-y-1">
+                        {formattedParts.map((part: { key: number; description: string }) => (
+                          <div key={part.key} className="text-xs text-gray-700">
+                            • {part.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          );
+        }
       }
 
       // If no parts are found, just return a dash
@@ -242,6 +282,7 @@ export const columns: ColumnDef<Row>[] = [
       if (!status) return "N/A";
 
       let statusClass = "";
+      let displayStatus = status;
 
       switch (status) {
         case "New":
@@ -255,9 +296,11 @@ export const columns: ColumnDef<Row>[] = [
           break;
         case "Awaiting for Parts":
           statusClass = "bg-amber-500/20 text-amber-500";
+          displayStatus = "Awaiting Parts";
           break;
         case "Awaiting Customer Response":
           statusClass = "bg-yellow-500/20 text-yellow-500";
+          displayStatus = "Awaiting Customer";
           break;
         case "Completed":
         case "Done":
@@ -272,9 +315,9 @@ export const columns: ColumnDef<Row>[] = [
 
       return (
         <div
-          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}
+          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusClass}`}
         >
-          {status}
+          {displayStatus}
         </div>
       );
     },
