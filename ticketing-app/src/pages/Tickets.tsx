@@ -171,22 +171,26 @@ function Tickets() {
   const [currentWorkflow, setCurrentWorkflow] = useState<string>(() => {
     // Try to load current workflow from localStorage
     const savedWorkflow = localStorage.getItem("current-workflow");
-    return savedWorkflow || "engineering"; // Default to engineering
+    const initialWorkflow = savedWorkflow || "engineering"; // Default to engineering
+    console.log("🔧 WORKFLOW_INIT: Initializing workflow", { savedWorkflow, initialWorkflow });
+    return initialWorkflow;
   });
   
   // Track which workflows have had presets applied
   const [appliedPresetWorkflows, setAppliedPresetWorkflows] = useState<string[]>(() => {
     // Load from localStorage
     const savedAppliedPresets = localStorage.getItem("applied-preset-workflows");
+    let initialPresets: string[] = [];
     if (savedAppliedPresets) {
       try {
-        return JSON.parse(savedAppliedPresets);
+        initialPresets = JSON.parse(savedAppliedPresets);
       } catch (e) {
         console.error("Failed to parse saved applied presets:", e);
-        return [];
+        initialPresets = [];
       }
     }
-    return [];
+    console.log("🔧 WORKFLOW_INIT: Loaded applied preset workflows", { initialPresets });
+    return initialPresets;
   });
   
   const [isNewWorkflowDialogOpen, setIsNewWorkflowDialogOpen] = useState(false);
@@ -197,21 +201,30 @@ function Tickets() {
   
   // Load workflows from database on component mount
   useEffect(() => {
+    console.log("🔧 WORKFLOW_LOAD: Starting workflow loading from database");
+    
     const loadWorkflows = async () => {
       try {
         const dbWorkflows = await workflowsService.getAllWorkflows();
+        console.log("🔧 WORKFLOW_LOAD: Retrieved workflows from database", { count: dbWorkflows.length });
         
         // If no workflows exist in the database, create the default engineering workflow
         if (dbWorkflows.length === 0) {
+          console.log("🔧 WORKFLOW_LOAD: No workflows found, creating default Engineering workflow");
           const engineeringWorkflow = await workflowsService.createWorkflow("Engineering");
           setWorkflows([engineeringWorkflow]);
+          console.log("🔧 WORKFLOW_LOAD: Created Engineering workflow", { id: engineeringWorkflow.$id });
         } else {
           setWorkflows(dbWorkflows);
+          console.log("🔧 WORKFLOW_LOAD: Set workflows from database", { 
+            workflows: dbWorkflows.map(w => ({ id: w.$id, name: w.name }))
+          });
         }
       } catch (error) {
-        console.error("Error loading workflows:", error);
+        console.error("🔧 WORKFLOW_LOAD: Error loading workflows:", error);
         // Fallback to default engineering workflow if there's an error
         setWorkflows([{ $id: "engineering", name: "Engineering" } as DBWorkflow]);
+        console.log("🔧 WORKFLOW_LOAD: Set fallback Engineering workflow");
       }
     };
 
@@ -220,11 +233,13 @@ function Tickets() {
 
   // Save current workflow to localStorage whenever it changes
   useEffect(() => {
+    console.log("🔧 WORKFLOW_SAVE: Saving workflow to localStorage", { currentWorkflow });
     localStorage.setItem("current-workflow", currentWorkflow);
   }, [currentWorkflow]);
 
   // Add a new effect to save applied presets
   useEffect(() => {
+    console.log("🔧 WORKFLOW_SAVE: Saving applied presets to localStorage", { appliedPresetWorkflows });
     localStorage.setItem("applied-preset-workflows", JSON.stringify(appliedPresetWorkflows));
   }, [appliedPresetWorkflows]);
   
@@ -273,6 +288,7 @@ function Tickets() {
   // Initialize data from localStorage
   (() => {
     const { tabs, activeTab } = getSavedTabsData();
+    console.log("🔧 INIT: Loading saved data from localStorage", { tabs: tabs?.length || 0, activeTab });
     if (tabs) {
       useTabsStore.getState().setTabs(tabs);
     }
@@ -285,29 +301,52 @@ function Tickets() {
   const hasEngineeringPreset = useCallback(() => {
     // Get tabs directly from the store to avoid dependency on component state
     const storeTabs = useTabsStore.getState().tabs;
-    return storeTabs.some((tab) => tab.appliedPreset === "Engineering");
+    const hasPreset = storeTabs.some((tab) => tab.appliedPreset === "Engineering");
+    console.log("🔧 PRESET_CHECK: Engineering preset check", { 
+      tabsCount: storeTabs.length, 
+      hasPreset,
+      tabsWithPreset: storeTabs.filter(tab => tab.appliedPreset === "Engineering").map(tab => tab.title)
+    });
+    return hasPreset;
   }, []); // Remove tabs dependency to break the loop
 
   // Auto-rebuild missing tabs from Appwrite statuses on page load
   useEffect(() => {
     let isMounted = true; // Track if component is mounted
+    console.log("🔧 TABS_RESTORE: Effect triggered", { 
+      ticketsRefreshCounter, 
+      currentWorkflow, 
+      appliedPresetWorkflows: appliedPresetWorkflows.length 
+    });
     
     const restoreTabsFromStatuses = async () => {
       try {
         const tabsStore = useTabsStore.getState();
         const settingsStore = useSettingsStore.getState();
 
+        console.log("🔧 TABS_RESTORE: Starting tabs restoration");
+
         // Check if engineering preset is applied and hasn't been reset
         const storeTabs = tabsStore.tabs;
         const hasPreset = storeTabs.some((tab) => tab.appliedPreset === "Engineering");
         const hasBeenReset = !appliedPresetWorkflows.includes(currentWorkflow);
 
+        console.log("🔧 TABS_RESTORE: Preset status", { 
+          hasPreset, 
+          hasBeenReset, 
+          currentWorkflow,
+          appliedPresetWorkflows,
+          tabsWithPreset: storeTabs.filter(tab => tab.appliedPreset === "Engineering").map(tab => tab.title)
+        });
+
         if (!hasPreset || hasBeenReset) {
+          console.log("🔧 TABS_RESTORE: No preset or reset detected, creating basic tabs");
           // If engineering preset is not applied or has been reset, only ensure we have an All Tickets tab
           const existingTabs = tabsStore.tabs;
           
           // If we don't have any tabs yet, create just the All Tickets tab
           if (existingTabs.length === 0) {
+            console.log("🔧 TABS_RESTORE: Creating initial All Tickets tab");
             tabsStore.setTabs([{
               id: "tab-all-tickets",
               title: "All Tickets",
@@ -319,28 +358,39 @@ function Tickets() {
           
           // Still fetch and update status options in the settings store
           await settingsStore.fetchStatusOptions();
+          console.log("🔧 TABS_RESTORE: Fetched status options for settings store");
           return;
         }
+
+        console.log("🔧 TABS_RESTORE: Engineering preset detected, rebuilding from statuses");
 
         // Below code only runs if engineering preset is applied and hasn't been reset
         // Fetch the status options from the settings store
         await settingsStore.fetchStatusOptions();
 
         // Check if component is still mounted before continuing
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log("🔧 TABS_RESTORE: Component unmounted, aborting");
+          return;
+        }
 
         const statuses = await statusesService.getAllStatuses();
         
         // Check if component is still mounted before state updates
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log("🔧 TABS_RESTORE: Component unmounted after status fetch, aborting");
+          return;
+        }
         
         const statusLabels = statuses.map((s) => s.label);
+        console.log("🔧 TABS_RESTORE: Retrieved statuses", { statusLabels });
 
         const existingTabs = tabsStore.tabs;
         const filteredTabs = [];
 
         // Always keep "All Tickets" tab
         if (!existingTabs.some((tab) => tab.title === "All Tickets")) {
+          console.log("🔧 TABS_RESTORE: Adding All Tickets tab");
           filteredTabs.push({
             id: "tab-all-tickets",
             title: "All Tickets",
@@ -352,6 +402,7 @@ function Tickets() {
         // Always keep "Pipeline" tab if it exists
         const pipelineTab = existingTabs.find((tab) => tab.title === "Pipeline");
         if (pipelineTab) {
+          console.log("🔧 TABS_RESTORE: Keeping existing Pipeline tab");
           filteredTabs.push(pipelineTab);
         }
 
@@ -361,9 +412,11 @@ function Tickets() {
         statusLabels.forEach((status) => {
           if (existingTabTitles.has(status)) {
             // Reuse existing tab
+            console.log("🔧 TABS_RESTORE: Keeping existing status tab", status);
             filteredTabs.push(existingTabs.find((tab) => tab.title === status)!);
           } else {
             // Create new tab
+            console.log("🔧 TABS_RESTORE: Creating new status tab", status);
             filteredTabs.push({
               id: `tab-${status.toLowerCase().replace(/\s+/g, "-")}`,
               title: status,
@@ -373,23 +426,34 @@ function Tickets() {
         });
 
         // Check if component is still mounted before final state updates
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log("🔧 TABS_RESTORE: Component unmounted before final updates, aborting");
+          return;
+        }
         
         // Only update tabs if they've actually changed
         if (JSON.stringify(filteredTabs) !== JSON.stringify(existingTabs)) {
+          console.log("🔧 TABS_RESTORE: Updating tabs", { 
+            oldCount: existingTabs.length, 
+            newCount: filteredTabs.length 
+          });
           // Update the Zustand tabs
           tabsStore.setTabs(filteredTabs);
           
           // Make sure we have an active tab
           if (!tabsStore.activeTab && filteredTabs.length > 0) {
+            console.log("🔧 TABS_RESTORE: Setting active tab to", filteredTabs[0].id);
             tabsStore.setActiveTab(filteredTabs[0].id);
           }
+        } else {
+          console.log("🔧 TABS_RESTORE: Tabs unchanged, skipping update");
         }
 
         // Update local status options store too
         settingsStore.setStatusOptions(statusLabels);
+        console.log("🔧 TABS_RESTORE: Updated settings store with status options");
       } catch (error) {
-        console.error("Failed to restore tabs from statuses:", error);
+        console.error("🔧 TABS_RESTORE: Failed to restore tabs from statuses:", error);
       }
     };
 
@@ -398,6 +462,7 @@ function Tickets() {
     // Cleanup function
     return () => {
       isMounted = false;
+      console.log("🔧 TABS_RESTORE: Effect cleanup");
     };
   }, [ticketsRefreshCounter, currentWorkflow, appliedPresetWorkflows]);
 
@@ -419,19 +484,57 @@ function Tickets() {
   // Flag to prevent concurrent fetches
   const [isDataFetchInProgress, setIsDataFetchInProgress] = useState(false);
   
+  // Flag to track when preset has just been applied to avoid conflicting data fetches
+  const [presetJustApplied, setPresetJustApplied] = useState(false);
+  
   // Fetch tickets data only if engineering preset is already initiated and we aren't already fetching
   useEffect(() => {
     let isMounted = true;
+    console.log("🔧 DATA_FETCH: Effect triggered", { 
+      ticketsRefreshCounter, 
+      currentWorkflow,
+      isDataFetchInProgress,
+      appliedPresetWorkflows,
+      presetJustApplied
+    });
     
         const fetchTicketsIfPresetExists = async () => {
       // Skip if a fetch is already in progress or component unmounted
-      if (isDataFetchInProgress || !isMounted) return;
-      
+      if (isDataFetchInProgress || !isMounted) {
+        console.log("🔧 DATA_FETCH: Skipping - fetch in progress or unmounted", { 
+          isDataFetchInProgress, 
+          isMounted 
+        });
+        return;
+      }
 
+      // Skip if preset was just applied - it already populated the tables
+      if (presetJustApplied) {
+        console.log("🔧 DATA_FETCH: Skipping - preset just applied, tables already populated");
+        setPresetJustApplied(false); // Reset the flag
+        return;
+      }
+
+      // Skip if workflows are not loaded yet - this prevents the filtering failure
+      if (workflows.length === 0) {
+        console.log("🔧 DATA_FETCH: Skipping - workflows not loaded yet");
+        return;
+      }
+
+      console.log("🔧 DATA_FETCH: Checking if preset exists");
       
       // Check if engineering preset exists directly from store
       const storeTabs = useTabsStore.getState().tabs;
-      if (!storeTabs.some((tab) => tab.appliedPreset === "Engineering")) {
+      const hasPreset = storeTabs.some((tab) => tab.appliedPreset === "Engineering");
+      
+      console.log("🔧 DATA_FETCH: Preset check result", { 
+        hasPreset,
+        tabsCount: storeTabs.length,
+        tabsWithPreset: storeTabs.filter(tab => tab.appliedPreset === "Engineering").map(tab => tab.title)
+      });
+      
+      if (!hasPreset) {
+        console.log("🔧 DATA_FETCH: No engineering preset found, skipping fetch");
         return; // Don't fetch if preset not applied
       }
       
@@ -441,32 +544,56 @@ function Tickets() {
         setTicketsLoading(true);
         setTicketsError(null);
 
-        console.log("Starting tickets fetch...");
+        console.log("🔧 DATA_FETCH: Starting tickets fetch...");
         // Fetch tickets and users with relationships from Appwrite
         const [ticketsWithRelationships, users] = await Promise.all([
           ticketsService.getTicketsWithRelationships(),
           usersService.getAllUsers()
         ]);
         
+        console.log("🔧 DATA_FETCH: Raw data received", { 
+          ticketsCount: ticketsWithRelationships.length,
+          usersCount: users.length
+        });
+        
         // Exit early if unmounted
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log("🔧 DATA_FETCH: Component unmounted after data fetch, aborting");
+          return;
+        }
           
         // Fetch time entries only if cache is old or empty
         const now = Date.now();
         if (timeEntries.length === 0 || (now - timeEntriesTimestamp) > 30000) {
+          console.log("🔧 DATA_FETCH: Fetching time entries");
           await fetchTimeEntries();
+        } else {
+          console.log("🔧 DATA_FETCH: Using cached time entries");
         }
         
         // Exit early if unmounted
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log("🔧 DATA_FETCH: Component unmounted after time entries fetch, aborting");
+          return;
+        }
           
         // Filter tickets based on user permissions
+        console.log("🔧 DATA_FETCH: Filtering tickets by user permissions");
         const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
+
+        console.log("🔧 DATA_FETCH: Filtered tickets", { 
+          originalCount: ticketsWithRelationships.length,
+          filteredCount: filteredTickets.length,
+          currentWorkflow,
+          isAdmin
+        });
 
         // Convert tickets to rows
         const allTicketRows = filteredTickets.map((ticket) =>
           convertTicketToRow(ticket, isAdmin),
         );
+
+        console.log("🔧 DATA_FETCH: Converted to rows", { rowsCount: allTicketRows.length });
 
         // Get current tables state directly from store
         const tablesStore = useTablesStore.getState();
@@ -476,6 +603,11 @@ function Tickets() {
         // Get tabs from store directly
         const currentTabs = useTabsStore.getState().tabs;
 
+        console.log("🔧 DATA_FETCH: Current state", { 
+          tabsCount: currentTabs.length,
+          tablesCount: Object.keys(currentTables).length
+        });
+
         // Find the "All Tickets" tab
         const allTicketsTab = currentTabs.find((tab) => tab.title === "All Tickets");
         if (allTicketsTab) {
@@ -484,10 +616,20 @@ function Tickets() {
           const needsUpdate = !currentAllTicketsTable || 
             currentAllTicketsTable.rows.length !== allTicketRows.length;
           
+          console.log("🔧 DATA_FETCH: All Tickets tab update check", { 
+            tabId: allTicketsTab.id,
+            currentRowsCount: currentAllTicketsTable?.rows.length || 0,
+            newRowsCount: allTicketRows.length,
+            needsUpdate
+          });
+          
           if (needsUpdate) {
             tablesNeedUpdate = true;
             createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
+            console.log("🔧 DATA_FETCH: Updated All Tickets table");
           }
+        } else {
+          console.log("🔧 DATA_FETCH: No All Tickets tab found!");
         }
 
         // Update filtered status tabs
@@ -501,28 +643,40 @@ function Tickets() {
             const needsUpdate = !currentStatusTable ||
               currentStatusTable.rows.length !== filteredRows.length;
             
+            console.log("🔧 DATA_FETCH: Status tab update check", { 
+              tabId: tab.id,
+              status: tab.status,
+              currentRowsCount: currentStatusTable?.rows.length || 0,
+              newRowsCount: filteredRows.length,
+              needsUpdate
+            });
+            
             if (needsUpdate) {
               tablesNeedUpdate = true;
               createFilteredTable(tab.id, tab.status, allTicketRows);
+              console.log("🔧 DATA_FETCH: Updated status table for", tab.status);
             }
           }
         });
 
         // Only log if we had to update tables
         if (tablesNeedUpdate) {
-          console.log("Updated tables with new ticket data");
+          console.log("🔧 DATA_FETCH: Tables updated with new ticket data");
+        } else {
+          console.log("🔧 DATA_FETCH: No table updates needed");
         }
         
-        console.log("Tickets fetch complete!");
+        console.log("🔧 DATA_FETCH: Tickets fetch complete!");
       } catch (error) {
         if (isMounted) {
-          console.error("Error fetching tickets data:", error);
+          console.error("🔧 DATA_FETCH: Error fetching tickets data:", error);
           setTicketsError(
             error instanceof Error ? error : new Error("Failed to load tickets"),
           );
         }
       } finally {
         if (isMounted) {
+          console.log("🔧 DATA_FETCH: Cleaning up fetch state");
           setTicketsLoading(false);
           setIsDataFetchInProgress(false);
         }
@@ -533,12 +687,21 @@ function Tickets() {
     
     return () => {
       isMounted = false;
+      console.log("🔧 DATA_FETCH: Effect cleanup");
     };
-  // Only refresh when counter changes or workflow changes
-  }, [ticketsRefreshCounter, currentWorkflow]);
+  // Only refresh when counter changes, workflow changes, or workflows are loaded
+  }, [ticketsRefreshCounter, currentWorkflow, workflows]);
 
   // Function to filter tickets based on user permissions
   const filterTicketsByUserPermission = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+    console.log("🔧 FILTER_PERMISSION: Starting permission filtering", {
+      ticketsCount: tickets.length,
+      usersCount: serviceUsers.length,
+      currentWorkflow,
+      workflowsLoaded: workflows.length,
+      isAdmin
+    });
+    
     // Convert ServiceUser array to TicketUser array
     const users = serviceUsers.map(mapServiceUserToTicketUser);
     
@@ -550,11 +713,31 @@ function Tickets() {
       // Find the current workflow name
       const currentWorkflowObj = workflows.find(w => w.$id === currentWorkflow);
       if (!currentWorkflowObj) {
+        console.log("🔧 FILTER_PERMISSION: Could not find workflow object", {
+          currentWorkflow,
+          availableWorkflows: workflows.map(w => ({ id: w.$id, name: w.name }))
+        });
         return false; // If we can't find the workflow, don't include this ticket
       }
       
       const currentWorkflowName = currentWorkflowObj.name;
-      return ticketWorkflow === currentWorkflowName.toLowerCase();
+      const matches = ticketWorkflow === currentWorkflowName.toLowerCase();
+      
+      console.log("🔧 FILTER_PERMISSION: Workflow check", {
+        ticketId: ticket.id || (ticket as any).$id,
+        ticketWorkflow,
+        currentWorkflowName: currentWorkflowName.toLowerCase(),
+        matches
+      });
+      
+      return matches;
+    });
+    
+    console.log("🔧 FILTER_PERMISSION: Workflow filtering result", {
+      originalCount: tickets.length,
+      workflowFilteredCount: workflowFilteredTickets.length,
+      currentWorkflow,
+      currentWorkflowName: workflows.find(w => w.$id === currentWorkflow)?.name
     });
     
     // If user is admin, show all tickets within the current workflow
@@ -715,9 +898,15 @@ function Tickets() {
 
   // Creates tabs based on statusOptions and applies presets to current workflow 
   const applyWorkflowPreset = async () => {
+    console.log("🔧 PRESET_APPLY: Starting preset application", {
+      currentWorkflow,
+      isDataFetchInProgress,
+      ticketsLoading
+    });
+    
     // Skip if a data fetch is already in progress
     if (isDataFetchInProgress || ticketsLoading) {
-      console.log("Skipping preset apply - a data operation is already in progress");
+      console.log("🔧 PRESET_APPLY: Skipping preset apply - a data operation is already in progress");
       return;
     }
     
@@ -731,28 +920,40 @@ function Tickets() {
       const tabsStore = useTabsStore.getState();
       const tablesStore = useTablesStore.getState();
 
-      console.log("Applying preset to workflow:", currentWorkflow);
+      console.log("🔧 PRESET_APPLY: Applying preset to workflow:", currentWorkflow);
       
       // Ensure workflows are loaded first
       let currentWorkflows = workflows;
       if (currentWorkflows.length === 0) {
+        console.log("🔧 PRESET_APPLY: No workflows loaded, fetching from database");
         try {
           const dbWorkflows = await workflowsService.getAllWorkflows();
           if (dbWorkflows.length === 0) {
+            console.log("🔧 PRESET_APPLY: No workflows in database, creating Engineering workflow");
             const engineeringWorkflow = await workflowsService.createWorkflow("Engineering");
             currentWorkflows = [engineeringWorkflow];
           } else {
             currentWorkflows = dbWorkflows;
           }
           setWorkflows(currentWorkflows);
+          console.log("🔧 PRESET_APPLY: Updated workflows", { 
+            count: currentWorkflows.length,
+            workflows: currentWorkflows.map(w => ({ id: w.$id, name: w.name }))
+          });
         } catch (error) {
-          console.error("Error loading workflows:", error);
+          console.error("🔧 PRESET_APPLY: Error loading workflows:", error);
           currentWorkflows = [{ $id: "engineering", name: "Engineering" } as DBWorkflow];
           setWorkflows(currentWorkflows);
         }
+      } else {
+        console.log("🔧 PRESET_APPLY: Using existing workflows", { 
+          count: currentWorkflows.length,
+          workflows: currentWorkflows.map(w => ({ id: w.$id, name: w.name }))
+        });
       }
       
       // Create required user types if they don't exist
+      console.log("🔧 PRESET_APPLY: Checking for required user types");
       const existingUserTypes = await usersService.getAllUserTypes();
       const existingUserTypeLabels = existingUserTypes.map(type => type.label);
       
@@ -767,18 +968,27 @@ function Tickets() {
         type => !existingUserTypeLabels.includes(type)
       );
       
+      console.log("🔧 PRESET_APPLY: User types status", { 
+        existing: existingUserTypeLabels,
+        missing: missingUserTypes
+      });
+      
       if (missingUserTypes.length > 0) {
+        console.log("🔧 PRESET_APPLY: Creating missing user types:", missingUserTypes);
         await Promise.all(
           missingUserTypes.map(type =>
             usersService.createUserType({ label: type })
           )
         );
-        console.log("Created missing user types:", missingUserTypes);
+        console.log("🔧 PRESET_APPLY: Created missing user types:", missingUserTypes);
       }
       
       // Get current statuses from backend
+      console.log("🔧 PRESET_APPLY: Fetching existing statuses");
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
+
+      console.log("🔧 PRESET_APPLY: Current statuses", { existingStatusLabels });
 
       // Define and create required statuses
       const requiredStatuses = [
@@ -794,7 +1004,13 @@ function Tickets() {
         (status) => !existingStatusLabels.includes(status)
       );
 
+      console.log("🔧 PRESET_APPLY: Status creation needed", { 
+        required: requiredStatuses,
+        missing: missingRequiredStatuses
+      });
+
       if (missingRequiredStatuses.length > 0) {
+        console.log("🔧 PRESET_APPLY: Creating missing statuses:", missingRequiredStatuses);
         await Promise.all(
           missingRequiredStatuses.map((status) =>
             statusesService.createStatus({ label: status })
@@ -803,18 +1019,27 @@ function Tickets() {
       }
 
       // Fetch updated statuses and update settings
+      console.log("🔧 PRESET_APPLY: Fetching updated statuses after creation");
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
       settingsStore.setStatusOptions(updatedStatusLabels);
+      console.log("🔧 PRESET_APPLY: Updated status options", { updatedStatusLabels });
 
       // Fetch tickets and users
+      console.log("🔧 PRESET_APPLY: Fetching tickets and users");
       const [ticketsWithRelationships, users] = await Promise.all([
         ticketsService.getTicketsWithRelationships(),
         usersService.getAllUsers()
       ]);
+      
+      console.log("🔧 PRESET_APPLY: Retrieved data", { 
+        ticketsCount: ticketsWithRelationships.length,
+        usersCount: users.length
+      });
         
             // Filter tickets based on user permissions and current workflow
         const filterTicketsWithWorkflows = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+          console.log("🔧 PRESET_APPLY: Filtering tickets by workflow and permissions");
           const users = serviceUsers.map(mapServiceUserToTicketUser);
           
           const workflowFilteredTickets = tickets.filter(ticket => {
@@ -829,15 +1054,25 @@ function Tickets() {
             return ticketWorkflow === currentWorkflowName.toLowerCase();
           });
           
+          console.log("🔧 PRESET_APPLY: Workflow filtering result", { 
+            originalCount: tickets.length,
+            workflowFilteredCount: workflowFilteredTickets.length,
+            currentWorkflow,
+            currentWorkflowName: currentWorkflows.find(w => w.$id === currentWorkflow)?.name
+          });
+          
           if (isAdmin) {
+            console.log("🔧 PRESET_APPLY: User is admin, returning all workflow-filtered tickets");
             return workflowFilteredTickets;
           }
         
         // For non-admin users, apply permission filtering
         if (!currentUser) {
+          console.log("🔧 PRESET_APPLY: No current user, returning empty array");
           return [];
         }
         
+        console.log("🔧 PRESET_APPLY: Applying permission filtering for non-admin user");
         const usersByAuthId = new Map<string, TicketUser>();
         users.forEach(user => {
           if (user.auth_user_id) {
@@ -847,10 +1082,12 @@ function Tickets() {
         
         const currentDbUser = usersByAuthId.get(currentUser.id);
         if (!currentDbUser || !currentDbUser.id) {
+          console.log("🔧 PRESET_APPLY: Could not find database user for current auth user");
           return [];
         }
         
         const currentDbUserId = currentDbUser.id;
+        console.log("🔧 PRESET_APPLY: Found database user", { authUserId: currentUser.id, dbUserId: currentDbUserId });
         
         const filteredTickets = await Promise.all(
           workflowFilteredTickets.map(async (ticket) => {
@@ -880,22 +1117,35 @@ function Tickets() {
           })
         );
         
-        return filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
+        const finalFiltered = filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
+        console.log("🔧 PRESET_APPLY: Permission filtering result", { 
+          workflowFilteredCount: workflowFilteredTickets.length,
+          permissionFilteredCount: finalFiltered.length
+        });
+        
+        return finalFiltered;
       };
       
       const filteredTickets = await filterTicketsWithWorkflows(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
       const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
+      console.log("🔧 PRESET_APPLY: Converted tickets to rows", { rowCount: allTicketRows.length });
 
       // Build tabs
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
+      console.log("🔧 PRESET_APPLY: Building tabs", { 
+        existingTabsCount: existingTabs.length,
+        existingTabTitles: Array.from(existingTabTitles)
+      });
+
       const tabsToAdd: Tab[] = [];
 
       // Add All Tickets tab if it doesn't exist
       if (!existingTabTitles.has("All Tickets")) {
+        console.log("🔧 PRESET_APPLY: Adding All Tickets tab");
         tabsToAdd.push({
           id: "tab-all-tickets",
           title: "All Tickets",
@@ -905,6 +1155,7 @@ function Tickets() {
 
       // Add Pipeline tab if it doesn't exist
       if (!existingTabTitles.has("Pipeline")) {
+        console.log("🔧 PRESET_APPLY: Adding Pipeline tab");
         tabsToAdd.push({
           id: "tab-pipeline",
           title: "Pipeline",
@@ -915,6 +1166,7 @@ function Tickets() {
       // Add status tabs
       updatedStatusLabels.forEach((status) => {
         if (!existingTabTitles.has(status)) {
+          console.log("🔧 PRESET_APPLY: Adding status tab:", status);
           tabsToAdd.push({
             id: `tab-${status.toLowerCase().replace(/\s+/g, "-")}`,
             title: status,
@@ -924,13 +1176,23 @@ function Tickets() {
         }
       });
 
+      console.log("🔧 PRESET_APPLY: Tabs to add", { 
+        count: tabsToAdd.length,
+        titles: tabsToAdd.map(t => t.title)
+      });
+
       // Apply all changes
       // Update tabs first
       if (tabsToAdd.length > 0) {
         const updatedTabs = [...existingTabs, ...tabsToAdd];
+        console.log("🔧 PRESET_APPLY: Updating tabs", { 
+          oldCount: existingTabs.length,
+          newCount: updatedTabs.length
+        });
         tabsStore.setTabs(updatedTabs);
 
         if (!tabsStore.activeTab) {
+          console.log("🔧 PRESET_APPLY: Setting active tab to All Tickets");
           tabsStore.setActiveTab("tab-all-tickets");
         }
       }
@@ -941,6 +1203,10 @@ function Tickets() {
         existingTabs.find(t => t.title === "All Tickets"));
         
       if (allTicketsTab) {
+        console.log("🔧 PRESET_APPLY: Creating All Tickets table", { 
+          tabId: allTicketsTab.id,
+          rowCount: allTicketRows.length
+        });
         createTicketsTableForAllTickets(allTicketsTab.id, allTicketRows);
       }
 
@@ -948,9 +1214,11 @@ function Tickets() {
       const pipelineTab = (tabsToAdd.find(t => t.title === "Pipeline") || 
         existingTabs.find(t => t.title === "Pipeline"));
       
-              if (pipelineTab) {
-          // Filter pipeline tickets for current workflow
-          const filterPipelineWithWorkflows = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+      if (pipelineTab) {
+        console.log("🔧 PRESET_APPLY: Creating Pipeline table");
+        // Filter pipeline tickets for current workflow
+        const filterPipelineWithWorkflows = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+          console.log("🔧 PRESET_APPLY: Filtering pipeline tickets");
           const ticketUsers = serviceUsers.map(mapServiceUserToTicketUser);
           
           const workflowFilteredTickets = tickets.filter(ticket => {
@@ -1020,36 +1288,56 @@ function Tickets() {
         
         const pipelineTickets = await filterPipelineWithWorkflows(ticketsWithRelationships, users);
         const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
+        console.log("🔧 PRESET_APPLY: Pipeline tickets filtered", { 
+          count: pipelineTickets.length,
+          rowCount: pipelineRows.length
+        });
         createTicketsTableForAllTickets(pipelineTab.id, pipelineRows);
       }
       
       // Then update all status tabs
       const allTabs = [...existingTabs, ...tabsToAdd];
+      console.log("🔧 PRESET_APPLY: Creating status tables");
       allTabs.forEach((tab) => {
         if (tab.title !== "All Tickets" && tab.title !== "Pipeline" && tab.status) {
+          const filteredRows = allTicketRows.filter((row) => row.cells["col-7"] === tab.status);
+          console.log("🔧 PRESET_APPLY: Creating status table", { 
+            status: tab.status,
+            rowCount: filteredRows.length
+          });
           createFilteredTable(tab.id, tab.status, allTicketRows);
         }
       });
 
       // Get the current workflow name for logging
       const workflowName = currentWorkflows.find(w => w.$id === currentWorkflow)?.name || currentWorkflow;
-      console.log(`Applied preset to ${workflowName} workflow`);
+      console.log(`🔧 PRESET_APPLY: Applied preset to ${workflowName} workflow`);
 
       // Add this workflow to the list of workflows with applied presets
       if (!appliedPresetWorkflows.includes(currentWorkflow)) {
         const updatedAppliedPresets = [...appliedPresetWorkflows, currentWorkflow];
+        console.log("🔧 PRESET_APPLY: Adding workflow to applied presets", { 
+          workflow: currentWorkflow,
+          updatedList: updatedAppliedPresets
+        });
         setAppliedPresetWorkflows(updatedAppliedPresets);
         // Save to localStorage
         localStorage.setItem("applied-preset-workflows", JSON.stringify(updatedAppliedPresets));
+      } else {
+        console.log("🔧 PRESET_APPLY: Workflow already in applied presets list");
       }
 
-      console.log("Preset applied successfully");
+      console.log("🔧 PRESET_APPLY: Preset applied successfully");
+      
+      // Set flag to prevent DATA_FETCH from immediately overwriting our tables
+      setPresetJustApplied(true);
     } catch (error) {
-      console.error(`Error applying preset to workflow ${currentWorkflow}:`, error);
+      console.error(`🔧 PRESET_APPLY: Error applying preset to workflow ${currentWorkflow}:`, error);
       setTicketsError(
         error instanceof Error ? error : new Error("Failed to load tickets"),
       );
     } finally {
+      console.log("🔧 PRESET_APPLY: Cleaning up loading state");
       setTicketsLoading(false);
       setIsDataFetchInProgress(false);
     }
@@ -1923,22 +2211,33 @@ function Tickets() {
 
   // Refresh data when workflow changes
   useEffect(() => {
+    console.log("🔧 WORKFLOW_CHANGE: Effect triggered", { 
+      currentWorkflow, 
+      isInitialWorkflowRender: isInitialWorkflowRender.current,
+      appliedPresetWorkflows
+    });
+    
     // Skip initial render
     if (isInitialWorkflowRender.current) {
       isInitialWorkflowRender.current = false;
+      console.log("🔧 WORKFLOW_CHANGE: Skipping initial render");
       return;
     }
     
     const refreshWorkflowData = async () => {
+      console.log("🔧 WORKFLOW_CHANGE: Starting workflow data refresh");
+      
       // Store the current workflow value to avoid closure issues
       const workflowValue = currentWorkflow;
       
       // Clear tables for the previous workflow
       const tablesStore = useTablesStore.getState();
+      console.log("🔧 WORKFLOW_CHANGE: Clearing tables");
       tablesStore.setTables({});
       
       // Reset tabs for the new workflow
       const tabsStore = useTabsStore.getState();
+      console.log("🔧 WORKFLOW_CHANGE: Resetting tabs");
       tabsStore.setTabs([{
         id: "tab-all-tickets",
         title: "All Tickets",
@@ -1948,15 +2247,21 @@ function Tickets() {
       // Check if preset was previously applied to this workflow
       const wasPresetApplied = appliedPresetWorkflows.includes(workflowValue);
       
+      console.log("🔧 WORKFLOW_CHANGE: Preset status", { 
+        workflowValue, 
+        wasPresetApplied,
+        appliedPresetWorkflows
+      });
+      
       if (wasPresetApplied) {
-        console.log(`Workflow ${workflowValue} had preset applied before, automatically reapplying`);
+        console.log(`🔧 WORKFLOW_CHANGE: Workflow ${workflowValue} had preset applied before, automatically reapplying`);
         // Wait a moment for state updates to complete
         setTimeout(async () => {
           await applyWorkflowPreset();
         }, 100);
       } else {
         // For workflows without presets, just create an empty table and stop loading
-        console.log(`Workflow ${workflowValue} has no preset, creating empty table`);
+        console.log(`🔧 WORKFLOW_CHANGE: Workflow ${workflowValue} has no preset, creating empty table`);
         const presetTable = PRESET_TABLES["Engineering"];
         if (presetTable) {
           tablesStore.setTables({
@@ -1971,7 +2276,7 @@ function Tickets() {
         setIsDataFetchInProgress(false);
       }
       
-      console.log(`Switched to workflow: ${workflowValue}`);
+      console.log(`🔧 WORKFLOW_CHANGE: Switched to workflow: ${workflowValue}`);
     };
     
     // Only run this effect when currentWorkflow actually changes, not on initial render
@@ -2018,7 +2323,15 @@ function Tickets() {
 
   // Add effect to automatically apply preset for non-admin users
   useEffect(() => {
+    console.log("🔧 AUTO_PRESET: Checking if auto preset should apply", {
+      isAdmin,
+      currentWorkflow,
+      appliedPresetWorkflows,
+      shouldApply: !isAdmin && !appliedPresetWorkflows.includes(currentWorkflow)
+    });
+    
     if (!isAdmin && !appliedPresetWorkflows.includes(currentWorkflow)) {
+      console.log("🔧 AUTO_PRESET: Auto-applying preset for non-admin user");
       applyWorkflowPreset();
     }
   }, [currentWorkflow, isAdmin, appliedPresetWorkflows]);
