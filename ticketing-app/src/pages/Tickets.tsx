@@ -423,9 +423,11 @@ function Tickets() {
   useEffect(() => {
     let isMounted = true;
     
-    const fetchTicketsIfPresetExists = async () => {
+        const fetchTicketsIfPresetExists = async () => {
       // Skip if a fetch is already in progress or component unmounted
       if (isDataFetchInProgress || !isMounted) return;
+      
+
       
       // Check if engineering preset exists directly from store
       const storeTabs = useTabsStore.getState().tabs;
@@ -532,7 +534,7 @@ function Tickets() {
     return () => {
       isMounted = false;
     };
-  // Only refresh when counter changes or workflow changes, not on data state changes
+  // Only refresh when counter changes or workflow changes
   }, [ticketsRefreshCounter, currentWorkflow]);
 
   // Function to filter tickets based on user permissions
@@ -544,26 +546,25 @@ function Tickets() {
     const workflowFilteredTickets = tickets.filter(ticket => {
       // If ticket has no workflow field, treat it as "engineering" for backward compatibility
       const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
-      const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
+      
+      // Find the current workflow name
+      const currentWorkflowObj = workflows.find(w => w.$id === currentWorkflow);
+      if (!currentWorkflowObj) {
+        return false; // If we can't find the workflow, don't include this ticket
+      }
+      
+      const currentWorkflowName = currentWorkflowObj.name;
       return ticketWorkflow === currentWorkflowName.toLowerCase();
     });
     
     // If user is admin, show all tickets within the current workflow
     if (isAdmin) {
-      console.log(`User is admin, showing ${workflowFilteredTickets.length} tickets for workflow: ${currentWorkflow}`);
       return workflowFilteredTickets;
     }
     
-    // For debugging: log the current user info
-    console.log("Current user:", currentUser);
-    
     if (!currentUser) {
-      console.log("No current user detected, showing no tickets");
       return [];
     }
-    
-    // For debugging: log auth user ID
-    console.log("Auth user ID:", currentUser.id);
     
     // Create a mapping of auth_user_id to user documents
     const usersByAuthId = new Map<string, TicketUser>();
@@ -582,10 +583,7 @@ function Tickets() {
     // Find the database user that matches the current auth user
     const currentDbUser = usersByAuthId.get(currentUser.id);
     
-    console.log("Current DB user found:", currentDbUser);
-    
     if (!currentDbUser) {
-      console.log(`No database user record found for auth user ID ${currentUser.id}`);
       return [];
     }
     
@@ -593,11 +591,8 @@ function Tickets() {
     const currentDbUserId = currentDbUser.id;
     
     if (!currentDbUserId) {
-      console.log("Database user has no ID");
       return [];
     }
-    
-    console.log(`Current user maps to database user ID: ${currentDbUserId}`);
     
     // If not admin, only show tickets where the user has the highest priority
     const filteredTickets = await Promise.all(
@@ -646,7 +641,13 @@ function Tickets() {
     // First, filter tickets by the current workflow
     const workflowFilteredTickets = tickets.filter(ticket => {
       const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
-      const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
+      
+      const currentWorkflowObj = workflows.find(w => w.$id === currentWorkflow);
+      if (!currentWorkflowObj) {
+        return false;
+      }
+      
+      const currentWorkflowName = currentWorkflowObj.name;
       return ticketWorkflow === currentWorkflowName.toLowerCase();
     });
     
@@ -732,7 +733,26 @@ function Tickets() {
 
       console.log("Applying preset to workflow:", currentWorkflow);
       
-      // STEP 1: Create user types if they don't exist
+      // Ensure workflows are loaded first
+      let currentWorkflows = workflows;
+      if (currentWorkflows.length === 0) {
+        try {
+          const dbWorkflows = await workflowsService.getAllWorkflows();
+          if (dbWorkflows.length === 0) {
+            const engineeringWorkflow = await workflowsService.createWorkflow("Engineering");
+            currentWorkflows = [engineeringWorkflow];
+          } else {
+            currentWorkflows = dbWorkflows;
+          }
+          setWorkflows(currentWorkflows);
+        } catch (error) {
+          console.error("Error loading workflows:", error);
+          currentWorkflows = [{ $id: "engineering", name: "Engineering" } as DBWorkflow];
+          setWorkflows(currentWorkflows);
+        }
+      }
+      
+      // Create required user types if they don't exist
       const existingUserTypes = await usersService.getAllUserTypes();
       const existingUserTypeLabels = existingUserTypes.map(type => type.label);
       
@@ -756,11 +776,11 @@ function Tickets() {
         console.log("Created missing user types:", missingUserTypes);
       }
       
-      // STEP 2: Get current statuses fresh from backend
+      // Get current statuses from backend
       const statusesFromBackend = await statusesService.getAllStatuses();
       const existingStatusLabels = statusesFromBackend.map((status) => status.label);
 
-      // STEP 3: Define the required engineering statuses
+      // Define and create required statuses
       const requiredStatuses = [
         "New",
         "Awaiting Customer Response",
@@ -770,8 +790,6 @@ function Tickets() {
         "Completed",
         "Declined"
       ];
-
-      // STEP 4: Add missing required statuses
       const missingRequiredStatuses = requiredStatuses.filter(
         (status) => !existingStatusLabels.includes(status)
       );
@@ -784,26 +802,93 @@ function Tickets() {
         );
       }
 
-      // STEP 5: Fetch statuses again after adding required ones
+      // Fetch updated statuses and update settings
       const updatedStatuses = await statusesService.getAllStatuses();
       const updatedStatusLabels = updatedStatuses.map((status) => status.label);
-
-      // Update the settings store with all available statuses
       settingsStore.setStatusOptions(updatedStatusLabels);
 
-      // STEP 6: Fetch tickets and users
+      // Fetch tickets and users
       const [ticketsWithRelationships, users] = await Promise.all([
         ticketsService.getTicketsWithRelationships(),
         usersService.getAllUsers()
       ]);
         
-      // STEP 7: Filter tickets based on user permissions and current workflow
-      const filteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
+            // Filter tickets based on user permissions and current workflow
+        const filterTicketsWithWorkflows = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+          const users = serviceUsers.map(mapServiceUserToTicketUser);
+          
+          const workflowFilteredTickets = tickets.filter(ticket => {
+            const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
+            
+            const currentWorkflowObj = currentWorkflows.find(w => w.$id === currentWorkflow);
+            if (!currentWorkflowObj) {
+              return false;
+            }
+            
+            const currentWorkflowName = currentWorkflowObj.name;
+            return ticketWorkflow === currentWorkflowName.toLowerCase();
+          });
+          
+          if (isAdmin) {
+            return workflowFilteredTickets;
+          }
+        
+        // For non-admin users, apply permission filtering
+        if (!currentUser) {
+          return [];
+        }
+        
+        const usersByAuthId = new Map<string, TicketUser>();
+        users.forEach(user => {
+          if (user.auth_user_id) {
+            usersByAuthId.set(user.auth_user_id, user);
+          }
+        });
+        
+        const currentDbUser = usersByAuthId.get(currentUser.id);
+        if (!currentDbUser || !currentDbUser.id) {
+          return [];
+        }
+        
+        const currentDbUserId = currentDbUser.id;
+        
+        const filteredTickets = await Promise.all(
+          workflowFilteredTickets.map(async (ticket) => {
+            if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
+              return null;
+            }
+            
+            const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticket.id || (ticket as any).$id);
+            const userAssignment = assignments.find((assignment: TicketAssignment) => {
+              const assignmentUserId = typeof assignment.user_id === 'object'
+                ? (assignment.user_id as any).$id || (assignment.user_id as any).id
+                : assignment.user_id;
+              return assignmentUserId === currentDbUserId;
+            });
+            
+            if (!userAssignment) {
+              return null;
+            }
+            
+            const userPriority = parseInt(userAssignment.priority || '999', 10);
+            
+            if (currentUser?.role !== 'admin') {
+              return userPriority === 1 ? ticket : null;
+            }
+            
+            return ticket;
+          })
+        );
+        
+        return filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
+      };
+      
+      const filteredTickets = await filterTicketsWithWorkflows(ticketsWithRelationships, users);
 
       // Convert all tickets to rows once
       const allTicketRows = filteredTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
 
-      // STEP 8: Build tabs
+      // Build tabs
       const existingTabs = tabsStore.tabs;
       const existingTabTitles = new Set(existingTabs.map((tab) => tab.title));
 
@@ -839,7 +924,7 @@ function Tickets() {
         }
       });
 
-      // STEP 9: Apply all changes in one batch
+      // Apply all changes
       // Update tabs first
       if (tabsToAdd.length > 0) {
         const updatedTabs = [...existingTabs, ...tabsToAdd];
@@ -863,8 +948,77 @@ function Tickets() {
       const pipelineTab = (tabsToAdd.find(t => t.title === "Pipeline") || 
         existingTabs.find(t => t.title === "Pipeline"));
       
-      if (pipelineTab) {
-        const pipelineTickets = await filterTicketsForPipeline(ticketsWithRelationships, users);
+              if (pipelineTab) {
+          // Filter pipeline tickets for current workflow
+          const filterPipelineWithWorkflows = async (tickets: Ticket[], serviceUsers: ServiceUser[]) => {
+          const ticketUsers = serviceUsers.map(mapServiceUserToTicketUser);
+          
+          const workflowFilteredTickets = tickets.filter(ticket => {
+            const ticketWorkflow = (ticket.workflow || "Engineering").toLowerCase();
+            
+            const currentWorkflowObj = currentWorkflows.find(w => w.$id === currentWorkflow);
+            if (!currentWorkflowObj) {
+              return false;
+            }
+            
+            const currentWorkflowName = currentWorkflowObj.name;
+            return ticketWorkflow === currentWorkflowName.toLowerCase();
+          });
+          
+          if (isAdmin) {
+            return workflowFilteredTickets;
+          }
+          
+          if (!currentUser) {
+            return [];
+          }
+          
+          const usersByAuthId = new Map<string, TicketUser>();
+          ticketUsers.forEach(user => {
+            if (user.auth_user_id) {
+              usersByAuthId.set(user.auth_user_id, user);
+            }
+          });
+          
+          const currentDbUser = usersByAuthId.get(currentUser.id);
+          if (!currentDbUser || !currentDbUser.id) {
+            return [];
+          }
+          
+          const currentDbUserId = currentDbUser.id;
+          
+          const filteredTickets = await Promise.all(
+            workflowFilteredTickets.map(async (ticket) => {
+              if (!ticket.assignee_ids || !Array.isArray(ticket.assignee_ids) || ticket.assignee_ids.length === 0) {
+                return null;
+              }
+              
+              const assignments = await ticketAssignmentsService.getAssignmentsByTicketId(ticket.id || (ticket as any).$id);
+              const userAssignment = assignments.find((assignment: TicketAssignment) => {
+                const assignmentUserId = typeof assignment.user_id === 'object'
+                  ? (assignment.user_id as any).$id || (assignment.user_id as any).id
+                  : assignment.user_id;
+                return assignmentUserId === currentDbUserId;
+              });
+              
+              if (!userAssignment) {
+                return null;
+              }
+              
+              const userPriority = parseInt(userAssignment.priority || '999', 10);
+              
+              if (currentUser?.role !== 'admin') {
+                return userPriority > 1 ? ticket : null;
+              }
+              
+              return ticket;
+            })
+          );
+          
+          return filteredTickets.filter((ticket): ticket is Ticket => ticket !== null);
+        };
+        
+        const pipelineTickets = await filterPipelineWithWorkflows(ticketsWithRelationships, users);
         const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
         createTicketsTableForAllTickets(pipelineTab.id, pipelineRows);
       }
@@ -878,7 +1032,7 @@ function Tickets() {
       });
 
       // Get the current workflow name for logging
-      const workflowName = workflows.find(w => w.$id === currentWorkflow)?.name || currentWorkflow;
+      const workflowName = currentWorkflows.find(w => w.$id === currentWorkflow)?.name || currentWorkflow;
       console.log(`Applied preset to ${workflowName} workflow`);
 
       // Add this workflow to the list of workflows with applied presets
@@ -889,7 +1043,6 @@ function Tickets() {
         localStorage.setItem("applied-preset-workflows", JSON.stringify(updatedAppliedPresets));
       }
 
-      // STEP 10: No need to increment the refresh counter - we've done all the updates directly
       console.log("Preset applied successfully");
     } catch (error) {
       console.error(`Error applying preset to workflow ${currentWorkflow}:`, error);
