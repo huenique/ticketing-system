@@ -920,14 +920,11 @@ export default function useTicketDialogHandlers(
   // Function to refresh all status-based tabs based on updated All Tickets data
   const refreshStatusTabs = async (allTicketsRows: Row[]) => {
     try {
-      // First, fetch the latest tickets from Appwrite to get up-to-date data
-      console.log("Fetching latest tickets from Appwrite for tab refresh");
-      const latestTickets = await ticketsService.getTicketsWithRelationships();
-      console.log(`Retrieved ${latestTickets.length} tickets from Appwrite`);
-      
-      // Convert the Appwrite tickets to table rows
-      const ticketsAsRows: Row[] = latestTickets.map(ticket => convertTicketToRow(ticket));
-      console.log(`Converted ${ticketsAsRows.length} tickets to table rows`);
+      // Instead of fetching all tickets and causing workflow filtering issues,
+      // use the provided allTicketsRows which should already be workflow-filtered
+      console.log("Using provided workflow-filtered tickets for tab refresh");
+      const ticketsAsRows: Row[] = allTicketsRows;
+      console.log(`Using ${ticketsAsRows.length} workflow-filtered tickets`);
       
       // Get a reference to the tables store
       const tablesStore = useTablesStore.getState();
@@ -1519,42 +1516,11 @@ export default function useTicketDialogHandlers(
         setModifiedTimeEntries(new Set());
       }
 
-      // Update the table display
-      const tablesStore = useTablesStore.getState();
-      const currentTables = tablesStore.tables;
-
-      // Look for the All Tickets tab
-      const allTicketsTabId = tabs.find((tab) => tab.title === "All Tickets")?.id;
-      const allTicketsTable = allTicketsTabId ? currentTables[allTicketsTabId] : null;
-
-      if (allTicketsTable) {
-        // Get all tickets from database again to refresh the view
-        const allTickets = await ticketsService.getAllTickets();
-        
-        // Get current workflow from localStorage to filter tickets
-        const currentWorkflow = localStorage.getItem("current-workflow") || "engineering";
-        console.log(`Filtering tickets for current workflow: ${currentWorkflow}`);
-        
-        // Get the workflow name from the workflows list
-        const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
-        
-        // Filter tickets by the current workflow before converting to rows
-        const workflowFilteredTickets = allTickets.filter(ticket => 
-          // If ticket has no workflow, treat it as "Engineering" for backward compatibility
-          (ticket.workflow || "Engineering").toLowerCase() === currentWorkflowName.toLowerCase()
-        );
-        
-        console.log(`Filtered ${allTickets.length} tickets to ${workflowFilteredTickets.length} for workflow: ${currentWorkflowName}`);
-        
-        // Convert tickets to rows
-        const ticketsAsRows = await Promise.all(
-          workflowFilteredTickets.map(async (ticket) => {
-            return await convertTicketToRow(ticket);
-          })
-        );
-        
-        // Refresh all tabs with the latest data
-        await refreshStatusTabs(ticketsAsRows);
+      // Trigger a full data refresh to maintain workflow filtering consistency
+      // Instead of duplicating the filtering logic here, we'll trigger the main component's refresh
+      if (typeof window !== 'undefined' && (window as any).incrementTicketsRefreshCounter) {
+        console.log('Triggering full data refresh from ticket dialog save');
+        (window as any).incrementTicketsRefreshCounter();
       }
 
       // Clear loading toast and show success message
