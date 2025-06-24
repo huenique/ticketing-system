@@ -92,33 +92,77 @@ const EmailDialog = ({
   onClose,
   ticketDetails,
   attachments = [],
+  timeEntries = [],
 }: {
   isOpen: boolean;
   onClose: () => void;
   ticketDetails: Row;
   attachments?: string[];
+  timeEntries?: TimeEntry[];
 }) => {
+  // Combine attachments from tickets and time entries
+  const getAllAvailableAttachments = () => {
+    const ticketAttachments = (attachments || []).map((att: any, index: number) => ({
+      id: `ticket-${index}`,
+      source: 'ticket',
+      name: typeof att === 'string' ? `Ticket Attachment ${index + 1}` : att.name || `Ticket Attachment ${index + 1}`,
+      url: typeof att === 'string' ? att : att.url,
+      originalData: att
+    }));
+
+    const timeEntryAttachments: any[] = [];
+    timeEntries.forEach((entry, entryIndex) => {
+      if (entry.files && Array.isArray(entry.files)) {
+        entry.files.forEach((file: any, fileIndex: number) => {
+          timeEntryAttachments.push({
+            id: `time-entry-${entryIndex}-${fileIndex}`,
+            source: 'time_entry',
+            name: typeof file === 'string' ? `Time Entry File ${fileIndex + 1}` : file.name || `Time Entry File ${fileIndex + 1}`,
+            url: typeof file === 'string' ? file : file.url,
+            originalData: file,
+            entryId: entry.id,
+            entryDescription: entry.remarks || `Time Entry ${entryIndex + 1}`
+          });
+        });
+      }
+    });
+
+    return [...ticketAttachments, ...timeEntryAttachments];
+  };
+
+  const availableAttachments = getAllAvailableAttachments();
+
   // Initialize state with empty values
   const [emailData, setEmailData] = useState({
     to: "",
     cc: "",
     message: "",
     subject: `Ticket Details #${ticketDetails?.cells["col-1"] || ""}`,
-    attachments: attachments || []
+    selectedAttachments: [] as string[] // Array of attachment IDs
   });
   
   const [isSending, setIsSending] = useState(false);
-
-  // Keep emailData.attachments in sync with prop
-  useEffect(() => {
-    setEmailData(prev => ({ ...prev, attachments: attachments || [] }));
-  }, [attachments]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setEmailData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAttachmentToggle = (attachmentId: string) => {
+    setEmailData(prev => ({
+      ...prev,
+      selectedAttachments: prev.selectedAttachments.includes(attachmentId)
+        ? prev.selectedAttachments.filter(id => id !== attachmentId)
+        : [...prev.selectedAttachments, attachmentId]
+    }));
+  };
+
+  const getSelectedAttachmentsData = () => {
+    return availableAttachments.filter(att => 
+      emailData.selectedAttachments.includes(att.id)
+    );
   };
 
   const handleSendEmail = async (e: React.FormEvent) => {
@@ -150,6 +194,11 @@ const EmailDialog = ({
     try {
       setIsSending(true);
       
+      console.log('Environment variables check:');
+      console.log('VITE_APPWRITE_ENDPOINT:', import.meta.env.VITE_APPWRITE_ENDPOINT);
+      console.log('VITE_APPWRITE_PROJECT_ID:', import.meta.env.VITE_APPWRITE_PROJECT_ID);
+      console.log('VITE_APPWRITE_FUNCTION_ID:', import.meta.env.VITE_APPWRITE_FUNCTION_ID);
+      
       // Set up Appwrite client and functions
       const client = new Client()
         .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
@@ -168,52 +217,91 @@ const EmailDialog = ({
         formData.append('cc', emailData.cc);
       }
       
-      // Process attachments to extract file IDs
-      if (emailData.attachments.length > 0) {
-        
-        const fileIds = emailData.attachments.map((attachment: any) => {
+      // Process selected attachments to extract file IDs
+      const selectedAttachmentsData = getSelectedAttachmentsData();
+      console.log('Selected attachments data:', selectedAttachmentsData);
+      
+      if (selectedAttachmentsData.length > 0) {
+        const fileIds = selectedAttachmentsData.map((attachmentData: any) => {
+          const attachment = attachmentData.originalData;
           let extractedId = null;
+          
+          console.log('Processing attachment:', {
+            source: attachmentData.source,
+            name: attachmentData.name,
+            originalData: attachment
+          });
           
           if (typeof attachment === 'string') {
             // If it's a string, try to extract file ID from URL
             // URL format might be like: https://cloud.appwrite.io/v1/storage/buckets/[bucket]/files/[fileId]/view
             const urlMatch = attachment.match(/\/files\/([^\/\?]+)/);
             extractedId = urlMatch ? urlMatch[1] : attachment;
+            console.log('String attachment - extracted ID:', extractedId);
           } else if (attachment && typeof attachment === 'object') {
-            // If it's an object, check for url property and extract file ID
-            if (attachment.url) {
-              const urlMatch = attachment.url.match(/\/files\/([^\/\?]+)/);
-              extractedId = urlMatch ? urlMatch[1] : attachment.url;
+            console.log('Object attachment properties:', Object.keys(attachment));
+            
+            // Check for direct file ID (most common for Appwrite uploads)
+            if (attachment.$id) {
+              extractedId = attachment.$id;
+              console.log('Found $id:', extractedId);
             }
             // Or check if it has an id property
             else if (attachment.id) {
               extractedId = attachment.id;
-            }
-            // Or if it's a file object with a name that might be the ID
-            else if (attachment.name && attachment.name.length === 20) { // Appwrite IDs are typically 20 chars
-              extractedId = attachment.name;
+              console.log('Found id:', extractedId);
             }
             // Check for fileId property (common in some file upload components)
             else if (attachment.fileId) {
               extractedId = attachment.fileId;
+              console.log('Found fileId:', extractedId);
             }
-            // Check for $id property (Appwrite document structure)
-            else if (attachment.$id) {
-              extractedId = attachment.$id;
+            // If it's an object, check for url property and extract file ID
+            else if (attachment.url) {
+              const urlMatch = attachment.url.match(/\/files\/([^\/\?]+)/);
+              extractedId = urlMatch ? urlMatch[1] : attachment.url;
+              console.log('Extracted from URL:', extractedId);
+            }
+            // Or if it's a file object with a name that might be the ID
+            else if (attachment.name && attachment.name.length === 20) { // Appwrite IDs are typically 20 chars
+              extractedId = attachment.name;
+              console.log('Using name as ID:', extractedId);
+            }
+            // Last resort - check if the whole object is just a file ID string
+            else if (typeof attachment === 'string' && attachment.length === 20) {
+              extractedId = attachment;
+              console.log('Whole object is ID:', extractedId);
             }
           }
           
+          console.log('Final extracted ID:', extractedId);
           return extractedId;
-        }).filter((id: any) => id && typeof id === 'string' && id.length > 0); // Filter out any invalid IDs
+        }).filter((id: any) => {
+          const isValid = id && typeof id === 'string' && id.length > 0;
+          if (!isValid) {
+            console.warn('Invalid file ID filtered out:', id);
+          }
+          return isValid;
+        });
         
+        console.log('Final file IDs to send:', fileIds);
         
         if (fileIds.length > 0) {
           formData.append('attachments', JSON.stringify(fileIds));
+          console.log('Attachments added to form data:', JSON.stringify(fileIds));
         } else {
           console.warn('No valid file IDs found in attachments');
+          toast.error('No valid attachments found to send');
+          return;
         }
       }
 
+      // Log the form data being sent for debugging
+      console.log('Form data being sent:');
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+      }
+      
       // Call the function using the Appwrite SDK
       const result = await functions.createExecution(
         import.meta.env.VITE_APPWRITE_FUNCTION_ID,
@@ -226,12 +314,31 @@ const EmailDialog = ({
         }
       );
       
+      console.log('Function execution result:', result);
+      
       if (result.responseStatusCode >= 200 && result.responseStatusCode < 300) {
         toast.success("Message sent successfully!");
         onClose();
       } else {
-        console.error('Function execution failed:', result);
-        throw new Error(`Server responded with ${result.responseStatusCode}: ${result.responseBody}`);
+        console.error('Function execution failed:', {
+          statusCode: result.responseStatusCode,
+          responseBody: result.responseBody,
+          logs: result.logs,
+          errors: result.errors,
+          duration: result.duration
+        });
+        
+        // Try to provide more helpful error messages
+        let errorMessage = `Server responded with ${result.responseStatusCode}`;
+        if (result.errors) {
+          errorMessage += `: ${result.errors}`;
+        } else if (result.logs) {
+          errorMessage += `. Check logs: ${result.logs}`;
+        } else if (result.responseBody) {
+          errorMessage += `: ${result.responseBody}`;
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -333,43 +440,67 @@ const EmailDialog = ({
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Attachments:
+              Available Attachments:
             </label>
-            {emailData.attachments && emailData.attachments.length > 0 ? (
-              <ul className="list-disc pl-5 text-sm text-gray-700">
-                {emailData.attachments.map((att: any, idx) => {
-                  // Extract name and URL from different attachment formats
-                  let name = 'Unknown file';
-                  let url = undefined;
-                  
-                  if (typeof att === 'string') {
-                    // If it's a string URL, extract filename from URL
-                    const urlParts = att.split('/');
-                    name = urlParts[urlParts.length - 1] || att;
-                    url = att;
-                  } else if (att && typeof att === 'object') {
-                    // If it's an object, get name and url properties
-                    name = att.name || att.filename || `File ${idx + 1}`;
-                    url = att.url || att.src || att.href;
-                  }
-                  
+            {availableAttachments.length > 0 ? (
+              <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded p-2">
+                {availableAttachments.map((att) => {
                   return (
-                    <li key={idx} className="truncate">
-                      {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">
-                          {name}
+                    <div key={att.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`attachment-${att.id}`}
+                        checked={emailData.selectedAttachments.includes(att.id)}
+                        onChange={() => handleAttachmentToggle(att.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`attachment-${att.id}`} className="flex-1 text-sm truncate">
+                        <span className="font-medium">{att.name}</span>
+                        {att.source === 'time_entry' && (
+                          <span className="text-gray-500 text-xs ml-1">
+                            (from {att.entryDescription})
+                          </span>
+                        )}
+                        {att.source === 'ticket' && (
+                          <span className="text-gray-500 text-xs ml-1">
+                            (from ticket)
+                          </span>
+                        )}
+                      </label>
+                      {att.url && (
+                        <a 
+                          href={att.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-600 hover:text-blue-800 text-xs"
+                        >
+                          View
                         </a>
-                      ) : (
-                        <span>{name}</span>
                       )}
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             ) : (
-              <div className="text-sm text-gray-500">No attachments</div>
+              <div className="text-sm text-gray-500">No attachments available</div>
             )}
           </div>
+
+          {emailData.selectedAttachments.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Selected for Email ({emailData.selectedAttachments.length}):
+              </label>
+              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                {getSelectedAttachmentsData().map((att, index) => (
+                  <span key={att.id}>
+                    {att.name}
+                    {index < emailData.selectedAttachments.length - 1 && ', '}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button
@@ -1271,6 +1402,7 @@ const TicketDialog: React.FC<TicketDialogProps> = ({
             onClose={() => setIsEmailDialogOpen(false)}
             ticketDetails={currentTicket}
             attachments={ticketForm.attachments || []}
+            timeEntries={timeEntries}
           />
         )}
       </div>
