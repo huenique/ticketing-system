@@ -1614,7 +1614,7 @@ export default function useTicketDialogHandlers(
     try {
       if (ticketId) {
         console.log(`Fetching assignments for ticket ID: ${ticketId}`);
-        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId, isPipelineTab);
+        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId, true);
         console.log(`Retrieved ${assigneeData.length} assignees from ticket_assignments collection`);
         console.log("Raw assignee data:", JSON.stringify(assigneeData, null, 2));
         

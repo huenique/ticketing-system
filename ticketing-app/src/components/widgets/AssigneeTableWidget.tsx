@@ -39,6 +39,15 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
   const [selectedUserId, setSelectedUserId] = React.useState("");
   const [selectedAssigneeName, setSelectedAssigneeName] = React.useState("");
 
+  // Helper function to determine if current user can edit an assignee record
+  const canEditAssignee = (assignee: Assignee): boolean => {
+    if (!currentUser) return false;
+    // Admin can edit all records
+    if (currentUser.role === "admin") return true;
+    // Regular users can only edit their own records
+    return assignee.name === currentUser.name;
+  };
+
   const handleNewTimeEntry = (timeEntryData: Partial<TimeEntry>) => {
     // Create a new time entry with the form data
     const newTimeEntry: Partial<TimeEntry> = {
@@ -159,14 +168,15 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         value={assignee.name}
                         onChange={(e) =>
                           handleUpdateAssignee &&
+                          canEditAssignee(assignee) &&
                           handleUpdateAssignee(
                             assignee.id || `index-${index}`,
                             "name",
                             e.target.value,
                           )
                         }
-                        disabled={assignee.is_done}
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                        disabled={assignee.is_done || !canEditAssignee(assignee)}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done || !canEditAssignee(assignee) ? "text-neutral-500 cursor-not-allowed" : ""}`}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -175,14 +185,15 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         value={assignee.workDescription}
                         onChange={(e) =>
                           handleUpdateAssignee &&
+                          canEditAssignee(assignee) &&
                           handleUpdateAssignee(
                             assignee.id || `index-${index}`,
                             "workDescription",
                             e.target.value,
                           )
                         }
-                        disabled={assignee.is_done}
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                        disabled={assignee.is_done || !canEditAssignee(assignee)}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done || !canEditAssignee(assignee) ? "text-neutral-500 cursor-not-allowed" : ""}`}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -211,14 +222,15 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                               value={assignee.priority || "5"}
                               onChange={(e) =>
                                 handleUpdateAssignee &&
+                                canEditAssignee(assignee) &&
                                 handleUpdateAssignee(
                                   assignee.id || `index-${index}`,
                                   "priority",
                                   e.target.value,
                                 )
                               }
-                              disabled={assignee.is_done}
-                              className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                              disabled={assignee.is_done || !canEditAssignee(assignee)}
+                              className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done || !canEditAssignee(assignee) ? "text-neutral-500 cursor-not-allowed" : ""}`}
                             >
                               {uniqueSorted.map((priority) => (
                                 <option key={priority} value={priority}>
@@ -236,14 +248,15 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         value={assignee.totalHours}
                         onChange={(e) =>
                           handleUpdateAssignee &&
+                          canEditAssignee(assignee) &&
                           handleUpdateAssignee(
                             assignee.id || `index-${index}`,
                             "totalHours",
                             e.target.value,
                           )
                         }
-                        disabled={assignee.is_done}
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                        disabled={assignee.is_done || !canEditAssignee(assignee)}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done || !canEditAssignee(assignee) ? "text-neutral-500 cursor-not-allowed" : ""}`}
                         step="0.1"
                       />
                     </td>
@@ -253,10 +266,11 @@ const AssigneeTableWidget: React.FC<AssigneeTableWidgetProps> = ({
                         value={assignee.estTime}
                         onChange={(e) =>
                           handleUpdateAssignee &&
+                          canEditAssignee(assignee) &&
                           handleUpdateAssignee(assignee.id || `index-${index}`, "estTime", e.target.value)
                         }
-                        disabled={assignee.is_done}
-                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done ? "text-neutral-500 cursor-not-allowed" : ""}`}
+                        disabled={assignee.is_done || !canEditAssignee(assignee)}
+                        className={`block w-full rounded-md border-none py-1 px-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent hover:bg-neutral-50 ${assignee.is_done || !canEditAssignee(assignee) ? "text-neutral-500 cursor-not-allowed" : ""}`}
                         step="0.1"
                       />
                     </td>
