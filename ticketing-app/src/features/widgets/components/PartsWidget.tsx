@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,7 +35,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
   const partsLimit = 20;
 
   // Load parts with pagination and search
-  const loadParts = async (page = 1, query = "") => {
+  const loadParts = useCallback(async (page = 1, query = "") => {
     setIsLoadingParts(true);
     try {
       const result = await partsService.searchParts(
@@ -59,7 +59,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
     } finally {
       setIsLoadingParts(false);
     }
-  };
+  }, []);
 
   // Handle part selection
   const handlePartSelection = (partId: string) => {
@@ -109,12 +109,19 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
     setPartsPage(1);
   }, [partsSearchQuery]);
 
+  // Load parts when page changes
+  useEffect(() => {
+    if (isPartsDialogOpen) {
+      loadParts(partsPage, partsSearchQuery);
+    }
+  }, [partsPage, isPartsDialogOpen, partsSearchQuery, loadParts]);
+
   // Load parts when dialog first opens
   useEffect(() => {
     if (isPartsDialogOpen) {
       loadParts(1, "");
     }
-  }, [isPartsDialogOpen]);
+  }, [isPartsDialogOpen, loadParts]);
 
   // Focus search input when dialog opens
   useEffect(() => {
@@ -124,6 +131,27 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
       }, 100);
     }
   }, [isPartsDialogOpen]);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= partsTotalPages && newPage !== partsPage) {
+      setPartsPage(newPage);
+    }
+  };
+
+  // Handle previous page
+  const handlePreviousPage = () => {
+    if (partsPage > 1) {
+      setPartsPage(partsPage - 1);
+    }
+  };
+
+  // Handle next page
+  const handleNextPage = () => {
+    if (partsPage < partsTotalPages) {
+      setPartsPage(partsPage + 1);
+    }
+  };
 
   if (!parts || parts.length === 0) {
     return (
@@ -217,7 +245,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPartsPage(prev => Math.max(prev - 1, 1))}
+                    onClick={handlePreviousPage}
                     disabled={partsPage <= 1}
                     className="h-8 w-8 p-0"
                   >
@@ -240,7 +268,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                         key={i}
                         variant={pageToShow === partsPage ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setPartsPage(pageToShow)}
+                        onClick={() => handlePageChange(pageToShow)}
                         className="h-8 w-8 p-0"
                       >
                         {pageToShow}
@@ -253,7 +281,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPartsPage(prev => prev < partsTotalPages ? prev + 1 : prev)}
+                    onClick={handleNextPage}
                     disabled={partsPage >= partsTotalPages}
                     className="h-8 w-8 p-0"
                   >
@@ -394,7 +422,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPartsPage(prev => Math.max(prev - 1, 1))}
+                  onClick={handlePreviousPage}
                   disabled={partsPage <= 1}
                   className="h-8 w-8 p-0"
                 >
@@ -417,7 +445,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                       key={i}
                       variant={pageToShow === partsPage ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setPartsPage(pageToShow)}
+                      onClick={() => handlePageChange(pageToShow)}
                       className="h-8 w-8 p-0"
                     >
                       {pageToShow}
@@ -430,7 +458,7 @@ export function PartsWidget({ parts, ticketId, isAdmin, onPartsUpdate, isPartsDi
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPartsPage(prev => prev < partsTotalPages ? prev + 1 : prev)}
+                  onClick={handleNextPage}
                   disabled={partsPage >= partsTotalPages}
                   className="h-8 w-8 p-0"
                 >

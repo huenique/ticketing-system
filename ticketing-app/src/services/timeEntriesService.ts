@@ -25,13 +25,6 @@ const mapToTimeEntry = (document: any): TimeEntry => {
   const stopTime = document.stop_time || "";
   const duration = document.total_duration || "0";
 
-  console.log("Mapping time entry from document:", {
-    startTime,
-    stopTime,
-    duration,
-    total_duration: document.total_duration
-  });
-
   return {
     id: document.$id || "",
     assigneeId: document.user_id?.$id || "",
