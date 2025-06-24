@@ -194,11 +194,6 @@ const EmailDialog = ({
     try {
       setIsSending(true);
       
-      console.log('Environment variables check:');
-      console.log('VITE_APPWRITE_ENDPOINT:', import.meta.env.VITE_APPWRITE_ENDPOINT);
-      console.log('VITE_APPWRITE_PROJECT_ID:', import.meta.env.VITE_APPWRITE_PROJECT_ID);
-      console.log('VITE_APPWRITE_FUNCTION_ID:', import.meta.env.VITE_APPWRITE_FUNCTION_ID);
-      
       // Set up Appwrite client and functions
       const client = new Client()
         .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)

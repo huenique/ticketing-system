@@ -259,8 +259,23 @@ function useAssigneeHandlers(state: TicketDialogState) {
         assigneeToAdd.id = createdAssignment.id;
         toast.success("Team member assigned successfully");
       }
-      // Add to local state - use direct update
-      const updatedAssignees = [...assignees, assigneeToAdd];
+      // Add to local state - use direct update with sorting
+      const updatedAssignees = [...assignees, assigneeToAdd].sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
       setAssignees(updatedAssignees);
       // Reset the form
       setNewAssignee({
@@ -363,8 +378,23 @@ function useAssigneeHandlers(state: TicketDialogState) {
         toast.success("Team member removed successfully");
       }
       
-      // Remove from local state - use direct update
-      const updatedAssignees = assignees.filter(a => a.id !== id);
+      // Remove from local state - use direct update with sorting
+      const updatedAssignees = assignees.filter(a => a.id !== id).sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
       setAssignees(updatedAssignees);
       
       // Also remove related time entries - use direct update
@@ -468,8 +498,24 @@ function useAssigneeHandlers(state: TicketDialogState) {
         });
       }
       
-      // Update state with all changes in a single call
-      setAssignees(updatedAssignees);
+      // Update state with all changes in a single call with sorting
+      const sortedAssignees = updatedAssignees.sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
+      setAssignees(sortedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id && id && !id.startsWith('index-')) {
@@ -629,10 +675,25 @@ function useAssigneeHandlers(state: TicketDialogState) {
         });
       }
 
-      // Update the local state
+      // Update the local state with sorting
       setAssignees(prev => prev.map(a => 
         a.id === id ? { ...a, is_done: isCompleted } : a
-      ));
+      ).sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      }));
 
       // Refresh assignees from the database
       const updatedAssignees = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId);
