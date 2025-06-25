@@ -259,8 +259,23 @@ function useAssigneeHandlers(state: TicketDialogState) {
         assigneeToAdd.id = createdAssignment.id;
         toast.success("Team member assigned successfully");
       }
-      // Add to local state - use direct update
-      const updatedAssignees = [...assignees, assigneeToAdd];
+      // Add to local state - use direct update with sorting
+      const updatedAssignees = [...assignees, assigneeToAdd].sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
       setAssignees(updatedAssignees);
       // Reset the form
       setNewAssignee({
@@ -363,8 +378,23 @@ function useAssigneeHandlers(state: TicketDialogState) {
         toast.success("Team member removed successfully");
       }
       
-      // Remove from local state - use direct update
-      const updatedAssignees = assignees.filter(a => a.id !== id);
+      // Remove from local state - use direct update with sorting
+      const updatedAssignees = assignees.filter(a => a.id !== id).sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
       setAssignees(updatedAssignees);
       
       // Also remove related time entries - use direct update
@@ -468,8 +498,24 @@ function useAssigneeHandlers(state: TicketDialogState) {
         });
       }
       
-      // Update state with all changes in a single call
-      setAssignees(updatedAssignees);
+      // Update state with all changes in a single call with sorting
+      const sortedAssignees = updatedAssignees.sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      });
+      setAssignees(sortedAssignees);
       
       // If we're in edit mode and have a current ticket, update in Appwrite
       if (currentTicket && currentTicket.id && id && !id.startsWith('index-')) {
@@ -629,10 +675,25 @@ function useAssigneeHandlers(state: TicketDialogState) {
         });
       }
 
-      // Update the local state
+      // Update the local state with sorting
       setAssignees(prev => prev.map(a => 
         a.id === id ? { ...a, is_done: isCompleted } : a
-      ));
+      ).sort((a, b) => {
+        // Sort by completion status first (active items first, then completed)
+        if (a.is_done !== b.is_done) {
+          return a.is_done ? 1 : -1;
+        }
+        
+        // For items with the same completion status, sort by priority
+        const priorityA = parseInt(a.priority || "5", 10);
+        const priorityB = parseInt(b.priority || "5", 10);
+        
+        // If both are done (priority 0), maintain current order
+        if (a.is_done && b.is_done) return 0;
+        
+        // Otherwise sort numerically (lowest priority number first)
+        return priorityA - priorityB;
+      }));
 
       // Refresh assignees from the database
       const updatedAssignees = await ticketAssignmentsService.getAssignmentsByTicketId(ticketId);
@@ -920,14 +981,11 @@ export default function useTicketDialogHandlers(
   // Function to refresh all status-based tabs based on updated All Tickets data
   const refreshStatusTabs = async (allTicketsRows: Row[]) => {
     try {
-      // First, fetch the latest tickets from Appwrite to get up-to-date data
-      console.log("Fetching latest tickets from Appwrite for tab refresh");
-      const latestTickets = await ticketsService.getTicketsWithRelationships();
-      console.log(`Retrieved ${latestTickets.length} tickets from Appwrite`);
-      
-      // Convert the Appwrite tickets to table rows
-      const ticketsAsRows: Row[] = latestTickets.map(ticket => convertTicketToRow(ticket));
-      console.log(`Converted ${ticketsAsRows.length} tickets to table rows`);
+      // Instead of fetching all tickets and causing workflow filtering issues,
+      // use the provided allTicketsRows which should already be workflow-filtered
+      console.log("Using provided workflow-filtered tickets for tab refresh");
+      const ticketsAsRows: Row[] = allTicketsRows;
+      console.log(`Using ${ticketsAsRows.length} workflow-filtered tickets`);
       
       // Get a reference to the tables store
       const tablesStore = useTablesStore.getState();
@@ -1519,42 +1577,11 @@ export default function useTicketDialogHandlers(
         setModifiedTimeEntries(new Set());
       }
 
-      // Update the table display
-      const tablesStore = useTablesStore.getState();
-      const currentTables = tablesStore.tables;
-
-      // Look for the All Tickets tab
-      const allTicketsTabId = tabs.find((tab) => tab.title === "All Tickets")?.id;
-      const allTicketsTable = allTicketsTabId ? currentTables[allTicketsTabId] : null;
-
-      if (allTicketsTable) {
-        // Get all tickets from database again to refresh the view
-        const allTickets = await ticketsService.getAllTickets();
-        
-        // Get current workflow from localStorage to filter tickets
-        const currentWorkflow = localStorage.getItem("current-workflow") || "engineering";
-        console.log(`Filtering tickets for current workflow: ${currentWorkflow}`);
-        
-        // Get the workflow name from the workflows list
-        const currentWorkflowName = workflows.find(w => w.$id === currentWorkflow)?.name || "Engineering";
-        
-        // Filter tickets by the current workflow before converting to rows
-        const workflowFilteredTickets = allTickets.filter(ticket => 
-          // If ticket has no workflow, treat it as "Engineering" for backward compatibility
-          (ticket.workflow || "Engineering").toLowerCase() === currentWorkflowName.toLowerCase()
-        );
-        
-        console.log(`Filtered ${allTickets.length} tickets to ${workflowFilteredTickets.length} for workflow: ${currentWorkflowName}`);
-        
-        // Convert tickets to rows
-        const ticketsAsRows = await Promise.all(
-          workflowFilteredTickets.map(async (ticket) => {
-            return await convertTicketToRow(ticket);
-          })
-        );
-        
-        // Refresh all tabs with the latest data
-        await refreshStatusTabs(ticketsAsRows);
+      // Trigger a full data refresh to maintain workflow filtering consistency
+      // Instead of duplicating the filtering logic here, we'll trigger the main component's refresh
+      if (typeof window !== 'undefined' && (window as any).incrementTicketsRefreshCounter) {
+        console.log('Triggering full data refresh from ticket dialog save');
+        (window as any).incrementTicketsRefreshCounter();
       }
 
       // Clear loading toast and show success message
@@ -1648,7 +1675,7 @@ export default function useTicketDialogHandlers(
     try {
       if (ticketId) {
         console.log(`Fetching assignments for ticket ID: ${ticketId}`);
-        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId, isPipelineTab);
+        const assigneeData = await ticketAssignmentsService.getAssigneesForTicket(ticketId, true);
         console.log(`Retrieved ${assigneeData.length} assignees from ticket_assignments collection`);
         console.log("Raw assignee data:", JSON.stringify(assigneeData, null, 2));
         

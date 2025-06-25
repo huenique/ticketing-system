@@ -1533,11 +1533,15 @@ function Tickets() {
 
     if (!presetTable) return;
 
-    // Get fresh tickets and users for Pipeline tab
+    // Get fresh tickets and users for Pipeline tab, but apply workflow filtering
     const [ticketsWithRelationships, users] = await Promise.all([
       ticketsService.getTicketsWithRelationships(),
       usersService.getAllUsers()
     ]);
+
+    // Filter all tickets by current workflow and user permissions first
+    const workflowFilteredTickets = await filterTicketsByUserPermission(ticketsWithRelationships, users);
+    const workflowFilteredRows = workflowFilteredTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
 
     // Loop through all tabs
     tabs.forEach((tab: { id: string; status?: string; title: string }) => {
@@ -1546,8 +1550,8 @@ function Tickets() {
 
       // Handle Pipeline tab
       if (tab.title === "Pipeline") {
-        // Get pipeline tickets
-        filterTicketsForPipeline(ticketsWithRelationships, users).then(pipelineTickets => {
+        // Get pipeline tickets from workflow-filtered tickets
+        filterTicketsForPipeline(workflowFilteredTickets, users).then(pipelineTickets => {
           const pipelineRows = pipelineTickets.map((ticket) => convertTicketToRow(ticket, isAdmin));
           
           // Update this tab's table with pipeline rows
@@ -1556,14 +1560,17 @@ function Tickets() {
             columns: updatedTables[tab.id]?.columns || [...presetTable.columns],
             rows: pipelineRows,
           };
+          
+          // Apply the update immediately for Pipeline tab
+          tablesStore.setTables({ ...tablesStore.tables, [tab.id]: updatedTables[tab.id] });
         });
         return;
       }
 
-      // Handle status tabs
+      // Handle status tabs - use workflow-filtered rows instead of allTicketsRows
       if (tab.status) {
-        // Filter rows for this tab based on its status
-        const filteredRows = allTicketsRows.filter(
+        // Filter rows for this tab based on its status from workflow-filtered data
+        const filteredRows = workflowFilteredRows.filter(
           (row) => row.cells["col-7"] === tab.status,
         );
 
@@ -1590,10 +1597,9 @@ function Tickets() {
     
     useWidgetsStore.getState().handleFieldChange(field, processedValue.toString());
 
-    // If this is a status change and we have a current ticket, update it in all tables
+    // If this is a status change and we have a current ticket, update it and trigger a full refresh
     if (field === "status" && ticketDialogHandlers.currentTicket) {
       const currentTicket = ticketDialogHandlers.currentTicket;
-      const updatedTables = { ...tables };
 
       // Get the status ID for the selected label
       try {
@@ -1609,58 +1615,8 @@ function Tickets() {
             [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id
           });
 
-          // Then update the UI
-          // First update the ticket in the All Tickets tab
-          const allTicketsTab = "tab-all-tickets";
-          if (updatedTables[allTicketsTab]) {
-            // Find and update the row in the All Tickets tab
-            updatedTables[allTicketsTab].rows = updatedTables[allTicketsTab].rows.map(
-              (row: Row) => {
-                if (row.id === currentTicket.id) {
-                  return {
-                    ...row,
-                    cells: {
-                      ...row.cells,
-                      "col-7": processedValue.toString(), // Update Status column with label
-                    },
-                    rawData: {
-                      ...row.rawData,
-                      [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
-                    },
-                  };
-                }
-                return row;
-              },
-            );
-          }
-
-          // Also update the row in the current tab if it's not the All Tickets tab
-          if (activeTab !== allTicketsTab && updatedTables[activeTab]) {
-            updatedTables[activeTab].rows = updatedTables[activeTab].rows.map(
-              (row: Row) => {
-                if (row.id === currentTicket.id) {
-                  return {
-                    ...row,
-                    cells: {
-                      ...row.cells,
-                      "col-7": processedValue.toString(), // Update Status column with label
-                    },
-                    rawData: {
-                      ...row.rawData,
-                      [statusFieldToUpdate]: selectedStatus.$id || selectedStatus.id, // Store the ID in rawData
-                    },
-                  };
-                }
-                return row;
-              },
-            );
-          }
-
-          // Update the global tables state
-          useTablesStore.getState().setTables(updatedTables);
-
-          // Refresh all status-based tabs with updated data
-          refreshStatusTabs(updatedTables[allTicketsTab]?.rows || []);
+          // Trigger a full data refresh to maintain workflow filtering
+          setTicketsRefreshCounter(prev => prev + 1);
 
           // Show success message
           toast.success("Status updated successfully");
