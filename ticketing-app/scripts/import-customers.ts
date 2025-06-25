@@ -86,7 +86,7 @@ function parsePhoneWithName(phoneValue: string): { phone: string, name?: string 
 
 // Function to process the TXT data and import to Appwrite
 async function importCustomersFromTxt() {
-  const filePath = path.resolve(__dirname, '../CUST 2.TXT');
+  const filePath = path.resolve(__dirname, '../ATH_QLD_CUST.txt');
   console.log(`Reading file from: ${filePath}`);
 
   // Read the file as a string
@@ -358,32 +358,14 @@ async function importCustomersFromTxt() {
         
         customerData.address = addressParts.join(', ') || 'No Address';
         
-        // Extract contact name
-        if (headerIndices.contact_name !== undefined) {
-          customerData.primary_contact_name = values[headerIndices.contact_name]?.trim() || 'No Contact Name';
-        }
-        
-        // Extract phone number
-        if (headerIndices.phone !== undefined) {
-          customerData.primary_contact_number = values[headerIndices.phone]?.trim() || 'No Phone Number';
-        }
-        
-        // Extract email
-        if (headerIndices.email !== undefined) {
-          customerData.primary_email = values[headerIndices.email]?.trim() || 'No Email';
-        }
-        
         // Extract ABN (optional)
         if (headerIndices.abn !== undefined && values[headerIndices.abn]?.trim()) {
           customerData.abn = values[headerIndices.abn].trim();
         }
         
-        // Ensure all required fields are present with default values if needed
+        // Ensure required fields are present with default values if needed
         if (!customerData.name) customerData.name = 'No Name';
         if (!customerData.address) customerData.address = 'No Address';
-        if (!customerData.primary_contact_name) customerData.primary_contact_name = 'No Contact Name';
-        if (!customerData.primary_contact_number) customerData.primary_contact_number = 'No Phone Number';
-        if (!customerData.primary_email) customerData.primary_email = 'No Email';
         
         // Create the customer document
         const customerId = ID.unique();
@@ -411,14 +393,11 @@ async function importCustomersFromTxt() {
           try {
             const { firstName, lastName } = splitContactName(contactName);
             
-            // Determine if this is the primary contact
-            const isPrimaryContact = customerData.primary_contact_name === contactName;
-            
             const contactData = {
-              customer_ids: [customerId],
+              customer_ids: [customerId], // Many-to-Many relationship field
               first_name: firstName || 'Unknown',
               last_name: lastName || '',
-              position: position || (isPrimaryContact ? 'Primary Contact' : 'Contact'),
+              position: position || 'Contact',
               contact_number: contactPhone || 'No Phone Number',
               email: contactEmail || 'No Email'
             };
@@ -438,6 +417,10 @@ async function importCustomersFromTxt() {
           }
         };
         
+        // Get primary contact info for position assignment
+        const primaryContactName = headerIndices.contact_name !== undefined ? 
+          values[headerIndices.contact_name]?.trim() : '';
+        
         // Process contacts from Address 1
         if (
           headerIndices.contact_name !== undefined && 
@@ -455,7 +438,8 @@ async function importCustomersFromTxt() {
             await createContactFromAddressData(
               contactName,
               contactPhone,
-              contactEmail
+              contactEmail,
+              'Primary Contact'
             );
           }
         }
@@ -468,14 +452,15 @@ async function importCustomersFromTxt() {
           // If we found a name in the phone field, create a contact for it
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                             parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           }
         }
@@ -497,7 +482,8 @@ async function importCustomersFromTxt() {
             await createContactFromAddressData(
               contactName,
               contactPhone,
-              contactEmail
+              contactEmail,
+              'Contact'
             );
           }
         }
@@ -510,14 +496,15 @@ async function importCustomersFromTxt() {
           // If we found a name in the phone field, create a contact for it
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                             parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           }
         }
@@ -539,7 +526,8 @@ async function importCustomersFromTxt() {
             await createContactFromAddressData(
               contactName,
               contactPhone,
-              contactEmail
+              contactEmail,
+              'Contact'
             );
           }
         }
@@ -552,14 +540,15 @@ async function importCustomersFromTxt() {
           // If we found a name in the phone field, create a contact for it
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                             parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           }
         }
@@ -581,7 +570,8 @@ async function importCustomersFromTxt() {
             await createContactFromAddressData(
               contactName,
               contactPhone,
-              contactEmail
+              contactEmail,
+              'Contact'
             );
           }
         }
@@ -594,14 +584,15 @@ async function importCustomersFromTxt() {
           // If we found a name in the phone field, create a contact for it
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                             parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           }
         }
@@ -623,7 +614,8 @@ async function importCustomersFromTxt() {
             await createContactFromAddressData(
               contactName,
               contactPhone,
-              contactEmail
+              contactEmail,
+              'Contact'
             );
           }
         }
@@ -636,14 +628,15 @@ async function importCustomersFromTxt() {
           // If we found a name in the phone field, create a contact for it
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                             parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           }
         }
@@ -659,14 +652,15 @@ async function importCustomersFromTxt() {
           // Create contact if we have a name, either from parsing or from the phone format "xxxx - Name"
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                            parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
                             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           } else if (phoneValue.includes('-')) {
             const parts = phoneValue.split('-');
@@ -675,14 +669,15 @@ async function importCustomersFromTxt() {
               const name = parts[1].trim();
               if (name && name.length > 1 && !/^\d+$/.test(name)) { // Ensure name isn't just numbers
                 // Check if this phone-derived contact matches the primary contact
-                const isPrimary = customerData.primary_contact_name.includes(name) || 
-                                name.includes(customerData.primary_contact_name);
+                const isPrimary = primaryContactName && 
+                  (primaryContactName.includes(name) || 
+                   name.includes(primaryContactName));
                                 
                 await createContactFromAddressData(
                   name, 
                   phone, 
                   '',
-                  isPrimary ? 'Primary Contact' : undefined
+                  isPrimary ? 'Primary Contact' : 'Contact'
                 );
               }
             }
@@ -699,14 +694,15 @@ async function importCustomersFromTxt() {
           // Create contact if we have a name, either from parsing or from the phone format "xxxx - Name"
           if (parsedPhone.name && parsedPhone.name.length > 1) {
             // Check if this phone-derived contact matches the primary contact
-            const isPrimary = customerData.primary_contact_name.includes(parsedPhone.name) || 
-                            parsedPhone.name.includes(customerData.primary_contact_name);
+            const isPrimary = primaryContactName && 
+              (primaryContactName.includes(parsedPhone.name) || 
+               parsedPhone.name.includes(primaryContactName));
                             
             await createContactFromAddressData(
               parsedPhone.name,
               parsedPhone.phone,
               '',
-              isPrimary ? 'Primary Contact' : undefined
+              isPrimary ? 'Primary Contact' : 'Contact'
             );
           } else if (phoneValue.includes('-')) {
             const parts = phoneValue.split('-');
@@ -715,14 +711,15 @@ async function importCustomersFromTxt() {
               const name = parts[1].trim();
               if (name && name.length > 1 && !/^\d+$/.test(name)) { // Ensure name isn't just numbers
                 // Check if this phone-derived contact matches the primary contact
-                const isPrimary = customerData.primary_contact_name.includes(name) || 
-                                name.includes(customerData.primary_contact_name);
+                const isPrimary = primaryContactName && 
+                  (primaryContactName.includes(name) || 
+                   name.includes(primaryContactName));
                                 
                 await createContactFromAddressData(
                   name, 
                   phone, 
                   '',
-                  isPrimary ? 'Primary Contact' : undefined
+                  isPrimary ? 'Primary Contact' : 'Contact'
                 );
               }
             }
